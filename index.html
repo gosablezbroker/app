@@ -97,6 +97,11 @@ const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>';
 $("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div></button>`).join("");
 document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>show(b.dataset.id));
+function backToMenu(){
+  document.querySelectorAll(".opt").forEach(b=>b.classList.remove("on"));
+  $("panel").innerHTML="";
+  $("opts").scrollIntoView({behavior:"smooth",block:"start"});
+}
 function show(id){
   const s=S.find(x=>x.id===id);
   document.querySelectorAll(".opt").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
@@ -164,7 +169,6 @@ function show(id){
     $("bs").onclick=()=>{
       if(!checkReq())return;
       const btn=$("bs");
-      const r=$("rcpt");
       try{
         btn.disabled=true;
         const parts=[];
@@ -195,13 +199,15 @@ function show(id){
             fetch(CFG.sheetsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({sheet:s.sheetName,receipt:rcpt,row,clientMail,subject,bodyText})}).catch(()=>{});
           }catch(e){}
         }
-        r.style.display="";
-        r.innerHTML=`✅ Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte en la gestión de tu reclamo.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros). Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent('Hola, quiero enviar mi denuncia. Nº de trámite: '+rcpt)}">Enviar por WhatsApp</a></div>`;
-        r.scrollIntoView({behavior:"smooth",block:"center"});
+        // Éxito: se reemplaza todo el panel (formulario incluido) por únicamente el mensaje
+        // de confirmación y un botón para volver al menú principal.
+        $("panel").innerHTML=`<div class="panel"><div id="rcpt" style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">✅ Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte en la gestión de tu reclamo.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros). Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent('Hola, quiero enviar mi denuncia. Nº de trámite: '+rcpt)}">Enviar por WhatsApp</a></div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="backBtn">Volver al menú</button></div></div>`;
+        $("backBtn").onclick=backToMenu;
+        $("panel").scrollIntoView({behavior:"smooth",block:"start"});
       }catch(err){
+        const r=$("rcpt");
         r.style.display="";
         r.innerHTML=`⚠️ Hubo un problema al preparar el envío. Por favor escribinos por WhatsApp o llamanos, y contanos lo que necesitás denunciar.<br><span style="color:var(--mut);font-size:.8rem">Detalle técnico: ${String(err&&err.message||err)}</span>`;
-      }finally{
         btn.disabled=false;
       }
     };
