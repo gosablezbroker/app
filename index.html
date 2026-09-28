@@ -57,6 +57,7 @@ const S=[
  f:[F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("ramo","Ramo","select",["Automotor","Hogar","Comercio","Otro"]),F("ref","Patente o nº de póliza (opcional)")]},
 {id:"auto",i:"🚗",t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
+ subtypes:[{v:"Choque",i:"💥",d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:"🔓",d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:"🔨",d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
  cols:["mail","cel","tipo","cond","tit","veh","pat","cia","lugar","fecha","hora","desc","danios","ter_ndni","ter_cont","ter_cia","ter_veh","ter_pat","ter_danios","les"],
  list:["DNI y licencia de conducir","Patente y datos de tu póliza","Fotos de los daños y del lugar","Datos del otro vehículo: patente, conductor, DNI y aseguradora","Fecha, hora y lugar del hecho","Denuncia policial, si hubo robo o lesionados"],
  tip:"Denunciá lo antes posible: cada póliza tiene plazos. No firmes ni reconozcas responsabilidad ante terceros.",
@@ -96,16 +97,27 @@ const S=[
 const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>';
 $("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div></button>`).join("");
-document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>show(b.dataset.id));
+document.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+  const s=S.find(x=>x.id===b.dataset.id);
+  if(s.subtypes)showSubtypePicker(s);else show(s.id);
+});
 function backToMenu(){
   document.querySelectorAll(".opt").forEach(b=>b.classList.remove("on"));
   $("panel").innerHTML="";
   $("opts").scrollIntoView({behavior:"smooth",block:"start"});
 }
-function show(id){
+function showSubtypePicker(s){
+  document.querySelectorAll(".opt").forEach(b=>b.classList.toggle("on",b.dataset.id===s.id));
+  $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2><h3>¿Qué tipo de siniestro tuviste?</h3><div class="grid" style="margin-top:10px">${s.subtypes.map(st=>`<button type="button" class="opt" data-v="${st.v}"><div class="i">${st.i}</div><div><b>${st.v}</b><span>${st.d}</span></div></button>`).join("")}</div></div>`;
+  $("panel").querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>show(s.id,{tipo:b.dataset.v}));
+  $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function show(id,fixed){
   const s=S.find(x=>x.id===id);
+  if(s.subtypes&&!fixed){showSubtypePicker(s);return}
   document.querySelectorAll(".opt").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
-  const fld=s.f.map(f=>{
+  const visibleFields=fixed?s.f.filter(f=>!(f.id in fixed)&&(!f.show||fixed[f.show[0]]===f.show[1])):s.f;
+  const fld=visibleFields.map(f=>{
     const at=f.show?` data-show-if="${f.show[0]}" data-show-val="${f.show[1]}" style="display:none"`:"";
     if(f.t==="heading")return `<div class="fw"${at}><h3 style="margin:14px 0 6px">${f.l}</h3></div>`;
     if(f.t==="note")return `<div class="fw"${at}><p style="color:var(--mut);font-size:.85rem;margin:10px 0">${f.l}</p></div>`;
@@ -172,6 +184,10 @@ function show(id){
       try{
         btn.disabled=true;
         const parts=[];
+        if(fixed)Object.keys(fixed).forEach(k=>{
+          const f=s.f.find(x=>x.id===k);
+          if(f)parts.push(`${f.l}: ${fixed[k]}`);
+        });
         $("panel").querySelectorAll("[data-k]").forEach(el=>{
           const w=el.closest(".fw");
           if(w&&w.style.display==="none")return;
@@ -185,6 +201,7 @@ function show(id){
         const mailto=`mailto:${CFG.mail}?cc=${encodeURIComponent(clientMail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
         if(CFG.sheetsUrl&&s.sheetName&&s.cols){
           const row=s.cols.map(id=>{
+            if(fixed&&(id in fixed))return fixed[id];
             const el=$("panel").querySelector(`[data-k="${id}"]`);
             if(!el)return"";
             const w=el.closest(".fw");
