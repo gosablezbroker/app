@@ -92,7 +92,19 @@ const S=[
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area")]},
 {id:"otras",i:"💬",t:"Otras consultas",d:"Cotizaciones, cambios en tu póliza, pagos y más.",
  steps:["Contanos qué necesitás.","Tocá “Enviar por WhatsApp” o “Enviar por email”.","Te respondemos a la brevedad."],
- f:[F("n","Nombre y apellido"),F("dni","DNI / CUIT (opcional)"),F("desc","Tu consulta","area")]}
+ f:[F("n","Nombre y apellido"),F("dni","DNI / CUIT (opcional)"),F("desc","Tu consulta","area")]},
+{id:"grua",i:"🚚",t:"Teléfonos de grúa / asistencia",d:"Comunicate directo con la asistencia de tu aseguradora.",
+ companies:[
+   {n:"Swiss Medical",tel:"0810-3333-764",web:"https://swissmedicalseguros.com/"},
+   {n:"Galicia Seguros",tel:"0800-999-76925",web:"https://www.galiciaseguros.com.ar/"},
+   {n:"Río Uruguay Seguros",tel:"0800-444-1441",web:"https://www.riouruguay.com.ar/"},
+   {n:"Zurich",tel:"0800-222-1600",web:"https://www.zurich.com.ar/"},
+   {n:"Allianz",tel:"0800-888-24324",web:"https://www.allianz.com.ar/"},
+   {n:"Meridional Seguros",tel:"0800-333-4358",web:"https://meridionalseguros.com.ar/"},
+   {n:"Mercantil Andina",tel:"0800-777-2634",web:"https://mercantilandina.com.ar/"},
+   {n:"ATM Seguros",tel:"0800-345-1240",web:"https://www.atmseguros.com.ar/"},
+   {n:"Mapfre",tel:"0800-999-7424",web:"https://www.mapfre.com.ar/"}
+ ]}
 ];
 const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>';
@@ -116,6 +128,12 @@ function show(id,fixed){
   const s=S.find(x=>x.id===id);
   if(s.subtypes&&!fixed){showSubtypePicker(s);return}
   document.querySelectorAll(".opt").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
+  if(s.companies){
+    $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
+    <div class="grid" style="margin-top:10px">${s.companies.map(c=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px"><b>${c.n}</b><div class="btns" style="margin-top:8px"><a class="btn wa" href="tel:${c.tel.replace(/[^+\d]/g,"")}">📞 ${c.tel}</a><a class="btn" href="${c.web}" target="_blank" rel="noopener">Sitio web</a></div></div>`).join("")}</div></div>`;
+    $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   const visibleFields=fixed?s.f.filter(f=>!(f.id in fixed)&&(!f.show||fixed[f.show[0]]===f.show[1])):s.f;
   const fld=visibleFields.map(f=>{
     const at=f.show?` data-show-if="${f.show[0]}" data-show-val="${f.show[1]}" style="display:none"`:"";
