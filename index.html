@@ -18,21 +18,21 @@
 <style>
 :root{
   --bg:#f2f4f7;--card:#fff;--tx:#182233;--mut:#5b6478;--bd:#e0e3ea;
-  --navy:#0f2149;--navy2:#16305f;--ac:#0a5fd6;--ac2:#0a5fd6;--wa:#1a7a4c;--wa2:#1a7a4c;--iconc:#0f2149;
-  --danger:#b3392f;--ring:rgba(15,33,73,.14);--tint:rgba(15,33,73,.06);
+  --navy:#0f2149;--navy2:#16305f;--ac:#0a75f5;--ac2:#0a75f5;--wa:#1a7a4c;--wa2:#1a7a4c;--iconc:#0a75f5;
+  --danger:#b3392f;--ring:rgba(10,117,245,.16);--tint:rgba(10,117,245,.11);
   --shadow-sm:0 1px 2px rgba(15,33,73,.05);
   --shadow-md:0 2px 6px rgba(15,33,73,.07);
   --shadow-lg:0 8px 24px -8px rgba(15,33,73,.22);
   box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0b1220;--card:#141d2e;--tx:#e7ecf5;--mut:#8d97ac;--bd:#263349;
-  --navy:#0d1830;--navy2:#16264a;--ac:#5b9bf0;--ac2:#5b9bf0;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#8fbcf7;
-  --danger:#e2685e;--ring:rgba(91,155,240,.22);--tint:rgba(91,155,240,.1);
+  --navy:#0d1830;--navy2:#16264a;--ac:#6fb2ff;--ac2:#6fb2ff;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#6fb2ff;
+  --danger:#e2685e;--ring:rgba(111,178,255,.25);--tint:rgba(111,178,255,.14);
   --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 10px rgba(0,0,0,.35);--shadow-lg:0 10px 26px -10px rgba(0,0,0,.55)}}
 :root[data-theme="dark"]{
   --bg:#0b1220;--card:#141d2e;--tx:#e7ecf5;--mut:#8d97ac;--bd:#263349;
-  --navy:#0d1830;--navy2:#16264a;--ac:#5b9bf0;--ac2:#5b9bf0;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#8fbcf7;
-  --danger:#e2685e;--ring:rgba(91,155,240,.22);--tint:rgba(91,155,240,.1);
+  --navy:#0d1830;--navy2:#16264a;--ac:#6fb2ff;--ac2:#6fb2ff;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#6fb2ff;
+  --danger:#e2685e;--ring:rgba(111,178,255,.25);--tint:rgba(111,178,255,.14);
   --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 10px rgba(0,0,0,.35);--shadow-lg:0 10px 26px -10px rgba(0,0,0,.55)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
@@ -103,7 +103,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-
 const CFG={broker:"Gosalbez Broker de Seguros",wa:"5491127474286",tel:"+54 9 11 2747-4286",mail:"consultas@gosalbez.com.ar",horario:"Lunes a viernes de 9 a 18 h",sheetsUrl:"https://script.google.com/macros/s/AKfycbzGQ1vijrQ2fw47WIoDXVxRSlf5zQU-E1IfQTovZsaErqmwwb7_07BZjO5TlYwFrD9c/exec",credUrl:"https://script.google.com/macros/s/AKfycbwoWWFt3lfHzbF2xBLGEmpBpoVYVHvq70LyomIMoLMvuraYKyBDzdjaDKQ0GQMIe72U/exec"};
 const F=(id,l,t,o,show,req)=>({id,l,t:t||"text",o,show,req});
 const CIAS=["Swiss Medical","Galicia Seguros","Meridional","Mercantil Andina","Río Uruguay","Zurich","Allianz","Mapfre","Otra"];
-const SVGA='stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+const SVGA='stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
 const ICO={
   cred:`<svg viewBox="0 0 24 24" ${SVGA}><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="8" cy="12" r="1.9"/><path d="M5.3 15.6c.6-1.2 1.7-1.8 2.7-1.8s2.1.6 2.7 1.8"/><path d="M13.5 9.8h5M13.5 12.8h5M13.5 15.8h3"/></svg>`,
   auto:`<svg viewBox="0 0 24 24" ${SVGA}><path d="M4 16v-3.6l1.8-4.6A2 2 0 0 1 7.6 6.6h8.8a2 2 0 0 1 1.8 1.2l1.8 4.6V16"/><path d="M4 16h16M4 16v1.8a.8.8 0 0 0 .8.8h1.4a.8.8 0 0 0 .8-.8V16M17 16v1.8a.8.8 0 0 0 .8.8h1.4a.8.8 0 0 0 .8-.8V16"/><path d="M6 12.4h12"/><circle cx="8" cy="14.2" r=".2"/><circle cx="16" cy="14.2" r=".2"/></svg>`,
