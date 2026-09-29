@@ -215,6 +215,7 @@ function show(id,fixed){
           <div class="credRow"><span>Motor</span><span>${d.motor||"-"}</span></div>
           <div class="credRow"><span>Teléfono de grúa</span><span>${grua}</span></div>
           </div>
+          <p style="color:var(--mut);font-size:.72rem;line-height:1.4;margin-top:12px;text-align:justify">La posesión de este comprobante obligatorio será prueba suficiente de la vigencia del seguro obligatorio de automotores por el artículo 68 de la Ley N° 24.449. Conforme el artículo 2 de la Disposición N° 70/2009 de la AGENCIA NACIONAL DE SEGURIDAD VIAL, la falta de portación del recibo de pago de la prima del seguro obligatorio por parte del conductor del vehículo, no podrá ser aducida por la autoridad de constatación para determinar el incumplimiento de los requisitos para la circulación.</p>
           <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button></div>`;
           res.style.display="";
           $("credPrint").onclick=()=>window.print();
