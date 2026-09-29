@@ -132,7 +132,11 @@ const S=[
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area")]},
 {id:"otras",i:"💬",t:"Otras consultas",d:"Cotizaciones, cambios en tu póliza, pagos y más.",
  steps:["Contanos qué necesitás.","Tocá “Enviar por WhatsApp” o “Enviar por email”.","Te respondemos a la brevedad."],
- f:[F("n","Nombre y apellido"),F("dni","DNI / CUIT (opcional)"),F("desc","Tu consulta","area")]},
+ f:[F("tit","Nombre / Apellido / Razón social del asegurado *",null,null,null,true),
+   F("pat","Póliza o Patente *",null,null,null,true),
+   F("cel","Celular *","tel",null,null,true),
+   F("mail","Mail *","email",null,null,true),
+   F("desc","Describa su consulta o duda","area",null,null,true)]},
 {id:"grua",i:"🚚",t:"Teléfonos de grúa / asistencia",d:"Comunicate directo con la asistencia de tu aseguradora.",
  companies:[
    {n:"Swiss Medical",tel:"0810-3333-764",web:"https://swissmedicalseguros.com/"},
