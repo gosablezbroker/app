@@ -131,7 +131,9 @@ const S=[
  tip:"No descartes los bienes dañados hasta que te lo indiquemos.",
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area")]},
 {id:"otras",i:"💬",t:"Otras consultas",d:"Cotizaciones, cambios en tu póliza, pagos y más.",
- steps:["Contanos qué necesitás.","Tocá “Enviar por WhatsApp” o “Enviar por email”.","Te respondemos a la brevedad."],
+ steps:["Contanos qué necesitás.","Completá tus datos y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite y te contactamos a la brevedad."],
+ notify:true,sheetName:"Otras consultas",
+ cols:["tit","pat","cel","mail","desc"],
  f:[F("tit","Nombre / Apellido / Razón social del asegurado *",null,null,null,true),
    F("pat","Póliza o Patente *",null,null,null,true),
    F("cel","Celular *","tel",null,null,true),
@@ -319,7 +321,7 @@ function show(id,fixed){
         });
         const clientMail=$("panel").querySelector('[data-k="mail"]').value.trim();
         const rcpt="GZ-"+new Date().getFullYear()+"-"+Math.floor(100000+Math.random()*900000);
-        const subject=`Denuncia de siniestro Nº ${rcpt} — ${s.t}`;
+        const subject=`${s.t} — Nº de trámite ${rcpt}`;
         const bodyText=`Nº de trámite: ${rcpt}\n\n${parts.join("\n")}`;
         const mailto=`mailto:${CFG.mail}?cc=${encodeURIComponent(clientMail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
         if(CFG.sheetsUrl&&s.sheetName&&s.cols){
@@ -341,7 +343,7 @@ function show(id,fixed){
         }
         // Éxito: se reemplaza todo el panel (formulario incluido) por únicamente el mensaje
         // de confirmación y un botón para volver al menú principal.
-        $("panel").innerHTML=`<div class="panel"><div id="rcpt" style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">✅ Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte en la gestión de tu reclamo.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros). Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent('Hola, quiero enviar mi denuncia. Nº de trámite: '+rcpt)}">Enviar por WhatsApp</a></div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="backBtn">Volver al menú</button></div></div>`;
+        $("panel").innerHTML=`<div class="panel"><div id="rcpt" style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">✅ Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros). Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent('Hola, te escribo por mi trámite. Nº de trámite: '+rcpt)}">Enviar por WhatsApp</a></div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="backBtn">Volver al menú</button></div></div>`;
         $("backBtn").onclick=backToMenu;
         $("panel").scrollIntoView({behavior:"smooth",block:"start"});
       }catch(err){
