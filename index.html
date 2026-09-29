@@ -62,7 +62,7 @@ input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--bd);bo
   <p class="foot" id="foot"></p>
 </div>
 <script>
-const CFG={broker:"Gosalbez Broker de Seguros",wa:"5491127474286",tel:"+54 9 11 2747-4286",mail:"consultas@gosalbez.com.ar",horario:"Lunes a viernes de 9 a 18 h",sheetsUrl:"https://script.google.com/macros/s/AKfycbzGQ1vijrQ2fw47WIoDXVxRSlf5zQU-E1IfQTovZsaErqmwwb7_07BZjO5TlYwFrD9c/exec"};
+const CFG={broker:"Gosalbez Broker de Seguros",wa:"5491127474286",tel:"+54 9 11 2747-4286",mail:"consultas@gosalbez.com.ar",horario:"Lunes a viernes de 9 a 18 h",sheetsUrl:"https://script.google.com/macros/s/AKfycbzGQ1vijrQ2fw47WIoDXVxRSlf5zQU-E1IfQTovZsaErqmwwb7_07BZjO5TlYwFrD9c/exec",credUrl:"https://script.google.com/macros/s/AKfycbwoWWFt3lfHzbF2xBLGEmpBpoVYVHvq70LyomIMoLMvuraYKyBDzdjaDKQ0GQMIe72U/exec"};
 const F=(id,l,t,o,show,req)=>({id,l,t:t||"text",o,show,req});
 const CIAS=["Swiss Medical","Galicia Seguros","Meridional","Mercantil Andina","Río Uruguay","Zurich","Allianz","Mapfre","Otra"];
 // Datos por compañía para la credencial: nombre para mostrar, teléfono de
@@ -86,7 +86,7 @@ function compInfo(nombre){
 }
 const S=[
 {id:"cred",i:"🪪",t:"Descargar credencial",d:"Buscá tu credencial ingresando la patente.",
- credLookup:true,lookupUrl:CFG.sheetsUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
+ credLookup:true,lookupUrl:CFG.credUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
 {id:"auto",i:"🚗",t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
  subtypes:[{v:"Choque",i:"💥",d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:"🔓",d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:"🔨",d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
@@ -187,6 +187,12 @@ function show(id,fixed){
         .then(j=>{
           if(!j.ok){err.textContent=j.error||"No encontramos una póliza vigente con esa patente.";err.style.display="";return}
           const d=j.data;
+          const fmtFecha=(v)=>{
+            if(!v)return"-";
+            const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})T/);
+            if(m)return`${m[3]}/${m[2]}/${m[1]}`;
+            return v;
+          };
           const ci=compInfo(d.compania);
           const brokerLogo=(document.querySelector(".logo img")||{}).src||"";
           const compLogo=ci&&ci.logo?ci.logo:"";
@@ -203,7 +209,7 @@ function show(id,fixed){
           <div class="credRow"><span>Patente</span><span>${d.patente||"-"}</span></div>
           <div class="credRow"><span>Compañía</span><span>${compName}</span></div>
           <div class="credRow"><span>N° de póliza</span><span>${d.poliza||"-"}</span></div>
-          <div class="credRow"><span>Vigencia</span><span>${d.inicio||"-"} al ${d.fin||"-"}</span></div>
+          <div class="credRow"><span>Vigencia</span><span>${fmtFecha(d.inicio)} al ${fmtFecha(d.fin)}</span></div>
           <div class="credRow"><span>Asegurado</span><span>${d.asegurado||"-"}</span></div>
           <div class="credRow"><span>Chasis</span><span>${d.chasis||"-"}</span></div>
           <div class="credRow"><span>Motor</span><span>${d.motor||"-"}</span></div>
