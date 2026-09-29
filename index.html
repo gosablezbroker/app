@@ -133,7 +133,8 @@ const S=[
 {id:"otras",i:"💬",t:"Otras consultas",d:"Cotizaciones, cambios en tu póliza, pagos y más.",
  steps:["Contanos qué necesitás.","Completá tus datos y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite y te contactamos a la brevedad."],
  notify:true,sheetName:"Otras consultas",
- cols:["tit","pat","cel","mail","desc"],
+ constants:{tipo:"Consulta"},
+ cols:["tipo","tit","pat","cel","mail","desc"],
  f:[F("tit","Nombre / Apellido / Razón social del asegurado *",null,null,null,true),
    F("pat","Póliza o Patente *",null,null,null,true),
    F("cel","Celular *","tel",null,null,true),
@@ -326,6 +327,7 @@ function show(id,fixed){
         const mailto=`mailto:${CFG.mail}?cc=${encodeURIComponent(clientMail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
         if(CFG.sheetsUrl&&s.sheetName&&s.cols){
           const row=s.cols.map(id=>{
+            if(s.constants&&(id in s.constants))return s.constants[id];
             if(fixed&&(id in fixed))return fixed[id];
             const el=$("panel").querySelector(`[data-k="${id}"]`);
             if(!el)return"";
