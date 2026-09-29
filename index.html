@@ -38,6 +38,9 @@ input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--bd);bo
 .foot{margin-top:24px;color:var(--mut);font-size:.85rem;text-align:center}
 .credCard{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px 20px}
 .credCard h4{margin:0 0 10px;font-size:1.05rem}
+.credHead{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--bd)}
+.credHead img{max-height:42px;max-width:110px;object-fit:contain}
+.credHead .credTitle{flex:1;text-align:center;font-weight:700;font-size:.95rem;color:var(--mut)}
 .credRow{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--bd);font-size:.92rem}
 .credRow:last-child{border-bottom:none}
 .credRow span:first-child{color:var(--mut)}
@@ -62,6 +65,25 @@ input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--bd);bo
 const CFG={broker:"Gosalbez Broker de Seguros",wa:"5491127474286",tel:"+54 9 11 2747-4286",mail:"consultas@gosalbez.com.ar",horario:"Lunes a viernes de 9 a 18 h",sheetsUrl:"https://script.google.com/macros/s/AKfycbzGQ1vijrQ2fw47WIoDXVxRSlf5zQU-E1IfQTovZsaErqmwwb7_07BZjO5TlYwFrD9c/exec"};
 const F=(id,l,t,o,show,req)=>({id,l,t:t||"text",o,show,req});
 const CIAS=["Swiss Medical","Galicia Seguros","Meridional","Mercantil Andina","Río Uruguay","Zurich","Allianz","Mapfre","Otra"];
+// Datos por compañía para la credencial: nombre para mostrar, teléfono de
+// grúa/asistencia y logo. Las claves son las variantes que aparecen en la
+// columna "Compania" del Excel de pólizas (en mayúsculas, sin espacios extra).
+const COMP_INFO={
+  "SMG":{name:"Swiss Medical Seguros",tel:"0810-3333-764",logo:"https://logo.clearbit.com/swissmedicalseguros.com"},
+  "SWISS MEDICAL":{name:"Swiss Medical Seguros",tel:"0810-3333-764",logo:"https://logo.clearbit.com/swissmedicalseguros.com"},
+  "GALICIA SEGUROS":{name:"Galicia Seguros",tel:"0800-999-76925",logo:"https://logo.clearbit.com/galiciaseguros.com.ar"},
+  "MERCANTIL ANDINA":{name:"Mercantil Andina",tel:"0800-777-2634",logo:"https://logo.clearbit.com/mercantilandina.com.ar"},
+  "MERIDIONAL":{name:"Meridional Seguros",tel:"0800-333-4358",logo:"https://logo.clearbit.com/meridionalseguros.com.ar"},
+  "RIO URUGUAY":{name:"Río Uruguay Seguros",tel:"0800-444-1441",logo:"https://logo.clearbit.com/riouruguay.com.ar"},
+  "ATM":{name:"ATM Seguros",tel:"0800-345-1240",logo:"https://logo.clearbit.com/atmseguros.com.ar"},
+  "ZURICH":{name:"Zurich",tel:"0800-222-1600",logo:"https://logo.clearbit.com/zurich.com.ar"},
+  "ALLIANZ":{name:"Allianz",tel:"0800-888-24324",logo:"https://logo.clearbit.com/allianz.com.ar"},
+  "MAPFRE":{name:"Mapfre",tel:"0800-999-7424",logo:"https://logo.clearbit.com/mapfre.com.ar"}
+};
+function compInfo(nombre){
+  const k=String(nombre||"").trim().toUpperCase();
+  return COMP_INFO[k]||null;
+}
 const S=[
 {id:"cred",i:"🪪",t:"Descargar credencial",d:"Buscá tu credencial ingresando la patente.",
  credLookup:true,lookupUrl:CFG.sheetsUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
@@ -165,17 +187,27 @@ function show(id,fixed){
         .then(j=>{
           if(!j.ok){err.textContent=j.error||"No encontramos una póliza vigente con esa patente.";err.style.display="";return}
           const d=j.data;
-          res.innerHTML=`<div class="credCard"><h4>🪪 Credencial de circulación</h4>
+          const ci=compInfo(d.compania);
+          const brokerLogo=(document.querySelector(".logo img")||{}).src||"";
+          const compLogo=ci&&ci.logo?ci.logo:"";
+          const compName=ci&&ci.name?ci.name:(d.compania||"-");
+          const grua=ci&&ci.tel?ci.tel:CFG.tel;
+          res.innerHTML=`<div class="credCard">
+          <div class="credHead">
+            ${brokerLogo?`<img src="${brokerLogo}" alt="Gosalbez Broker">`:'<span></span>'}
+            <span class="credTitle">🪪 Credencial de circulación</span>
+            ${compLogo?`<img src="${compLogo}" alt="${compName}" onerror="this.style.display='none'">`:'<span></span>'}
+          </div>
+          <div class="credRow"><span>Marca / Modelo</span><span>${[d.marca,d.modelo].filter(Boolean).join(" ")||"-"}</span></div>
+          <div class="credRow"><span>Año</span><span>${d.anio||"-"}</span></div>
           <div class="credRow"><span>Patente</span><span>${d.patente||"-"}</span></div>
-          <div class="credRow"><span>Compañía</span><span>${d.compania||"-"}</span></div>
+          <div class="credRow"><span>Compañía</span><span>${compName}</span></div>
           <div class="credRow"><span>N° de póliza</span><span>${d.poliza||"-"}</span></div>
           <div class="credRow"><span>Vigencia</span><span>${d.inicio||"-"} al ${d.fin||"-"}</span></div>
           <div class="credRow"><span>Asegurado</span><span>${d.asegurado||"-"}</span></div>
-          <div class="credRow"><span>Vehículo</span><span>${[d.marca,d.modelo].filter(Boolean).join(" ")||"-"}</span></div>
-          <div class="credRow"><span>Año</span><span>${d.anio||"-"}</span></div>
           <div class="credRow"><span>Chasis</span><span>${d.chasis||"-"}</span></div>
           <div class="credRow"><span>Motor</span><span>${d.motor||"-"}</span></div>
-          <div class="credRow"><span>Uso</span><span>${d.uso||"-"}</span></div>
+          <div class="credRow"><span>Teléfono de grúa</span><span>${grua}</span></div>
           </div>
           <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button></div>`;
           res.style.display="";
