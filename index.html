@@ -36,6 +36,17 @@ input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--bd);bo
 .btn{flex:1 1 150px;text-align:center;padding:11px 14px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;text-decoration:none;cursor:pointer}
 .btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .foot{margin-top:24px;color:var(--mut);font-size:.85rem;text-align:center}
+.credCard{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px 20px}
+.credCard h4{margin:0 0 10px;font-size:1.05rem}
+.credRow{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--bd);font-size:.92rem}
+.credRow:last-child{border-bottom:none}
+.credRow span:first-child{color:var(--mut)}
+.credRow span:last-child{font-weight:600;text-align:right}
+@media print{
+  body *{visibility:hidden}
+  #credResult,#credResult *{visibility:visible}
+  #credResult{position:absolute;top:0;left:0;width:100%;padding:20px}
+}
 </style>
 </head>
 <body>
@@ -52,9 +63,8 @@ const CFG={broker:"Gosalbez Broker de Seguros",wa:"5491127474286",tel:"+54 9 11 
 const F=(id,l,t,o,show,req)=>({id,l,t:t||"text",o,show,req});
 const CIAS=["Swiss Medical","Galicia Seguros","Meridional","Mercantil Andina","Río Uruguay","Zurich","Allianz","Mapfre","Otra"];
 const S=[
-{id:"cred",i:"🪪",t:"Descargar credencial",d:"Pedí la credencial de tu póliza en PDF.",
- steps:["Tocá el botón “Descargar mi credencial”.","Ingresá tus datos en el portal.","Descargá tu credencial o mostrala desde el celular."],link:"https://gosalbez-web.onrender.com",linkLabel:"Descargar mi credencial",
- f:[F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("ramo","Ramo","select",["Automotor","Hogar","Comercio","Otro"]),F("ref","Patente o nº de póliza (opcional)")]},
+{id:"cred",i:"🪪",t:"Descargar credencial",d:"Buscá tu credencial ingresando la patente.",
+ credLookup:true,lookupUrl:CFG.sheetsUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
 {id:"auto",i:"🚗",t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
  subtypes:[{v:"Choque",i:"💥",d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:"🔓",d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:"🔨",d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
@@ -132,6 +142,50 @@ function show(id,fixed){
     $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
     <div class="grid" style="margin-top:10px">${s.companies.map(c=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px"><b>${c.n}</b><div class="btns" style="margin-top:8px"><a class="btn wa" href="tel:${c.tel.replace(/[^+\d]/g,"")}">📞 ${c.tel}</a><a class="btn" href="${c.web}" target="_blank" rel="noopener">Sitio web</a></div></div>`).join("")}</div></div>`;
     $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+  if(s.credLookup){
+    $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
+    <h3>Ingresá tu patente</h3>
+    <div class="fw"><label>Patente</label><input id="credPat" type="text" placeholder="Ej: AB123CD" maxlength="10" style="text-transform:uppercase"></div>
+    <div id="credErr" style="display:none;background:rgba(214,69,69,.1);border:1px solid #d64545;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:.9rem;color:#d64545"></div>
+    <div class="btns"><button type="button" class="btn wa" id="credBtn">Buscar mi credencial</button></div>
+    <div id="credResult" style="display:none;margin-top:18px"></div>
+    <p style="color:var(--mut);font-size:.85rem;margin-top:16px">¿No la encontrás? <a href="${s.link}" style="color:var(--ac)">Probá con el portal oficial</a>.</p></div>`;
+    $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    const pat=$("credPat"),err=$("credErr"),res=$("credResult"),btn=$("credBtn");
+    function buscar(){
+      const v=pat.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+      err.style.display="none";res.style.display="none";
+      if(!v){err.textContent="Ingresá una patente.";err.style.display="";return}
+      if(!s.lookupUrl){err.textContent="La búsqueda no está disponible en este momento.";err.style.display="";return}
+      btn.disabled=true;btn.textContent="Buscando…";
+      fetch(`${s.lookupUrl}?patente=${encodeURIComponent(v)}`)
+        .then(r=>r.json())
+        .then(j=>{
+          if(!j.ok){err.textContent=j.error||"No encontramos una póliza vigente con esa patente.";err.style.display="";return}
+          const d=j.data;
+          res.innerHTML=`<div class="credCard"><h4>🪪 Credencial de circulación</h4>
+          <div class="credRow"><span>Patente</span><span>${d.patente||"-"}</span></div>
+          <div class="credRow"><span>Compañía</span><span>${d.compania||"-"}</span></div>
+          <div class="credRow"><span>N° de póliza</span><span>${d.poliza||"-"}</span></div>
+          <div class="credRow"><span>Vigencia</span><span>${d.inicio||"-"} al ${d.fin||"-"}</span></div>
+          <div class="credRow"><span>Asegurado</span><span>${d.asegurado||"-"}</span></div>
+          <div class="credRow"><span>Vehículo</span><span>${[d.marca,d.modelo].filter(Boolean).join(" ")||"-"}</span></div>
+          <div class="credRow"><span>Año</span><span>${d.anio||"-"}</span></div>
+          <div class="credRow"><span>Chasis</span><span>${d.chasis||"-"}</span></div>
+          <div class="credRow"><span>Motor</span><span>${d.motor||"-"}</span></div>
+          <div class="credRow"><span>Uso</span><span>${d.uso||"-"}</span></div>
+          </div>
+          <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button></div>`;
+          res.style.display="";
+          $("credPrint").onclick=()=>window.print();
+        })
+        .catch(()=>{err.textContent="No pudimos conectarnos para buscar tu credencial. Probá de nuevo en unos minutos.";err.style.display="";})
+        .finally(()=>{btn.disabled=false;btn.textContent="Buscar mi credencial";});
+    }
+    btn.onclick=buscar;
+    pat.addEventListener("keydown",e=>{if(e.key==="Enter")buscar();});
     return;
   }
   const visibleFields=fixed?s.f.filter(f=>!(f.id in fixed)&&(!f.show||fixed[f.show[0]]===f.show[1])):s.f;
