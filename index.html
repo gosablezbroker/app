@@ -119,7 +119,8 @@ const ICO={
   warn:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><path d="M12 3.8 21 19.5H3L12 3.8Z"/><path d="M12 10v4.2M12 17.1h.01"/></svg>`,
   check:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.1em;height:1.1em;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.6 2.6L16.2 9"/></svg>`,
   cam:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h1.8l1-1.6h7.4l1 1.6h1.8A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9Z"/><circle cx="12" cy="13" r="3.3"/></svg>`,
-  idcard:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="8" cy="12" r="1.9"/><path d="M5.3 15.6c.6-1.2 1.7-1.8 2.7-1.8s2.1.6 2.7 1.8"/><path d="M13.5 9.8h5M13.5 12.8h5M13.5 15.8h3"/></svg>`
+  idcard:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="8" cy="12" r="1.9"/><path d="M5.3 15.6c.6-1.2 1.7-1.8 2.7-1.8s2.1.6 2.7 1.8"/><path d="M13.5 9.8h5M13.5 12.8h5M13.5 15.8h3"/></svg>`,
+  gov:`<svg viewBox="0 0 24 24" ${SVGA}><path d="M4 10.2 12 4.3l8 5.9"/><path d="M4.5 10.2v7.8M8.2 10.2v7.8M12 10.2v7.8M15.8 10.2v7.8M19.5 10.2v7.8"/><path d="M3.5 19.7h17"/></svg>`
 };
 // Datos por compañía para la credencial: nombre para mostrar, teléfono de
 // grúa/asistencia y logo. Las claves son las variantes que aparecen en la
@@ -143,6 +144,9 @@ function compInfo(nombre){
 const S=[
 {id:"cred",i:ICO.cred,t:"Descargar credencial",d:"Buscá tu credencial ingresando la patente.",
  credLookup:true,lookupUrl:CFG.credUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
+{id:"miarg",i:ICO.gov,t:"Mi Argentina",d:"Cédula de tu auto, DNI y otros trámites, con tu cuenta del Estado.",
+ steps:["Iniciá sesión con tu cuenta de Mi Argentina (o creá una si todavía no tenés).","Ahí vas a encontrar la Cédula digital de tu auto, tu DNI digital, la licencia de conducir y otros documentos.","Es un servicio del Estado argentino — nosotros solo te dejamos el acceso directo, no vemos ni guardamos tus datos."],
+ link:"https://mi.argentina.gob.ar/",linkLabel:"Ir a Mi Argentina",imgLink:"assets/logos/mi-argentina.png"},
 {id:"auto",i:ICO.auto,t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
  subtypes:[{v:"Choque",i:ICO.choque,d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:ICO.robo,d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:ICO.cristales,d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
@@ -291,6 +295,13 @@ function show(id,fixed){
     pat.addEventListener("keydown",e=>{if(e.key==="Enter")buscar();});
     return;
   }
+  if(s.link&&!s.f){
+    $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
+    ${s.list?`<h3>Tené a mano</h3><ul>${s.list.map(x=>`<li>${x}</li>`).join("")}</ul>`:`<h3>Cómo hacerlo</h3><ul>${s.steps.map(x=>`<li>${x}</li>`).join("")}</ul>`}
+    <div class="btns">${s.imgLink?`<a href="${s.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center"><img src="${s.imgLink}" alt="${s.linkLabel||s.t}" style="height:46px;width:auto;display:block"></a>`:`<a class="btn wa" href="${s.link}" target="_blank" rel="noopener">${s.linkLabel||"Completar formulario de denuncia"}</a>`}</div></div>`;
+    $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   const visibleFields=fixed?s.f.filter(f=>!(f.id in fixed)&&(!f.show||fixed[f.show[0]]===f.show[1])):s.f;
   const fld=visibleFields.map(f=>{
     const at=f.show?` data-show-if="${f.show[0]}" data-show-val="${f.show[1]}" style="display:none"`:"";
@@ -304,7 +315,7 @@ function show(id,fixed){
   $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
   ${s.alert?`<div class="alert">${ICO.warn}${s.alert}</div>`:""}
   ${s.list?`<h3>Tené a mano</h3><ul>${s.list.map(x=>`<li>${x}</li>`).join("")}</ul><p style="color:var(--mut);font-size:.88rem;margin:10px 0 0">${s.tip}</p>`:`<h3>Cómo hacerlo</h3><ul>${s.steps.map(x=>`<li>${x}</li>`).join("")}</ul>`}
-  ${s.link?`<div class="btns"><a class="btn wa" href="${s.link}">${s.linkLabel||"Completar formulario de denuncia"}</a></div></div>`:`<h3>Tus datos</h3>${fld}
+  ${s.link?`<div class="btns">${s.imgLink?`<a href="${s.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center"><img src="${s.imgLink}" alt="${s.linkLabel||s.t}" style="height:46px;width:auto;display:block"></a>`:`<a class="btn wa" href="${s.link}" target="_blank" rel="noopener">${s.linkLabel||"Completar formulario de denuncia"}</a>`}</div></div>`:`<h3>Tus datos</h3>${fld}
   ${s.notify?`<div id="reqwarn" style="display:none;background:rgba(214,69,69,.1);border:1px solid #d64545;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:.9rem;color:#d64545">${ICO.warn}Faltan completar campos obligatorios, marcados en rojo arriba.</div>
   <div id="rcpt" style="display:none;background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:.9rem"></div>
   <div class="btns"><button type="button" class="btn wa" id="bs">Enviar</button></div></div>`
