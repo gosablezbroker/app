@@ -144,9 +144,6 @@ function compInfo(nombre){
 const S=[
 {id:"cred",i:ICO.cred,t:"Descargar credencial",d:"Buscá tu credencial ingresando la patente.",
  credLookup:true,lookupUrl:CFG.credUrl,link:"https://gosalbez-web.onrender.com",linkLabel:"Probar con el portal oficial"},
-{id:"miarg",i:ICO.gov,t:"Mi Argentina",d:"Cédula de tu auto, DNI y otros trámites, con tu cuenta del Estado.",
- steps:["Iniciá sesión con tu cuenta de Mi Argentina (o creá una si todavía no tenés).","Ahí vas a encontrar la Cédula digital de tu auto, tu DNI digital, la licencia de conducir y otros documentos.","Es un servicio del Estado argentino — nosotros solo te dejamos el acceso directo, no vemos ni guardamos tus datos."],
- link:"https://mi.argentina.gob.ar/",linkLabel:"Ir a Mi Argentina",imgLink:"assets/logos/mi-argentina.png"},
 {id:"auto",i:ICO.auto,t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
  subtypes:[{v:"Choque",i:ICO.choque,d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:ICO.robo,d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:ICO.cristales,d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
@@ -204,7 +201,10 @@ const S=[
    {n:"Mercantil Andina",tel:"0800-777-2634",web:"https://mercantilandina.com.ar/"},
    {n:"ATM Seguros",tel:"0800-345-1240",web:"https://www.atmseguros.com.ar/"},
    {n:"Mapfre",tel:"0800-999-7424",web:"https://www.mapfre.com.ar/"}
- ]}
+ ]},
+{id:"miarg",i:ICO.gov,t:"Mi Argentina",d:"Cédula de tu auto, DNI y otros trámites, con tu cuenta del Estado.",
+ steps:["Iniciá sesión con tu cuenta de Mi Argentina (o creá una si todavía no tenés).","Ahí vas a encontrar la Cédula digital de tu auto, tu DNI digital, la licencia de conducir y otros documentos.","Es un servicio del Estado argentino — nosotros solo te dejamos el acceso directo, no vemos ni guardamos tus datos."],
+ link:"https://mi.argentina.gob.ar/",linkLabel:"Ir a Mi Argentina",imgLink:"assets/logos/mi-argentina.png"}
 ];
 const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>';
