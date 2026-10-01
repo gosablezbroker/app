@@ -143,8 +143,11 @@ tr:hover td{background:var(--tint)}
             un listado nuevo completo (por ejemplo, el export actualizado de las compañías), no para agregar uno solo.
           </p>
           <p class="muted" style="padding:0 0 10px">
-            El archivo tiene que tener, en la primera fila, estas columnas (no importa el orden ni mayúsculas/minúsculas):
-            <code>Patente, Compania, Poliza, Inicio, Fin, Asegurado, Marca, Modelo, Anio, Chasis, Motor, Uso</code>.
+            Acepta dos formatos: el listado simple con las columnas
+            <code>Patente, Compania, Poliza, Inicio, Fin, Asegurado, Marca, Modelo, Anio, Chasis, Motor, Uso</code>
+            (no importa el orden ni mayúsculas/acentos), o directamente el export tal cual lo entregan las
+            compañías (con columnas como "N° Póliza", "Compañia", "Inicio de vigencia", etc.) — en ese caso
+            agrupa automáticamente los endosos de cada póliza en una sola fila por vehículo.
           </p>
           <div id="importMsg"></div>
           <input type="file" id="importFile" accept=".xlsx,.xls">
@@ -332,38 +335,178 @@ $("btnGuardarVeh").onclick = async () => {
 };
 
 // ---- Vehículos: importar Excel completo ----
+// Acepta dos formatos de archivo:
+//  1) El formato simple de la hoja Vehiculos (12 columnas: Patente, Compania,
+//     Poliza, Inicio, Fin, Asegurado, Marca, Modelo, Anio, Chasis, Motor, Uso).
+//  2) El export tal cual lo entregan las compañías/el sistema de pólizas
+//     (columnas como "N° Póliza", "Compañia", "Inicio de vigencia",
+//     "Asegurado/s", etc.), con un endoso por fila. En ese caso se agrupan
+//     los endosos de una misma póliza (mismo N° de póliza sin el "/N" final)
+//     y se arma una sola fila por póliza con el rango de vigencia real.
+
 function normalizeHeader(h){
-  return String(h||"").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return String(h||"").trim().toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // saca acentos
+    .replace(/[^a-z0-9]/g, "");
 }
-const VEH_HEADER_MAP = {}; // ej: "patente" -> "Patente"
+function findCol(sourceHeaders, ...candidates){
+  for(const c of candidates){
+    const target = normalizeHeader(c);
+    const match = sourceHeaders.find(h => normalizeHeader(h) === target);
+    if(match) return match;
+  }
+  return null;
+}
+function cleanPersonName(s){
+  // Saca el "(DNI: ... / CUIT/CUIL: ...)" u otro paréntesis final, y la
+  // coma suelta que suele quedar antes (ej: "A Z Editora Sa, (CUIT: ...)").
+  return String(s||"").replace(/\s*\([^)]*\)\s*$/, "").replace(/,\s*$/, "").trim();
+}
+function isPlaceholderPatente(normPat){
+  return !normPat || normPat === "AD" || normPat.indexOf("DECLARAR") >= 0;
+}
+function parseDateFlexible(v){
+  if(v instanceof Date && !isNaN(v)) return v;
+  if(v==null || v==="") return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function formatDMY(d){
+  if(!d) return "";
+  const pad = n => String(n).padStart(2, "0");
+  return pad(d.getDate()) + "/" + pad(d.getMonth()+1) + "/" + d.getFullYear();
+}
+function cellToText(v, isDateField){
+  if(isDateField){
+    const d = parseDateFlexible(v);
+    if(d) return formatDMY(d);
+  }
+  if(v instanceof Date) return formatDMY(v);
+  return String(v ?? "").trim();
+}
+
+const VEH_HEADER_MAP = {}; // normalizeHeader("patente") -> "Patente"
 VEH_FIELDS.forEach(f => VEH_HEADER_MAP[normalizeHeader(f)] = f);
-// Alias comunes por si el archivo trae variantes de nombre.
 VEH_HEADER_MAP[normalizeHeader("Año")] = "Anio";
 VEH_HEADER_MAP[normalizeHeader("Compañia")] = "Compania";
-VEH_HEADER_MAP[normalizeHeader("Compañía")] = "Compania";
 VEH_HEADER_MAP[normalizeHeader("Póliza")] = "Poliza";
+const DATE_FIELDS = { Inicio: true, Fin: true };
 
-function parseWorkbookToVehRows(workbook){
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const raw = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
-  if(!raw.length) return { rows: [], missing: VEH_FIELDS };
-
-  const sourceHeaders = Object.keys(raw[0]);
-  const colFor = {}; // "Patente" -> nombre real de columna en el archivo
+// Formato simple: ya viene con (más o menos) las 12 columnas de la hoja.
+function parseSimpleFormat(raw, sourceHeaders){
+  const colFor = {};
   sourceHeaders.forEach(h => {
     const norm = normalizeHeader(h);
     if(VEH_HEADER_MAP[norm]) colFor[VEH_HEADER_MAP[norm]] = h;
   });
-
   const missing = VEH_FIELDS.filter(f => !colFor[f]);
   const rows = raw.map(r => {
     const out = {};
-    VEH_FIELDS.forEach(f => { out[f] = colFor[f] ? String(r[colFor[f]] ?? "").trim() : ""; });
+    VEH_FIELDS.forEach(f => { out[f] = colFor[f] ? cellToText(r[colFor[f]], DATE_FIELDS[f]) : ""; });
     return out;
-  }).filter(r => r.Patente); // descartamos filas sin patente
+  }).filter(r => r.Patente);
+  return { rows, missing, detected: "simple" };
+}
 
-  return { rows, missing };
+// Export de compañías: un endoso por fila, hay que agrupar por póliza.
+function parseCarrierExport(raw, sourceHeaders){
+  const colPatente = findCol(sourceHeaders, "Patente");
+  const colPoliza = findCol(sourceHeaders, "N° Póliza", "N Poliza", "Nro Poliza", "Numero de poliza", "Poliza");
+  const colCompania = findCol(sourceHeaders, "Compañia", "Compañía", "Compania");
+  const colInicio = findCol(sourceHeaders, "Inicio de vigencia", "Inicio");
+  const colFin = findCol(sourceHeaders, "Fin de vigencia", "Fin");
+  const colAsegurado = findCol(sourceHeaders, "Asegurado/s", "Asegurado");
+  const colTomador = findCol(sourceHeaders, "Tomador/es", "Tomador");
+  const colMarca = findCol(sourceHeaders, "Marca");
+  const colModelo = findCol(sourceHeaders, "Modelo");
+  const colAnio = findCol(sourceHeaders, "Año", "Anio");
+  const colChasis = findCol(sourceHeaders, "Chasis");
+  const colMotor = findCol(sourceHeaders, "Motor");
+  const colUso = findCol(sourceHeaders, "Uso (comercial / particular)", "Uso");
+
+  const groups = {};
+  let consideradas = 0;
+  let descartadasSinPatente = 0;
+
+  raw.forEach(r => {
+    const patRaw = String(colPatente ? r[colPatente] : "").trim();
+    if(!patRaw){ descartadasSinPatente++; return; }
+    const patNorm = patRaw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if(isPlaceholderPatente(patNorm)){ descartadasSinPatente++; return; }
+
+    const polizaRaw = String(colPoliza ? r[colPoliza] : "").trim();
+    const basePoliza = polizaRaw.split("/")[0].trim() || polizaRaw;
+    const inicio = parseDateFlexible(colInicio ? r[colInicio] : null);
+    const fin = parseDateFlexible(colFin ? r[colFin] : null);
+
+    const key = patNorm + "||" + basePoliza;
+    if(!groups[key]) groups[key] = [];
+    groups[key].push({ r, patRaw, basePoliza, inicio, fin });
+    consideradas++;
+  });
+
+  const rows = Object.keys(groups).map(key => {
+    const items = groups[key];
+    const withInicio = items.filter(it => it.inicio);
+    const withFin = items.filter(it => it.fin);
+    const minInicio = withInicio.length ? withInicio.reduce((a,b) => b.inicio < a.inicio ? b : a).inicio : null;
+    const maxFin = withFin.length ? withFin.reduce((a,b) => b.fin > a.fin ? b : a).fin : null;
+    const latest = withInicio.length ? withInicio.reduce((a,b) => b.inicio > a.inicio ? b : a) : items[items.length-1];
+    const r = latest.r;
+    const aseguradoVal = (colAsegurado && r[colAsegurado]) ? r[colAsegurado] : (colTomador ? r[colTomador] : "");
+
+    return {
+      Patente: latest.patRaw.trim(),
+      Compania: colCompania ? String(r[colCompania]||"").trim() : "",
+      Poliza: latest.basePoliza,
+      Inicio: formatDMY(minInicio),
+      Fin: formatDMY(maxFin),
+      Asegurado: cleanPersonName(aseguradoVal),
+      Marca: colMarca ? String(r[colMarca]||"").trim() : "",
+      Modelo: colModelo ? String(r[colModelo]||"").trim() : "",
+      Anio: colAnio ? String(r[colAnio]||"").trim() : "",
+      Chasis: colChasis ? String(r[colChasis]||"").trim() : "",
+      Motor: colMotor ? String(r[colMotor]||"").trim() : "",
+      Uso: colUso ? String(r[colUso]||"").trim() : ""
+    };
+  });
+
+  const missing = [];
+  if(!colPatente) missing.push("Patente");
+  if(!colPoliza) missing.push("N° Póliza");
+  if(!colInicio) missing.push("Inicio de vigencia");
+  if(!colFin) missing.push("Fin de vigencia");
+
+  return {
+    rows, missing, detected: "carrier",
+    sourceRows: raw.length, consideradas, descartadasSinPatente,
+    polizasUnicas: rows.length
+  };
+}
+
+function parseWorkbookToVehRows(workbook){
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
+  if(!raw.length) return { rows: [], missing: VEH_FIELDS, detected: "vacio" };
+
+  const sourceHeaders = Object.keys(raw[0]);
+  const simpleMatches = sourceHeaders.filter(h => VEH_HEADER_MAP[normalizeHeader(h)]).length;
+  const looksCarrier = !!(findCol(sourceHeaders, "N° Póliza", "Nro Poliza") && findCol(sourceHeaders, "Inicio de vigencia"));
+
+  if(simpleMatches >= 8 && !looksCarrier){
+    return parseSimpleFormat(raw, sourceHeaders);
+  }
+  if(looksCarrier || findCol(sourceHeaders, "Compañia", "Compañía")){
+    return parseCarrierExport(raw, sourceHeaders);
+  }
+  // Formato no reconocido: devolvemos lo que se pueda con el mapeo simple.
+  return parseSimpleFormat(raw, sourceHeaders);
 }
 
 $("btnImportar").onclick = () => {
@@ -379,7 +522,7 @@ $("btnImportar").onclick = () => {
     let parsed;
     try{
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
+      const workbook = XLSX.read(data, { type: "array", cellDates: true });
       parsed = parseWorkbookToVehRows(workbook);
     }catch(err){
       $("importMsg").innerHTML = `<div class="err">No se pudo leer el archivo. ¿Es un Excel (.xlsx) válido?</div>`;
@@ -390,12 +533,18 @@ $("btnImportar").onclick = () => {
       $("importMsg").innerHTML = `<div class="err">No se encontraron filas con Patente en el archivo. Revisá que la primera fila tenga los encabezados correctos.</div>`;
       return;
     }
-    if(parsed.missing.length){
+    if(parsed.missing && parsed.missing.length){
       $("importMsg").innerHTML = `<div class="err">Faltan estas columnas en el archivo: ${esc(parsed.missing.join(", "))}. Se importa igual, esas quedan vacías.</div>`;
     }
 
+    const detalle = parsed.detected === "carrier"
+      ? `Se detectó el formato de export de compañías: ${parsed.sourceRows} filas (endosos) agrupadas en ${parsed.polizasUnicas} pólizas de vehículo` +
+        (parsed.descartadasSinPatente ? `, ${parsed.descartadasSinPatente} filas descartadas por no tener una patente válida` : "") + "."
+      : `${parsed.rows.length} filas con patente.`;
+
     const ok = confirm(
-      `Esto va a REEMPLAZAR toda la lista de vehículos por las ${parsed.rows.length} filas del archivo.\n\n` +
+      `Esto va a REEMPLAZAR toda la lista de vehículos.\n\n` +
+      detalle + "\n\n" +
       `Los vehículos que no estén en el archivo van a dejar de aparecer en las credenciales.\n\n` +
       `¿Confirmás que querés continuar?`
     );
