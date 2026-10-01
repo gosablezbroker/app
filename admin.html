@@ -71,6 +71,23 @@ tr:hover td{background:var(--tint)}
 .panelTitle h2{margin:0;font-size:1.05rem}
 .hide{display:none !important}
 .loading{color:var(--mut);font-size:.88rem;padding:14px 2px}
+.modalOverlay{position:fixed;inset:0;background:rgba(10,20,40,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modalCard{background:var(--card);border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow:auto;box-shadow:var(--shadow-lg);padding:20px}
+.modalHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.modalHead h3{margin:0;font-size:1.05rem}
+.modalFoot{margin-top:18px;display:flex;justify-content:flex-end;gap:10px}
+.detailGrid{display:grid;gap:10px}
+.detailRow{display:grid;grid-template-columns:140px 1fr;gap:10px;border-bottom:1px solid var(--bd);padding-bottom:8px}
+.detailRow .lbl{color:var(--mut);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em}
+.detailRow .val{font-size:.92rem;word-break:break-word}
+.printHead{display:none}
+@media print{
+  body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{position:absolute;top:0;left:0;width:100%;padding:24px}
+  .printHead{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #000}
+  .printHead img{width:36px;height:36px}
+}
 </style>
 </head>
 <body>
@@ -92,7 +109,11 @@ tr:hover td{background:var(--tint)}
         <h1>Panel interno — Gosalbez Broker de Seguros</h1>
         <p class="sub">Siniestros, consultas y pólizas registrados desde la web</p>
       </div>
-      <div style="margin-left:auto"><button class="btn sm" id="btnSalir">Salir</button></div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="muted" id="backupMsg"></span>
+        <button class="btn sm" id="btnBackup">Backup completo</button>
+        <button class="btn sm" id="btnSalir">Salir</button>
+      </div>
     </div>
 
     <div class="tabs">
@@ -158,6 +179,28 @@ tr:hover td{background:var(--tint)}
     </div>
   </div>
 
+  <div id="modalOverlay" class="modalOverlay hide">
+    <div class="modalCard">
+      <div class="modalHead">
+        <h3 id="modalTitle">Detalle</h3>
+        <button class="btn sm" id="btnCerrarModal">Cerrar</button>
+      </div>
+      <div id="printArea">
+        <div class="printHead">
+          <img src="assets/icon-192.png" alt="Gosalbez">
+          <div>
+            <strong>Gosalbez Broker de Seguros</strong>
+            <div class="muted" id="printSub"></div>
+          </div>
+        </div>
+        <div id="modalBody" class="detailGrid"></div>
+      </div>
+      <div class="modalFoot">
+        <button class="btn pri" id="btnDescargarPdf">Descargar PDF</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -214,6 +257,42 @@ $("keyInput").addEventListener("keydown", e => { if(e.key==="Enter") $("btnEntra
 $("btnSalir").onclick = () => {
   try{ localStorage.removeItem("gosalbez_admin_key"); }catch(e){}
   location.reload();
+};
+
+// ---- Backup completo (Excel con las 4 hojas) ----
+const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Vehiculos"];
+$("btnBackup").onclick = async () => {
+  const btn = $("btnBackup");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Generando…";
+  $("backupMsg").textContent = "";
+  try{
+    const wb = XLSX.utils.book_new();
+    let huboError = false;
+    for(const sheetName of BACKUP_SHEETS){
+      const res = await apiGet({ action: "admin_list", key: KEY, sheet: sheetName });
+      if(!res.ok){
+        huboError = true;
+        continue;
+      }
+      const headers = (res.headers || []).filter(h => h !== "_row");
+      const aoa = [headers, ...(res.rows || []).map(r => headers.map(h => r[h] ?? ""))];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
+    }
+    const d = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    const fname = `Gosalbez_backup_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    $("backupMsg").innerHTML = huboError
+      ? `<span style="color:var(--danger)">Descargado, pero alguna hoja no se pudo incluir.</span>`
+      : `Descargado (${fname}).`;
+  }catch(err){
+    $("backupMsg").innerHTML = `<span style="color:var(--danger)">No se pudo generar el backup. Probá de nuevo.</span>`;
+  }
+  btn.textContent = originalText;
+  btn.disabled = false;
 };
 
 function enterApp(){
@@ -285,23 +364,47 @@ function renderTable(){
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
-    html += `<tr${isVeh ? ` style="cursor:pointer" data-idx="${idx}"` : ""}>`;
+    html += `<tr style="cursor:pointer" data-idx="${idx}">`;
     headers.forEach(h => html += `<td title="${esc(row[h])}">${esc(row[h])}</td>`);
     html += "</tr>";
   });
   html += `</tbody></table></div>`;
   if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
+  else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
 
-  if(isVeh){
-    $("listArea").querySelectorAll("tbody tr").forEach(tr => {
-      tr.onclick = () => {
-        fillVehFormFromRow(rows[Number(tr.dataset.idx)]);
+  $("listArea").querySelectorAll("tbody tr").forEach(tr => {
+    tr.onclick = () => {
+      const row = rows[Number(tr.dataset.idx)];
+      if(isVeh){
+        fillVehFormFromRow(row);
         $("viewVeh").scrollIntoView({behavior:"smooth", block:"start"});
-      };
-    });
-  }
+      } else {
+        openDetail(currentTab, headers, row);
+      }
+    };
+  });
 }
+
+// ---- Ver siniestro/consulta en detalle + descargar PDF ----
+const TAB_TITLES = {
+  "Automotor": "Siniestro — Automotor",
+  "Hogar-Comercio": "Siniestro — Hogar / Comercio",
+  "Otras consultas": "Otras consultas"
+};
+function openDetail(tab, headers, row){
+  const title = TAB_TITLES[tab] || tab;
+  $("modalTitle").textContent = title;
+  $("printSub").textContent = title + " · generado el " + new Date().toLocaleString("es-AR");
+  $("modalBody").innerHTML = headers.map(h => `
+    <div class="detailRow"><div class="lbl">${esc(h)}</div><div class="val">${esc(row[h]) || "—"}</div></div>
+  `).join("");
+  $("modalOverlay").classList.remove("hide");
+}
+function closeDetail(){ $("modalOverlay").classList.add("hide"); }
+$("btnCerrarModal").onclick = closeDetail;
+$("modalOverlay").addEventListener("click", e => { if(e.target.id === "modalOverlay") closeDetail(); });
+$("btnDescargarPdf").onclick = () => window.print();
 
 // ---- Vehículos: alta / actualización ----
 function fillVehFormFromRow(row){
