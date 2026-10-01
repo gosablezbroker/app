@@ -178,6 +178,19 @@ tr:hover td{background:var(--tint)}
           <input type="file" id="importFile" accept=".xlsx,.xls">
           <div style="margin-top:14px"><button class="btn" id="btnImportar">Importar y reemplazar lista completa</button></div>
         </div>
+
+        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
+          <div class="panelTitle"><h2>Enviar credenciales por email (masivo)</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            Le manda por mail la credencial de circulación a todos los vehículos que tengan un Email cargado.
+            Si un mismo cliente tiene varios autos con el mismo mail, recibe un mail por cada vehículo.
+          </p>
+          <div id="credMsg"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" id="btnCredPreview">Ver cuántos se enviarían</button>
+            <button class="btn pri" id="btnCredEnviar">Enviar credenciales ahora</button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -713,6 +726,70 @@ $("btnImportar").onclick = () => {
     $("btnImportar").disabled = false;
   };
   reader.readAsArrayBuffer(file);
+};
+
+// ---- Envío masivo de credenciales por email ----
+$("btnCredPreview").onclick = async () => {
+  const btn = $("btnCredPreview");
+  btn.disabled = true;
+  $("credMsg").innerHTML = "Consultando…";
+  try{
+    const res = await apiPost({ action:"admin_send_credenciales", key:KEY, dryRun:true });
+    if(res.ok){
+      $("credMsg").innerHTML = res.total
+        ? `<div class="ok">Se enviarían ${res.total} credenciales (vehículos con Email cargado).</div>`
+        : `<div class="err">Ningún vehículo tiene un Email cargado todavía.</div>`;
+    } else {
+      $("credMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo consultar.")}</div>`;
+    }
+  }catch(err){
+    $("credMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+  }
+  btn.disabled = false;
+};
+
+$("btnCredEnviar").onclick = async () => {
+  const preview = await apiPost({ action:"admin_send_credenciales", key:KEY, dryRun:true }).catch(() => null);
+  if(!preview || !preview.ok){
+    $("credMsg").innerHTML = `<div class="err">${esc((preview && preview.error) || "No se pudo consultar cuántos vehículos tienen Email.")}</div>`;
+    return;
+  }
+  if(!preview.total){
+    $("credMsg").innerHTML = `<div class="err">Ningún vehículo tiene un Email cargado todavía.</div>`;
+    return;
+  }
+  const ok = confirm(
+    `Esto va a enviar ${preview.total} mails con la credencial de circulación ` +
+    `(uno por cada vehículo con Email cargado).\n\n¿Confirmás el envío?`
+  );
+  if(!ok) return;
+
+  const btnPrev = $("btnCredPreview"), btnEnv = $("btnCredEnviar");
+  btnPrev.disabled = true; btnEnv.disabled = true;
+  const LOTE = 40;
+  let offset = 0, enviados = 0, fallidos = 0, total = preview.total;
+  try{
+    while(true){
+      $("credMsg").innerHTML = `Enviando… ${offset} de ${total}`;
+      const res = await apiPost({ action:"admin_send_credenciales", key:KEY, offset, limit: LOTE });
+      if(!res.ok){
+        $("credMsg").innerHTML = `<div class="err">${esc(res.error || "Error durante el envío.")}</div> Se enviaron ${enviados} antes de este error.`;
+        break;
+      }
+      enviados += res.enviados;
+      fallidos += res.fallidos;
+      total = res.total;
+      offset += res.limit;
+      if(res.done){
+        $("credMsg").innerHTML = `<div class="ok">Listo: ${enviados} credenciales enviadas` +
+          (fallidos ? `, ${fallidos} fallaron` : "") + `.</div>`;
+        break;
+      }
+    }
+  }catch(err){
+    $("credMsg").innerHTML = `<div class="err">Se cortó la conexión durante el envío. Se enviaron ${enviados} hasta el momento; probá de nuevo para continuar con el resto.</div>`;
+  }
+  btnPrev.disabled = false; btnEnv.disabled = false;
 };
 
 tryStoredKey();
