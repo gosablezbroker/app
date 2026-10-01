@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel interno — Gosalbez</title>
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f4f7;--card:#fff;--tx:#182233;--mut:#5b6478;--bd:#e0e3ea;
+  --navy:#0f2149;--navy2:#16305f;--ac:#0a75f5;--ac2:#0a75f5;--wa:#1a7a4c;--wa2:#1a7a4c;--iconc:#0a75f5;
+  --danger:#b3392f;--ring:rgba(10,117,245,.16);--tint:rgba(10,117,245,.11);
+  --shadow-sm:0 1px 2px rgba(15,33,73,.05);
+  --shadow-md:0 2px 6px rgba(15,33,73,.07);
+  --shadow-lg:0 8px 24px -8px rgba(15,33,73,.22);
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1220;--card:#141d2e;--tx:#e7ecf5;--mut:#8d97ac;--bd:#263349;
+  --navy:#0d1830;--navy2:#16264a;--ac:#6fb2ff;--ac2:#6fb2ff;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#6fb2ff;
+  --danger:#e2685e;--ring:rgba(111,178,255,.25);--tint:rgba(111,178,255,.14);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 10px rgba(0,0,0,.35);--shadow-lg:0 10px 26px -10px rgba(0,0,0,.55)}}
+:root[data-theme="dark"]{
+  --bg:#0b1220;--card:#141d2e;--tx:#e7ecf5;--mut:#8d97ac;--bd:#263349;
+  --navy:#0d1830;--navy2:#16264a;--ac:#6fb2ff;--ac2:#6fb2ff;--wa:#2f9d6c;--wa2:#2f9d6c;--iconc:#6fb2ff;
+  --danger:#e2685e;--ring:rgba(111,178,255,.25);--tint:rgba(111,178,255,.14);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 10px rgba(0,0,0,.35);--shadow-lg:0 10px 26px -10px rgba(0,0,0,.55)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);
+  color:var(--tx);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 16px 56px}
+.hdr{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.hdr img{width:40px;height:40px;border-radius:9px;display:block}
+.hdr h1{font-size:1.15rem;margin:0;letter-spacing:-.01em}
+.hdr .sub{color:var(--mut);font-size:.82rem;margin:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;box-shadow:var(--shadow-sm)}
+.gate{max-width:380px;margin:60px auto 0}
+.gate h2{margin:0 0 6px;font-size:1.1rem}
+.gate p{color:var(--mut);font-size:.88rem;margin:0 0 16px}
+label{display:block;font-size:.82rem;color:var(--mut);font-weight:600;margin:12px 0 5px}
+input,select{width:100%;padding:11px 13px;border:1.5px solid var(--bd);border-radius:9px;background:var(--bg);color:var(--tx);font:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ring)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border-radius:9px;border:1.5px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;font-weight:700;text-decoration:none;cursor:pointer;transition:box-shadow .15s ease,filter .15s ease}
+.btn:hover{box-shadow:var(--shadow-sm);border-color:var(--ac)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.sm{padding:7px 12px;font-size:.82rem}
+.err{background:rgba(179,57,47,.08);border:1px solid var(--danger);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
+.ok{background:rgba(26,122,76,.08);border:1px solid var(--wa);color:var(--wa);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 14px}
+.tab{padding:9px 14px;border-radius:9px;border:1.5px solid var(--bd);background:var(--card);color:var(--mut);font-weight:700;font-size:.86rem;cursor:pointer}
+.tab.on{background:var(--tint);color:var(--iconc);border-color:var(--ac)}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input[type=search]{flex:1 1 220px}
+.count{color:var(--mut);font-size:.82rem;white-space:nowrap}
+.tblwrap{overflow:auto;border:1px solid var(--bd);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.84rem;min-width:600px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+th{background:var(--bg);color:var(--mut);font-weight:700;text-transform:uppercase;font-size:.7rem;letter-spacing:.04em;position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--tint)}
+.muted{color:var(--mut);font-size:.88rem;padding:14px 2px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 14px}
+.panelTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.panelTitle h2{margin:0;font-size:1.05rem}
+.hide{display:none !important}
+.loading{color:var(--mut);font-size:.88rem;padding:14px 2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate" class="gate card">
+    <h2>Panel interno</h2>
+    <p>Ingresá la clave de acceso para ver los siniestros, consultas y pólizas registrados desde la web.</p>
+    <label for="keyInput">Clave de acceso</label>
+    <input id="keyInput" type="password" autocomplete="off" placeholder="••••••••">
+    <div id="gateErr"></div>
+    <div style="margin-top:14px"><button class="btn pri" id="btnEntrar" style="width:100%">Entrar</button></div>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="hdr">
+      <img src="assets/icon-192.png" alt="Gosalbez">
+      <div>
+        <h1>Panel interno — Gosalbez Broker de Seguros</h1>
+        <p class="sub">Siniestros, consultas y pólizas registrados desde la web</p>
+      </div>
+      <div style="margin-left:auto"><button class="btn sm" id="btnSalir">Salir</button></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab" data-tab="Automotor">Automotor</button>
+      <button class="tab" data-tab="Hogar-Comercio">Hogar / Comercio</button>
+      <button class="tab" data-tab="Otras consultas">Otras consultas</button>
+      <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
+    </div>
+
+    <div class="card">
+
+      <div id="viewList">
+        <div class="panelTitle">
+          <h2 id="listTitle">—</h2>
+          <button class="btn sm" id="btnRefrescar">Actualizar</button>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="buscador" placeholder="Buscar en esta tabla…">
+          <span class="count" id="conteo"></span>
+        </div>
+        <div id="listArea"><div class="loading">Cargando…</div></div>
+      </div>
+
+      <div id="viewVeh" class="hide" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--bd)">
+        <div class="panelTitle"><h2>Agregar / actualizar vehículo</h2></div>
+        <p class="muted" style="padding:0 0 6px">Si la Patente y la Póliza coinciden con una fila existente, se actualiza esa fila. Si no, se agrega una nueva.</p>
+        <div id="vehMsg"></div>
+        <div class="formgrid">
+          <div><label>Patente *</label><input id="v_Patente" placeholder="AB123CD"></div>
+          <div><label>Compañía</label><input id="v_Compania" placeholder="SMG, ZURICH, etc."></div>
+          <div><label>Póliza</label><input id="v_Poliza"></div>
+          <div><label>Inicio</label><input id="v_Inicio" placeholder="dd/mm/aaaa"></div>
+          <div><label>Fin</label><input id="v_Fin" placeholder="dd/mm/aaaa"></div>
+          <div><label>Asegurado</label><input id="v_Asegurado"></div>
+          <div><label>Marca</label><input id="v_Marca"></div>
+          <div><label>Modelo</label><input id="v_Modelo"></div>
+          <div><label>Año</label><input id="v_Anio"></div>
+          <div><label>Chasis</label><input id="v_Chasis"></div>
+          <div><label>Motor</label><input id="v_Motor"></div>
+          <div><label>Uso</label><input id="v_Uso"></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn pri" id="btnGuardarVeh">Guardar vehículo</button></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJG99yuE8Kg-rR4D5TeIm-pkLUdQQBsDH2dhUTahMWnvDuoahTwrdnOlDnB-kFK5LZ/exec";
+const VEH_FIELDS = ["Patente","Compania","Poliza","Inicio","Fin","Asegurado","Marca","Modelo","Anio","Chasis","Motor","Uso"];
+
+let KEY = "";
+let currentTab = "Automotor";
+let currentRows = [];
+let currentHeaders = [];
+
+const $ = id => document.getElementById(id);
+
+function esc(v){
+  return String(v==null?"":v).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+async function apiGet(params){
+  const qs = new URLSearchParams(params).toString();
+  const r = await fetch(SCRIPT_URL + "?" + qs);
+  return r.json();
+}
+async function apiPost(body){
+  const r = await fetch(SCRIPT_URL, {
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ---- Acceso ----
+function tryStoredKey(){
+  let saved = "";
+  try{ saved = localStorage.getItem("gosalbez_admin_key") || ""; }catch(e){}
+  if(saved){ KEY = saved; enterApp(); }
+}
+$("btnEntrar").onclick = async () => {
+  const val = $("keyInput").value.trim();
+  if(!val) return;
+  $("gateErr").innerHTML = "";
+  $("btnEntrar").textContent = "Verificando…";
+  KEY = val;
+  const res = await apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"});
+  $("btnEntrar").textContent = "Entrar";
+  if(res.ok){
+    try{ localStorage.setItem("gosalbez_admin_key", KEY); }catch(e){}
+    enterApp();
+  } else {
+    $("gateErr").innerHTML = `<div class="err">${esc(res.error || "Clave incorrecta.")}</div>`;
+  }
+};
+$("keyInput").addEventListener("keydown", e => { if(e.key==="Enter") $("btnEntrar").click(); });
+$("btnSalir").onclick = () => {
+  try{ localStorage.removeItem("gosalbez_admin_key"); }catch(e){}
+  location.reload();
+};
+
+function enterApp(){
+  $("gate").classList.add("hide");
+  $("app").classList.remove("hide");
+  selectTab("Automotor");
+}
+
+// ---- Tabs ----
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.onclick = () => selectTab(btn.dataset.tab);
+});
+
+function selectTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
+  const isVeh = tab === "Vehiculos";
+  $("viewVeh").classList.toggle("hide", !isVeh);
+  const titles = {
+    "Automotor":"Siniestros — Automotor",
+    "Hogar-Comercio":"Siniestros — Hogar / Comercio",
+    "Otras consultas":"Otras consultas",
+    "Vehiculos":"Vehículos y pólizas"
+  };
+  $("listTitle").textContent = titles[tab] || tab;
+  $("buscador").value = "";
+  loadTab(tab);
+}
+
+$("btnRefrescar").onclick = () => loadTab(currentTab);
+$("buscador").addEventListener("input", renderTable);
+
+async function loadTab(tab){
+  $("listArea").innerHTML = `<div class="loading">Cargando…</div>`;
+  $("conteo").textContent = "";
+  try{
+    const res = await apiGet({action:"admin_list", key:KEY, sheet:tab});
+    if(!res.ok){
+      $("listArea").innerHTML = `<div class="err">${esc(res.error||"No se pudo cargar.")}</div>`;
+      return;
+    }
+    currentHeaders = res.headers || [];
+    currentRows = (res.rows || []).slice().reverse(); // más recientes primero
+    renderTable();
+  }catch(err){
+    $("listArea").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
+  }
+}
+
+function renderTable(){
+  const q = $("buscador").value.trim().toLowerCase();
+  const headers = currentHeaders.filter(h => h !== "_row");
+  const rows = !q ? currentRows : currentRows.filter(row =>
+    headers.some(h => String(row[h]==null?"":row[h]).toLowerCase().includes(q))
+  );
+  $("conteo").textContent = rows.length + (rows.length===1 ? " resultado" : " resultados");
+
+  if(!headers.length){
+    $("listArea").innerHTML = `<div class="muted">Esta hoja todavía no tiene encabezados o está vacía.</div>`;
+    return;
+  }
+  if(!rows.length){
+    $("listArea").innerHTML = `<div class="muted">No hay registros${q ? " que coincidan con la búsqueda" : " todavía"}.</div>`;
+    return;
+  }
+
+  const isVeh = currentTab === "Vehiculos";
+  let html = `<div class="tblwrap"><table><thead><tr>`;
+  headers.forEach(h => html += `<th>${esc(h)}</th>`);
+  html += `</tr></thead><tbody>`;
+  rows.forEach((row, idx) => {
+    html += `<tr${isVeh ? ` style="cursor:pointer" data-idx="${idx}"` : ""}>`;
+    headers.forEach(h => html += `<td title="${esc(row[h])}">${esc(row[h])}</td>`);
+    html += "</tr>";
+  });
+  html += `</tbody></table></div>`;
+  if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
+  $("listArea").innerHTML = html;
+
+  if(isVeh){
+    $("listArea").querySelectorAll("tbody tr").forEach(tr => {
+      tr.onclick = () => {
+        fillVehFormFromRow(rows[Number(tr.dataset.idx)]);
+        $("viewVeh").scrollIntoView({behavior:"smooth", block:"start"});
+      };
+    });
+  }
+}
+
+// ---- Vehículos: alta / actualización ----
+function fillVehFormFromRow(row){
+  VEH_FIELDS.forEach(f => { if($("v_"+f)) $("v_"+f).value = row[f] || ""; });
+}
+
+$("btnGuardarVeh").onclick = async () => {
+  const data = {};
+  VEH_FIELDS.forEach(f => data[f] = $("v_"+f).value.trim());
+  $("vehMsg").innerHTML = "";
+  if(!data.Patente){
+    $("vehMsg").innerHTML = `<div class="err">Falta la patente.</div>`;
+    return;
+  }
+  $("btnGuardarVeh").textContent = "Guardando…";
+  $("btnGuardarVeh").disabled = true;
+  try{
+    const res = await apiPost({action:"admin_upsert_vehiculo", key:KEY, data});
+    if(res.ok){
+      const texto = res.action === "updated" ? "Vehículo actualizado." : "Vehículo agregado.";
+      $("vehMsg").innerHTML = `<div class="ok">${texto}</div>`;
+      if(currentTab === "Vehiculos") loadTab("Vehiculos");
+    } else {
+      $("vehMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo guardar.")}</div>`;
+    }
+  }catch(err){
+    $("vehMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+  }
+  $("btnGuardarVeh").textContent = "Guardar vehículo";
+  $("btnGuardarVeh").disabled = false;
+};
+
+tryStoredKey();
+</script>
+</body>
+</html>
