@@ -148,6 +148,8 @@ tr:hover td{background:var(--tint)}
           <div><label>Inicio</label><input id="v_Inicio" placeholder="dd/mm/aaaa"></div>
           <div><label>Fin</label><input id="v_Fin" placeholder="dd/mm/aaaa"></div>
           <div><label>Asegurado</label><input id="v_Asegurado"></div>
+          <div><label>Email</label><input id="v_Email" type="email" placeholder="cliente@mail.com"></div>
+          <div><label>Celular</label><input id="v_Celular" placeholder="11 2345-6789"></div>
           <div><label>Marca</label><input id="v_Marca"></div>
           <div><label>Modelo</label><input id="v_Modelo"></div>
           <div><label>Año</label><input id="v_Anio"></div>
@@ -165,7 +167,7 @@ tr:hover td{background:var(--tint)}
           </p>
           <p class="muted" style="padding:0 0 10px">
             Acepta dos formatos: el listado simple con las columnas
-            <code>Patente, Compania, Poliza, Inicio, Fin, Asegurado, Marca, Modelo, Anio, Chasis, Motor, Uso</code>
+            <code>Patente, Compania, Poliza, Inicio, Fin, Asegurado, Email, Celular, Marca, Modelo, Anio, Chasis, Motor, Uso</code>
             (no importa el orden ni mayúsculas/acentos), o directamente el export tal cual lo entregan las
             compañías (con columnas como "N° Póliza", "Compañia", "Inicio de vigencia", etc.) — en ese caso
             agrupa automáticamente los endosos de cada póliza en una sola fila por vehículo.
@@ -205,7 +207,7 @@ tr:hover td{background:var(--tint)}
 
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJG99yuE8Kg-rR4D5TeIm-pkLUdQQBsDH2dhUTahMWnvDuoahTwrdnOlDnB-kFK5LZ/exec";
-const VEH_FIELDS = ["Patente","Compania","Poliza","Inicio","Fin","Asegurado","Marca","Modelo","Anio","Chasis","Motor","Uso"];
+const VEH_FIELDS = ["Patente","Compania","Poliza","Inicio","Fin","Asegurado","Email","Celular","Marca","Modelo","Anio","Chasis","Motor","Uso"];
 
 let KEY = "";
 let currentTab = "Automotor";
@@ -498,6 +500,12 @@ VEH_FIELDS.forEach(f => VEH_HEADER_MAP[normalizeHeader(f)] = f);
 VEH_HEADER_MAP[normalizeHeader("Año")] = "Anio";
 VEH_HEADER_MAP[normalizeHeader("Compañia")] = "Compania";
 VEH_HEADER_MAP[normalizeHeader("Póliza")] = "Poliza";
+VEH_HEADER_MAP[normalizeHeader("Mail")] = "Email";
+VEH_HEADER_MAP[normalizeHeader("Correo")] = "Email";
+VEH_HEADER_MAP[normalizeHeader("Telefono")] = "Celular";
+VEH_HEADER_MAP[normalizeHeader("Teléfono")] = "Celular";
+VEH_HEADER_MAP[normalizeHeader("Tel")] = "Celular";
+VEH_HEADER_MAP[normalizeHeader("Cel")] = "Celular";
 const DATE_FIELDS = { Inicio: true, Fin: true };
 
 // Formato simple: ya viene con (más o menos) las 12 columnas de la hoja.
@@ -525,6 +533,8 @@ function parseCarrierExport(raw, sourceHeaders){
   const colFin = findCol(sourceHeaders, "Fin de vigencia", "Fin");
   const colAsegurado = findCol(sourceHeaders, "Asegurado/s", "Asegurado");
   const colTomador = findCol(sourceHeaders, "Tomador/es", "Tomador");
+  const colEmail = findCol(sourceHeaders, "Email", "Mail", "Correo", "E-mail");
+  const colCelular = findCol(sourceHeaders, "Celular", "Telefono", "Teléfono", "Tel", "Cel");
   const colMarca = findCol(sourceHeaders, "Marca");
   const colModelo = findCol(sourceHeaders, "Modelo");
   const colAnio = findCol(sourceHeaders, "Año", "Anio");
@@ -570,6 +580,8 @@ function parseCarrierExport(raw, sourceHeaders){
       Inicio: formatDMY(minInicio),
       Fin: formatDMY(maxFin),
       Asegurado: cleanPersonName(aseguradoVal),
+      Email: colEmail ? String(r[colEmail]||"").trim() : "",
+      Celular: colCelular ? String(r[colCelular]||"").trim() : "",
       Marca: colMarca ? String(r[colMarca]||"").trim() : "",
       Modelo: colModelo ? String(r[colModelo]||"").trim() : "",
       Anio: colAnio ? String(r[colAnio]||"").trim() : "",
