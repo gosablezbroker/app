@@ -53,13 +53,15 @@ input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3p
 .btn.sm{padding:7px 12px;font-size:.82rem}
 .err{background:rgba(179,57,47,.08);border:1px solid var(--danger);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
 .ok{background:rgba(26,122,76,.08);border:1px solid var(--wa);color:var(--wa);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:20}
 .tab{padding:9px 14px;border-radius:9px;border:1.5px solid var(--bd);background:var(--card);color:var(--mut);font-weight:700;font-size:.86rem;cursor:pointer}
 .tab.on{background:var(--tint);color:var(--iconc);border-color:var(--ac)}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .toolbar input[type=search]{flex:1 1 220px}
 .count{color:var(--mut);font-size:.82rem;white-space:nowrap}
-.tblwrap{overflow:auto;border:1px solid var(--bd);border-radius:10px}
+.tblwrap{overflow:auto;max-height:58vh;border:1px solid var(--bd);border-radius:10px}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px}
+.pager span{color:var(--mut);font-size:.84rem;white-space:nowrap}
 table{border-collapse:collapse;width:100%;font-size:.84rem;min-width:600px}
 th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
 th{background:var(--bg);color:var(--mut);font-weight:700;text-transform:uppercase;font-size:.7rem;letter-spacing:.04em;position:sticky;top:0}
@@ -213,6 +215,8 @@ let KEY = "";
 let currentTab = "Automotor";
 let currentRows = [];
 let currentHeaders = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
 
 const $ = id => document.getElementById(id);
 
@@ -321,11 +325,12 @@ function selectTab(tab){
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
+  currentPage = 1;
   loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
-$("buscador").addEventListener("input", renderTable);
+$("buscador").addEventListener("input", () => { currentPage = 1; renderTable(); });
 
 async function loadTab(tab){
   $("listArea").innerHTML = `<div class="loading">Cargando…</div>`;
@@ -338,6 +343,7 @@ async function loadTab(tab){
     }
     currentHeaders = res.headers || [];
     currentRows = (res.rows || []).slice().reverse(); // más recientes primero
+    currentPage = 1;
     renderTable();
   }catch(err){
     $("listArea").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
@@ -347,19 +353,29 @@ async function loadTab(tab){
 function renderTable(){
   const q = $("buscador").value.trim().toLowerCase();
   const headers = currentHeaders.filter(h => h !== "_row");
-  const rows = !q ? currentRows : currentRows.filter(row =>
+  const filtered = !q ? currentRows : currentRows.filter(row =>
     headers.some(h => String(row[h]==null?"":row[h]).toLowerCase().includes(q))
   );
-  $("conteo").textContent = rows.length + (rows.length===1 ? " resultado" : " resultados");
 
   if(!headers.length){
+    $("conteo").textContent = "";
     $("listArea").innerHTML = `<div class="muted">Esta hoja todavía no tiene encabezados o está vacía.</div>`;
     return;
   }
-  if(!rows.length){
+  if(!filtered.length){
+    $("conteo").textContent = "0 resultados";
     $("listArea").innerHTML = `<div class="muted">No hay registros${q ? " que coincidan con la búsqueda" : " todavía"}.</div>`;
     return;
   }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if(currentPage > totalPages) currentPage = totalPages;
+  if(currentPage < 1) currentPage = 1;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const rows = filtered.slice(start, start + PAGE_SIZE);
+
+  $("conteo").textContent = filtered.length + (filtered.length===1 ? " resultado" : " resultados") +
+    (totalPages > 1 ? ` · mostrando ${start+1}–${start+rows.length}` : "");
 
   const isVeh = currentTab === "Vehiculos";
   let html = `<div class="tblwrap"><table><thead><tr>`;
@@ -371,9 +387,23 @@ function renderTable(){
     html += "</tr>";
   });
   html += `</tbody></table></div>`;
+  if(totalPages > 1){
+    html += `<div class="pager">
+      <button class="btn sm" id="btnPagAnt" ${currentPage<=1?"disabled":""}>&laquo; Anterior</button>
+      <span>Página ${currentPage} de ${totalPages}</span>
+      <button class="btn sm" id="btnPagSig" ${currentPage>=totalPages?"disabled":""}>Siguiente &raquo;</button>
+    </div>`;
+  }
   if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
+
+  if(totalPages > 1){
+    const scrollTop = () => $("listArea").scrollIntoView({behavior:"smooth", block:"start"});
+    const btnAnt = $("btnPagAnt"), btnSig = $("btnPagSig");
+    if(btnAnt) btnAnt.onclick = () => { currentPage--; renderTable(); scrollTop(); };
+    if(btnSig) btnSig.onclick = () => { currentPage++; renderTable(); scrollTop(); };
+  }
 
   $("listArea").querySelectorAll("tbody tr").forEach(tr => {
     tr.onclick = () => {
