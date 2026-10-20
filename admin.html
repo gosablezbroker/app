@@ -123,6 +123,7 @@ tr:hover td{background:var(--tint)}
       <button class="tab" data-tab="Hogar-Comercio">Hogar / Comercio</button>
       <button class="tab" data-tab="Otras consultas">Otras consultas</button>
       <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
+      <button class="tab" data-tab="Usuarios">Usuarios registrados</button>
     </div>
 
     <div class="card">
@@ -279,7 +280,7 @@ $("btnSalir").onclick = () => {
 };
 
 // ---- Backup completo (Excel con las 4 hojas) ----
-const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Vehiculos"];
+const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Vehiculos", "Usuarios"];
 $("btnBackup").onclick = async () => {
   const btn = $("btnBackup");
   const originalText = btn.textContent;
@@ -292,7 +293,8 @@ $("btnBackup").onclick = async () => {
     for(const sheetName of BACKUP_SHEETS){
       const res = await apiGet({ action: "admin_list", key: KEY, sheet: sheetName });
       if(!res.ok){
-        huboError = true;
+        // "Usuarios" recién existe cuando se registra el primer cliente: no es un error.
+        if(sheetName !== "Usuarios") huboError = true;
         continue;
       }
       const headers = (res.headers || []).filter(h => h !== "_row");
@@ -334,7 +336,8 @@ function selectTab(tab){
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
-    "Vehiculos":"Vehículos y pólizas"
+    "Vehiculos":"Vehículos y pólizas",
+    "Usuarios":"Usuarios registrados"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -351,6 +354,11 @@ async function loadTab(tab){
   try{
     const res = await apiGet({action:"admin_list", key:KEY, sheet:tab});
     if(!res.ok){
+      if(tab === "Usuarios" && /No se encontr/i.test(res.error||"")){
+        currentHeaders = []; currentRows = [];
+        $("listArea").innerHTML = `<div class="muted">Todavía no se registró ningún usuario. Los clientes aparecen acá a medida que ingresan a la app.</div>`;
+        return;
+      }
       $("listArea").innerHTML = `<div class="err">${esc(res.error||"No se pudo cargar.")}</div>`;
       return;
     }
@@ -365,7 +373,8 @@ async function loadTab(tab){
 
 function renderTable(){
   const q = $("buscador").value.trim().toLowerCase();
-  const headers = currentHeaders.filter(h => h !== "_row");
+  const isUsr = currentTab === "Usuarios";
+  const headers = currentHeaders.filter(h => h !== "_row" && !(isUsr && h === "UID"));
   const filtered = !q ? currentRows : currentRows.filter(row =>
     headers.some(h => String(row[h]==null?"":row[h]).toLowerCase().includes(q))
   );
@@ -393,10 +402,18 @@ function renderTable(){
   const isVeh = currentTab === "Vehiculos";
   let html = `<div class="tblwrap"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
+  if(isUsr) html += `<th>Acceso</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
-    html += `<tr style="cursor:pointer" data-idx="${idx}">`;
-    headers.forEach(h => html += `<td title="${esc(row[h])}">${esc(row[h])}</td>`);
+    html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
+    headers.forEach(h => {
+      const bloq = isUsr && h === "Estado" && String(row[h]).trim().toLowerCase() === "bloqueado";
+      html += `<td title="${esc(row[h])}"${bloq ? ' style="color:var(--danger);font-weight:700"' : ""}>${esc(row[h])}</td>`;
+    });
+    if(isUsr){
+      const esBloq = String(row.Estado||"").trim().toLowerCase() === "bloqueado";
+      html += `<td><button class="btn sm" data-uid="${esc(row.UID)}" data-email="${esc(row.Email)}" data-nuevo="${esBloq ? "Activo" : "Bloqueado"}">${esBloq ? "Desbloquear" : "Bloquear"}</button></td>`;
+    }
     html += "</tr>";
   });
   html += `</tbody></table></div>`;
@@ -407,7 +424,11 @@ function renderTable(){
       <button class="btn sm" id="btnPagSig" ${currentPage>=totalPages?"disabled":""}>Siguiente &raquo;</button>
     </div>`;
   }
-  if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
+  if(isUsr){
+    const bloqueados = currentRows.filter(r => String(r.Estado||"").trim().toLowerCase() === "bloqueado").length;
+    html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
+  }
+  else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
 
@@ -418,7 +439,29 @@ function renderTable(){
     if(btnSig) btnSig.onclick = () => { currentPage++; renderTable(); scrollTop(); };
   }
 
+  if(isUsr){
+    $("listArea").querySelectorAll("button[data-uid]").forEach(b => {
+      b.onclick = async () => {
+        const nuevo = b.dataset.nuevo, quien = b.dataset.email || "este usuario";
+        const ok = confirm(nuevo === "Bloqueado"
+          ? `¿Bloquear a ${quien}? Va a dejar de poder ver credenciales y enviar denuncias.`
+          : `¿Desbloquear a ${quien}?`);
+        if(!ok) return;
+        b.disabled = true;
+        try{
+          const res = await apiPost({ action:"admin_set_user_estado", key:KEY, uid:b.dataset.uid, estado:nuevo });
+          if(res.ok){ loadTab("Usuarios"); return; }
+          $("usrMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo cambiar el acceso.")}</div>`;
+        }catch(err){
+          $("usrMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+        }
+        b.disabled = false;
+      };
+    });
+  }
+
   $("listArea").querySelectorAll("tbody tr").forEach(tr => {
+    if(isUsr) return;
     tr.onclick = () => {
       const row = rows[Number(tr.dataset.idx)];
       if(isVeh){
