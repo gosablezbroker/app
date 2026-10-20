@@ -393,7 +393,8 @@ function show(id,fixed){
     if(f.t==="file")return `<div class="fw"${at}><label>${f.l}</label><input class="filein" data-k="${f.id}" type="file" multiple accept="image/*,.pdf"><p style="color:var(--mut);font-size:.78rem;margin:5px 0 0">Fotos o PDF, hasta ${MAX_FILE_MB} MB por archivo (máx. ${MAX_FILES} archivos).</p><span class="errmsg" data-fileerr="${f.id}" style="display:none;color:#d64545;font-size:.8rem"></span></div>`;
     const rq=f.req?" required":"";
     const inp=f.t==="select"?`<select data-k="${f.id}"${rq}>${f.o.map(o=>`<option>${o}</option>`).join("")}</select>`:f.t==="area"?`<textarea data-k="${f.id}" rows="3"${rq}></textarea>`:`<input data-k="${f.id}" type="${f.t}"${rq}>`;
-    return `<div class="fw"${at}><label>${f.l}</label>${inp}${f.req?'<span class="errmsg" style="display:none;color:#d64545;font-size:.8rem">Completá este campo.</span>':""}</div>`;
+    const otra=(f.t==="select"&&f.o===CIAS)?`<input class="otraInp" data-otra-for="${f.id}" type="text" placeholder="Escribí el nombre de la compañía" maxlength="80" style="display:none;margin-top:8px">`:"";
+    return `<div class="fw"${at}><label>${f.l}</label>${inp}${otra}${f.req?'<span class="errmsg" style="display:none;color:#d64545;font-size:.8rem">Completá este campo.</span>':""}</div>`;
   }).join("");
   $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
   ${s.alert?`<div class="alert">${ICO.warn}${s.alert}</div>`:""}
@@ -412,6 +413,21 @@ function show(id,fixed){
     });
   }
   toggleConds();
+  // "Otra" compañía: se abre una casilla para escribir el nombre; el valor del
+  // desplegable pasa a ser "Otra: <nombre>" para que viaje en el mail y la planilla.
+  $("panel").querySelectorAll("input[data-otra-for]").forEach(inp=>{
+    const sel=$("panel").querySelector(`select[data-k="${inp.dataset.otraFor}"]`);
+    if(!sel)return;
+    const opt=Array.from(sel.options).find(o=>o.text==="Otra");
+    if(!opt)return;
+    const sync=()=>{
+      const isOtra=sel.selectedOptions[0]===opt;
+      inp.style.display=isOtra?"":"none";
+      opt.value=isOtra&&inp.value.trim()?"Otra: "+inp.value.trim():"Otra";
+    };
+    sel.addEventListener("change",()=>{sync();if(sel.selectedOptions[0]===opt)inp.focus()});
+    inp.addEventListener("input",sync);
+  });
   function validateFiles(){
     let ok=true;
     $("panel").querySelectorAll("input.filein").forEach(el=>{
