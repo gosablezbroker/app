@@ -229,7 +229,7 @@ const S=[
 {id:"auto",i:ICO.auto,t:"Denunciar siniestro automotor",d:"Choque, robo, granizo, daños a terceros.",
  alert:"Si hay heridos o peligro, llamá primero al 911.",notify:true,sheetName:"Automotor",
  subtypes:[{v:"Choque",i:ICO.choque,d:"Con daños a tu vehículo, con o sin tercero involucrado."},{v:"Robo",i:ICO.robo,d:"Robo total o parcial del vehículo o de sus partes."},{v:"Daños a cristales",i:ICO.cristales,d:"Rotura o daño en parabrisas, ventanillas u otros cristales."}],
- cols:["mail","cel","tipo","cond","tit","veh","pat","cia","lugar","fecha","hora","desc","danios","ter_ndni","ter_cont","ter_cia","ter_veh","ter_pat","ter_danios","les"],
+ cols:["mail","cel","tipo","cond","tit","veh","pat","cia","lugar","fecha","hora","desc","danios","ter_ndni","ter_cont","ter_cia","ter_veh","ter_pat","ter_danios","les","ter_tit","ter_pol"],
  list:["DNI y licencia de conducir","Patente y datos de tu póliza","Fotos de los daños y del lugar","Datos del otro vehículo: patente, conductor, DNI y aseguradora","Fecha, hora y lugar del hecho","Denuncia policial, si hubo robo o lesionados"],
  tip:"Denunciá lo antes posible: cada póliza tiene plazos. No firmes ni reconozcas responsabilidad ante terceros.",
  f:[F("mail","Tu email *","email",null,null,true),
@@ -246,15 +246,17 @@ const S=[
    F("hora","Hora del siniestro","time"),
    F("desc","Descripción del siniestro (mecánica del accidente)","area"),
    F("danios","Daños a tu vehículo","area"),
-   F("_terh","TERCERO — datos del tercero con el que tuviste el siniestro","heading",null,["tipo","Choque"]),
-   F("ter_ndni","Nombre, apellido y DNI del tercero","text",null,["tipo","Choque"]),
-   F("ter_cont","Teléfono celular o mail del tercero","text",null,["tipo","Choque"]),
-   F("ter_cia","Compañía, n° de póliza y titular de póliza del tercero","text",null,["tipo","Choque"]),
-   F("ter_veh","Vehículo del tercero (Marca, modelo, año)","text",null,["tipo","Choque"]),
+   F("adj","Adjuntá fotos del siniestro o del daño (opcional)","file"),
+   F("_terh","DATOS DEL TERCERO — el otro vehículo o persona involucrada","heading",null,["tipo","Choque"]),
+   F("ter_cont","Celular o mail del tercero","text",null,["tipo","Choque"]),
+   F("ter_ndni","Conductor del vehículo del tercero (Nombre, Apellido, DNI)","text",null,["tipo","Choque"]),
+   F("ter_tit","Titular de póliza del tercero (Nombre / Apellido / Razón social)","text",null,["tipo","Choque"]),
+   F("ter_veh","Vehículo del tercero (Marca / Modelo / Año)","text",null,["tipo","Choque"]),
    F("ter_pat","Patente / Dominio del tercero","text",null,["tipo","Choque"]),
-   F("ter_danios","Daños en el tercero","area",null,["tipo","Choque"]),
-   F("les","Lesionados u otros involucrados en el siniestro (indicá los datos)","area",null,["tipo","Choque"]),
-   F("adj","Adjuntá fotos del siniestro o del daño (opcional)","file")]},
+   F("ter_cia","Compañía del tercero","select",CIAS,["tipo","Choque"]),
+   F("ter_pol","N° de póliza del tercero","text",null,["tipo","Choque"]),
+   F("ter_danios","Daños en el vehículo del tercero","area",null,["tipo","Choque"]),
+   F("les","Lesionados u otros involucrados en el siniestro (indicá los datos)","area",null,["tipo","Choque"])]},
 {id:"hog",i:ICO.hog,t:"Denunciar siniestro Hogar / Comercio",d:"Robo, incendio, daño por agua, tormenta.",
  alert:"Si hay riesgo de incendio, gas o derrumbe, llamá primero al 911.",notify:true,sheetName:"Hogar-Comercio",
  cols:["mail","cel","n","dni","cia","tipo","dir","hecho","fecha","desc"],
@@ -405,7 +407,8 @@ function show(id,fixed){
   function toggleConds(){
     $("panel").querySelectorAll("[data-show-if]").forEach(w=>{
       const dep=$("panel").querySelector(`[data-k="${w.dataset.showIf}"]`);
-      w.style.display=(dep&&dep.value===w.dataset.showVal)?"":"none";
+      const cur=dep?dep.value:(fixed?fixed[w.dataset.showIf]:undefined);
+      w.style.display=(cur===w.dataset.showVal)?"":"none";
     });
   }
   toggleConds();
