@@ -162,6 +162,17 @@ tr:hover td{background:var(--tint)}
         </div>
         <div style="margin-top:16px"><button class="btn pri" id="btnGuardarVeh">Guardar vehículo</button></div>
 
+        <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--bd)">
+          <div class="panelTitle"><h2>PDF originales de este vehículo</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            Adjuntá la credencial y la póliza originales en PDF (hasta 8 MB cada una). El cliente las descarga
+            desde su credencial en la app. Se guardan para la <strong>patente y póliza</strong> cargadas arriba.
+            Si subís otro PDF del mismo tipo, reemplaza al anterior.
+          </p>
+          <div id="docMsg"></div>
+          <div id="docRows"></div>
+        </div>
+
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
           <div class="panelTitle"><h2>Importar vehículos desde Excel</h2></div>
           <p class="muted" style="padding:0 0 6px">
@@ -497,7 +508,92 @@ $("btnDescargarPdf").onclick = () => window.print();
 // ---- Vehículos: alta / actualización ----
 function fillVehFormFromRow(row){
   VEH_FIELDS.forEach(f => { if($("v_"+f)) $("v_"+f).value = row[f] || ""; });
+  loadDocs();
 }
+
+// ---- Vehículos: PDF originales (credencial y póliza) ----
+const DOC_TIPOS = [["Credencial","Credencial"],["Poliza","Póliza"]];
+const MAX_DOC_MB = 8;
+let vehDocs = [];
+const normPat = v => String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function fileToBase64(file){
+  return new Promise((ok, fail) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1] || "");
+    r.onerror = () => fail(r.error);
+    r.readAsDataURL(file);
+  });
+}
+async function loadDocs(){
+  const pat = normPat($("v_Patente").value);
+  if(!pat){ vehDocs = []; renderDocs(); return; }
+  try{
+    const res = await apiPost({action:"admin_doc_list", key:KEY, patente:pat});
+    if(normPat($("v_Patente").value) !== pat) return;
+    vehDocs = res.ok ? res.docs : [];
+  }catch(e){ vehDocs = []; }
+  renderDocs();
+}
+function renderDocs(){
+  const pat = normPat($("v_Patente").value), pol = $("v_Poliza").value.trim();
+  if(!pat){
+    $("docRows").innerHTML = `<p class="muted">Cargá primero la patente para poder adjuntar los PDF.</p>`;
+    return;
+  }
+  $("docRows").innerHTML = DOC_TIPOS.map(([tipo, label]) => {
+    const d = vehDocs.find(x => x.tipo === tipo && String(x.poliza||"").trim() === pol);
+    return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--bd)">
+      <div style="flex:0 0 100px;font-weight:600">${label}</div>
+      <div style="flex:1 1 180px;font-size:.88rem">${d
+        ? `✔ ${esc(d.archivo)} <span class="muted">· subido ${esc(new Date(d.subido).toLocaleDateString("es-AR"))}</span>`
+        : `<span class="muted">Sin archivo</span>`}</div>
+      <input type="file" accept="application/pdf,.pdf" data-doc-file="${tipo}" style="max-width:220px">
+      <button class="btn sm pri" data-doc-up="${tipo}">${d ? "Reemplazar" : "Subir"}</button>
+      ${d ? `<button class="btn sm" data-doc-del="${esc(d.id)}">Quitar</button>` : ""}
+    </div>`;
+  }).join("");
+  $("docRows").querySelectorAll("[data-doc-up]").forEach(b => b.onclick = () => subirDoc(b.dataset.docUp, b));
+  $("docRows").querySelectorAll("[data-doc-del]").forEach(b => b.onclick = () => quitarDoc(b.dataset.docDel, b));
+}
+async function subirDoc(tipo, btn){
+  const pat = normPat($("v_Patente").value), pol = $("v_Poliza").value.trim();
+  const input = $("docRows").querySelector(`[data-doc-file="${tipo}"]`);
+  const file = input && input.files[0];
+  $("docMsg").innerHTML = "";
+  if(!pat){ $("docMsg").innerHTML = `<div class="err">Falta la patente.</div>`; return; }
+  if(!file){ $("docMsg").innerHTML = `<div class="err">Elegí primero un archivo PDF.</div>`; return; }
+  if(!/\.pdf$/i.test(file.name) && file.type !== "application/pdf"){ $("docMsg").innerHTML = `<div class="err">El archivo tiene que ser un PDF.</div>`; return; }
+  if(file.size > MAX_DOC_MB*1024*1024){ $("docMsg").innerHTML = `<div class="err">El PDF pesa más de ${MAX_DOC_MB} MB.</div>`; return; }
+  btn.disabled = true; btn.textContent = "Subiendo…";
+  try{
+    const data = await fileToBase64(file);
+    const res = await apiPost({action:"admin_doc_upload", key:KEY, patente:pat, poliza:pol, tipo, name:file.name, data});
+    if(res.ok){
+      $("docMsg").innerHTML = `<div class="ok">${res.reemplazado ? "PDF reemplazado." : "PDF subido."}</div>`;
+      await loadDocs();
+      return;
+    }
+    $("docMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo subir el archivo.")}</div>`;
+  }catch(e){
+    $("docMsg").innerHTML = `<div class="err">No se pudo subir el archivo. Probá de nuevo.</div>`;
+  }
+  btn.disabled = false; btn.textContent = "Subir";
+}
+async function quitarDoc(id, btn){
+  if(!confirm("¿Quitar este PDF? El cliente dejará de poder descargarlo.")) return;
+  btn.disabled = true;
+  try{
+    const res = await apiPost({action:"admin_doc_delete", key:KEY, id});
+    $("docMsg").innerHTML = res.ok ? `<div class="ok">PDF quitado.</div>` : `<div class="err">${esc(res.error || "No se pudo quitar.")}</div>`;
+    await loadDocs();
+  }catch(e){
+    $("docMsg").innerHTML = `<div class="err">No se pudo conectar. Probá de nuevo.</div>`;
+    btn.disabled = false;
+  }
+}
+$("v_Patente").addEventListener("change", loadDocs);
+$("v_Poliza").addEventListener("input", renderDocs);
+renderDocs();
 
 $("btnGuardarVeh").onclick = async () => {
   const data = {};

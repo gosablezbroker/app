@@ -367,9 +367,11 @@ function show(id,fixed){
           <div class="credRow"><span>Teléfono de grúa</span><span>${grua}</span></div>
           </div>
           <p style="color:var(--mut);font-size:.72rem;line-height:1.4;margin-top:12px;text-align:justify">La posesión de este comprobante obligatorio será prueba suficiente de la vigencia del seguro obligatorio de automotores por el artículo 68 de la Ley N° 24.449. Conforme el artículo 2 de la Disposición N° 70/2009 de la AGENCIA NACIONAL DE SEGURIDAD VIAL, la falta de portación del recibo de pago de la prima del seguro obligatorio por parte del conductor del vehículo, no podrá ser aducida por la autoridad de constatación para determinar el incumplimiento de los requisitos para la circulación.</p>
-          <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button></div>`;
+          <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button>${(d.docs||[]).map(x=>`<button type="button" class="btn" data-doc="${x.id}" data-pat="${d.patente}">${x.tipo==="Poliza"?"Descargar póliza original (PDF)":"Descargar credencial original (PDF)"}</button>`).join("")}</div>
+          <div id="docErr" style="display:none;color:#d64545;font-size:.85rem;margin-top:8px"></div>`;
           res.style.display="";
           $("credPrint").onclick=()=>window.print();
+          res.querySelectorAll("button[data-doc]").forEach(b=>b.onclick=()=>descargarDoc(s.lookupUrl,b));
         })
         .catch(()=>{err.textContent="No pudimos conectarnos para buscar tu credencial. Probá de nuevo en unos minutos.";err.style.display="";})
         .finally(()=>{btn.disabled=false;btn.textContent="Buscar mi credencial";});
@@ -594,6 +596,28 @@ async function lookupCred(url,pat){
   const j=await r.json();
   if(j&&(j.blocked||j.authRequired))authFailed(j);
   return j;
+}
+// Baja un PDF original (credencial / póliza) adjuntado por la corredora. Pasa por el
+// servidor con la sesión del cliente; no hay links públicos a los archivos.
+async function descargarDoc(url,btn){
+  const err=document.getElementById("docErr"),txt=btn.textContent;
+  err.style.display="none";btn.disabled=true;btn.textContent="Descargando…";
+  try{
+    const idToken=await getAuthToken();
+    const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"doc_download",patente:btn.dataset.pat,id:btn.dataset.doc,idToken})});
+    const j=await r.json();
+    if(j&&(j.blocked||j.authRequired)){authFailed(j);return}
+    if(!j.ok)throw new Error(j.error||"");
+    const bin=atob(j.data),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
+    a.download=j.name||"documento.pdf";
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+  }catch(e){
+    err.textContent="No pudimos descargar el archivo. Probá de nuevo en unos minutos.";err.style.display="";
+  }finally{btn.disabled=false;btn.textContent=txt}
 }
 // El servidor rechazó la sesión: si está bloqueado mostramos el aviso; si venció, pedimos ingresar de nuevo.
 function authFailed(j){
