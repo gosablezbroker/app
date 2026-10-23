@@ -757,10 +757,11 @@ async function extraerMercosur(patente, poliza, baseB64){
       if(ini) vigencia = {inicio: formatDMY(ini), fin: formatDMY(sumarAnio(ini))};
     }
   }catch(e){}
-  const tiene = [];
-  for(let i = 1; i <= pdf.numPages; i++){
+  // El certificado está al final de la póliza: solo se revisan las últimas páginas (más rápido).
+  const tiene = new Array(pdf.numPages).fill(false);
+  for(let i = Math.max(1, pdf.numPages - 7); i <= pdf.numPages; i++){
     const tc = await (await pdf.getPage(i)).getTextContent();
-    tiene.push(/mercosur/i.test(tc.items.map(x => x.str).join(" ")));
+    tiene[i-1] = /mercosur/i.test(tc.items.map(x => x.str).join(" "));
   }
   let fin = tiene.lastIndexOf(true);
   if(fin < 0) return {ok:false, vigencia, motivo:"No encontré páginas con la palabra MERCOSUR en la póliza."};
@@ -965,27 +966,34 @@ async function importarTodosSmg(){
   const lista = smgBulkLista(solo);
   const msg = $("smgBulkMsg");
   if(!lista.length){ msg.innerHTML = `<div class="ok">No hay vehículos para importar${solo ? " (todos ya tienen póliza y credencial)" : ""}.</div>`; return; }
-  const min = Math.ceil(lista.length * 10 / 60);
+  const min = Math.max(1, Math.ceil(lista.length * 4 / 60));
   if(!confirm(`Se van a importar ${lista.length} vehículos de SMG, de a uno. Puede tardar unos ${min} minutos y tenés que dejar esta pestaña abierta. ¿Seguir?`)) return;
   bulkRun = true; bulkCancel = false;
   $("btnSmgBulk").disabled = true; $("btnSmgBulkCancel").classList.remove("hide"); $("btnSmgBulkCancel").disabled = false;
   const ok = [], parciales = [], fallos = [];
-  let cortado = "";
-  for(let i = 0; i < lista.length; i++){
-    if(bulkCancel){ cortado = "Cancelado por vos."; break; }
-    const r = lista[i], pat = r.Patente;
-    msg.innerHTML = `<div class="muted">Importando ${i+1} de ${lista.length}: <strong>${esc(pat)}</strong>… (completos: ${ok.length}, con avisos: ${parciales.length}, con error: ${fallos.length})</div>`;
-    let res;
-    try{ res = await importarSmgCore(pat, r.Poliza, null); }
-    catch(e){ res = {ok:false, hechos:[], avisos:[], error:"sin conexión con la planilla"}; }
-    setEstadoSmg(r, res);
-    if(currentTab === "SMG") renderSmg();
-    if(!res.ok){
-      fallos.push(`${pat}: ${res.error}`);
-      if(/rechaz|Faltan los datos|Clave incorrecta|SMG_PRODUCTOR/i.test(res.error)){ cortado = "Se detuvo porque el error se repetiría en todos: " + res.error; break; }
-    } else if(res.avisos.length){ parciales.push(`${pat}: ${res.avisos.join(" ")}`); }
-    else ok.push(pat);
+  let cortado = "", siguiente = 0, hechos = 0;
+  const PARALELO = 3; // vehículos a la vez
+  async function trabajador(){
+    while(!cortado){
+      if(bulkCancel){ cortado = "Cancelado por vos."; return; }
+      const i = siguiente++;
+      if(i >= lista.length) return;
+      const r = lista[i], pat = r.Patente;
+      msg.innerHTML = `<div class="muted">Importando… ${hechos} de ${lista.length} listos (último: <strong>${esc(pat)}</strong>). Completos: ${ok.length}, con avisos: ${parciales.length}, con error: ${fallos.length}</div>`;
+      let res;
+      try{ res = await importarSmgCore(pat, r.Poliza, null); }
+      catch(e){ res = {ok:false, hechos:[], avisos:[], error:"sin conexión con la planilla"}; }
+      hechos++;
+      setEstadoSmg(r, res);
+      if(currentTab === "SMG") renderSmg();
+      if(!res.ok){
+        fallos.push(`${pat}: ${res.error}`);
+        if(/rechaz|Faltan los datos|Clave incorrecta|SMG_PRODUCTOR/i.test(res.error) && !cortado){ cortado = "Se detuvo porque el error se repetiría en todos: " + res.error; return; }
+      } else if(res.avisos.length){ parciales.push(`${pat}: ${res.avisos.join(" ")}`); }
+      else ok.push(pat);
+    }
   }
+  await Promise.all(Array.from({length: Math.min(PARALELO, lista.length)}, trabajador));
   bulkRun = false;
   $("btnSmgBulk").disabled = false; $("btnSmgBulkCancel").classList.add("hide");
   if(currentTab === "SMG") await loadSmg(); else { await cargarTodosDocs(); renderTable(); }
