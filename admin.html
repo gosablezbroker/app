@@ -636,11 +636,9 @@ function bytesToB64(bytes){
 }
 // Busca en la póliza el tramo final de páginas que mencionan MERCOSUR, lo recorta
 // como PDF aparte y lo guarda como "Credencial". Devuelve {ok, paginas} o {ok:false, motivo}.
-async function extraerMercosur(patente, poliza, polizaId){
+async function extraerMercosur(patente, poliza, baseB64){
   await libsPdf();
-  const got = await apiPost({action:"admin_doc_get", key:KEY, id:polizaId});
-  if(!got.ok) throw new Error(got.error || "No pude leer la póliza guardada.");
-  const bytes = b64ToBytes(got.data);
+  const bytes = b64ToBytes(baseB64);
   const pdf = await window.pdfjsLib.getDocument({data: bytes.slice()}).promise;
   const tiene = [];
   for(let i = 1; i <= pdf.numPages; i++){
@@ -689,15 +687,15 @@ async function importarSmg(patente, poliza, btn, msgId){
   msg.innerHTML = `<div class="muted">Pidiendo los PDF a Swiss Medical… puede tardar unos segundos.</div>`;
   try{
     const res = await apiPost({action:"admin_smg_importar", key:KEY, patente, poliza});
-    const hechos = [res.poliza ? "póliza" : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
+    const hechos = [res.poliza ? `póliza (último endoso vigente: ${res.endoso})` : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
     let avisosArr = res.avisos || [];
-    // El certificado Mercosur viene en las últimas páginas de la póliza: se separa acá.
-    if(res.ok && res.poliza && !res.credencial && res.polizaId){
-      msg.innerHTML = `<div class="muted">Separando el certificado Mercosur de la póliza…</div>`;
+    // La credencial (certificado Mercosur) está en la póliza inicial (endoso 0): se separa acá.
+    if(res.ok && res.poliza && res.baseB64){
+      msg.innerHTML = `<div class="muted">Separando el certificado Mercosur de la póliza inicial…</div>`;
       try{
-        const m = await extraerMercosur(patente, poliza, res.polizaId);
+        const m = await extraerMercosur(patente, poliza, res.baseB64);
         if(m.ok){
-          hechos.push(`credencial (certificado Mercosur, páginas ${m.paginas} de la póliza)`);
+          hechos.push(`credencial (certificado Mercosur, página ${m.paginas} de la póliza inicial)`);
           avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a));
         } else {
           avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: " + m.motivo]);
