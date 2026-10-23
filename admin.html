@@ -655,9 +655,23 @@ async function extraerMercosur(patente, poliza, polizaId){
   if(n >= pdf.numPages) return {ok:false, motivo:"La palabra MERCOSUR aparece en todas las páginas; no pude aislar el certificado."};
   if(n > 4) return {ok:false, motivo:`No pude aislar el certificado: la palabra MERCOSUR aparece en ${n} páginas seguidas.`};
   const idx = []; for(let i = ini; i <= fin; i++) idx.push(i);
-  const src = await window.PDFLib.PDFDocument.load(bytes);
+  // Las pólizas de SMG vienen protegidas (se pueden ver e imprimir, pero no copiar páginas).
+  // Por eso cada página se dibuja como imagen (igual que al imprimir) y se arma un PDF nuevo.
   const out = await window.PDFLib.PDFDocument.create();
-  (await out.copyPages(src, idx)).forEach(pg => out.addPage(pg));
+  for(const i of idx){
+    const page = await pdf.getPage(i + 1);
+    const base = page.getViewport({scale: 1});
+    const vp = page.getViewport({scale: 2.5});
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({canvasContext: ctx, viewport: vp}).promise;
+    const jpg = b64ToBytes(canvas.toDataURL("image/jpeg", 0.92).split(",")[1]);
+    const img = await out.embedJpg(jpg);
+    const pg = out.addPage([base.width, base.height]);
+    pg.drawImage(img, {x: 0, y: 0, width: base.width, height: base.height});
+  }
   const outBytes = await out.save();
   const nro = String(poliza).replace(/\D/g, "");
   const up = await apiPost({action:"admin_doc_upload", key:KEY, patente: normPat(patente), poliza: String(poliza).trim(), tipo:"Credencial", name:"Certificado Mercosur " + nro + ".pdf", data: bytesToB64(outBytes)});
