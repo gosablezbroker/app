@@ -178,6 +178,26 @@ tr:hover td{background:var(--tint)}
           <span class="count" id="smgConteo"></span>
         </div>
         <div id="smgTabla"><div class="loading">Cargando…</div></div>
+
+        <div id="smgOtros" style="margin-top:22px;padding:14px;border:1px solid var(--bd);border-radius:10px">
+          <div class="panelTitle"><h2>Otros ramos de SMG</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            Hogar, comercio, consorcio, accidentes personales, etc. Elegí el ramo y pegá los números de póliza, una por línea
+            (opcional: <em>póliza; cliente</em>). Después tocá <strong>Importar</strong> para traer la póliza del último endoso vigente.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+            <select id="otrosRamo" style="max-width:240px"></select>
+            <textarea id="otrosLista" rows="3" style="flex:1;min-width:220px" placeholder="1234567&#10;7654321; Juan Pérez"></textarea>
+            <button class="btn pri" id="btnOtrosAdd">Agregar</button>
+          </div>
+          <div id="otrosMsg" style="margin-top:8px"></div>
+          <div class="toolbar" style="margin-top:12px">
+            <select id="otrosFiltro" style="max-width:260px"><option value="">Todos los ramos</option></select>
+            <button class="btn" id="btnOtrosTodas">Importar todas</button>
+            <span class="count" id="otrosConteo"></span>
+          </div>
+          <div id="otrosTabla"></div>
+        </div>
         <div style="margin-top:22px;padding:14px;border:1px solid var(--bd);border-radius:10px">
           <div class="panelTitle"><h2>Corregir vigencias de SMG</h2></div>
           <p class="muted" style="padding:0 0 10px">
@@ -880,6 +900,7 @@ async function loadSmg(){
     currentRows = (res.rows || []).slice().reverse();
     await cargarTodosDocs();
     renderSmg();
+    loadOtros();
   }catch(e){
     $("smgTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
   }
@@ -936,6 +957,103 @@ async function importarFilaSmg(patente, poliza, btn){
 $("btnSmgRefrescar").onclick = loadSmg;
 $("smgBuscar").addEventListener("input", () => { smgPage = 1; renderSmg(); });
 $("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
+
+// --- Otros ramos de SMG (hogar, comercio, consorcio...) ---
+let otrosRows = [], otrosRamos = {}, otrosEstado = {};
+const otrosClave = o => "R" + o.CodRamo + "P" + String(o.Poliza).split("-")[0].replace(/\D/g, "");
+async function loadOtros(){
+  try{
+    const res = await apiPost({action:"admin_smg_otros_list", key:KEY});
+    if(!res.ok){ $("otrosTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
+    otrosRows = res.rows || []; otrosRamos = res.ramos || {};
+    const selR = $("otrosRamo"), selF = $("otrosFiltro"), fv = selF.value;
+    if(!selR.options.length) selR.innerHTML = Object.keys(otrosRamos).map(k => `<option value="${k}">${esc(otrosRamos[k])}</option>`).join("");
+    selF.innerHTML = `<option value="">Todos los ramos</option>` + Object.keys(otrosRamos).map(k => `<option value="${k}">${esc(otrosRamos[k])}</option>`).join("");
+    selF.value = fv;
+    renderOtros();
+  }catch(e){ $("otrosTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla.</div>`; }
+}
+function renderOtros(){
+  const f = $("otrosFiltro").value;
+  const filas = otrosRows.filter(o => !f || String(o.CodRamo) === f);
+  $("otrosConteo").textContent = filas.length + (filas.length === 1 ? " póliza" : " pólizas");
+  if(!filas.length){ $("otrosTabla").innerHTML = `<div class="muted">Todavía no cargaste pólizas de otros ramos.</div>`; return; }
+  const est = e => !e ? "" : `<span style="color:${e.t === "ok" ? "var(--wa,#1a9b5b)" : e.t === "aviso" ? "#b8860b" : "var(--danger,#d64545)"}">${e.t === "ok" ? "✔ " : e.t === "aviso" ? "⚠ " : "✕ "}${esc(e.txt)}</span>`;
+  let h = `<div class="tblwrap"><table><thead><tr><th>Ramo</th><th>Póliza</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Póliza PDF</th><th>Estado</th><th></th></tr></thead><tbody>`;
+  filas.forEach(o => {
+    const d = allDocs.find(x => docKey(x.patente, x.poliza) === docKey(otrosClave(o), o.Poliza) && x.tipo === "Poliza");
+    h += `<tr><td>${esc(o.Ramo)}</td><td>${esc(o.Poliza)}</td><td>${esc(o.Cliente)}</td><td>${esc(o.Inicio)}</td><td>${esc(o.Fin)}</td>
+      <td>${d ? `<a href="#" data-otro-ver="${esc(d.id)}">✔ Ver</a>` : `<span class="muted">—</span>`}</td>
+      <td style="white-space:normal;min-width:160px">${est(otrosEstado[o.Id])}</td>
+      <td style="white-space:nowrap"><button class="btn sm" data-otro-imp="${esc(o.Id)}">${d ? "Reimportar" : "Importar"}</button>
+      <button class="btn sm" data-otro-del="${esc(o.Id)}" title="Quitar de la lista">✕</button></td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  $("otrosTabla").innerHTML = h;
+  $("otrosTabla").querySelectorAll("a[data-otro-ver]").forEach(a => a.onclick = ev => { ev.preventDefault(); verDoc(a.dataset.otroVer, "otrosMsg"); });
+  $("otrosTabla").querySelectorAll("button[data-otro-imp]").forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = "Importando…"; await importarOtro(b.dataset.otroImp); await refrescarOtros(); });
+  $("otrosTabla").querySelectorAll("button[data-otro-del]").forEach(b => b.onclick = async () => {
+    const o = otrosRows.find(x => x.Id === b.dataset.otroDel);
+    if(!o || !confirm(`¿Quitar la póliza ${o.Poliza} (${o.Ramo}) de la lista? Los PDF ya importados no se borran.`)) return;
+    const r = await apiPost({action:"admin_smg_otros_del", key:KEY, id:o.Id});
+    if(!r.ok) $("otrosMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
+    await refrescarOtros();
+  });
+}
+async function refrescarOtros(){ await cargarTodosDocs(); await loadOtros(); }
+// Lee "Inicio de Vigencia" del frente de la póliza (primera fecha a la derecha del rótulo).
+async function vigenciaDePdf(baseB64){
+  try{
+    await libsPdf();
+    const pdf = await window.pdfjsLib.getDocument({data: b64ToBytes(baseB64)}).promise;
+    const its = (await (await pdf.getPage(1)).getTextContent()).items.filter(x => x.str.trim());
+    const lab = its.find(x => /^Inicio\s+de\b/i.test(x.str.trim()));
+    if(!lab) return null;
+    const x0 = lab.transform[4], y0 = lab.transform[5];
+    const cand = its.filter(x => /^\d{2}\/\d{2}\/\d{4}$/.test(x.str.trim()) && x.transform[4] > x0 && x.transform[5] <= y0 + 3 && x.transform[5] >= y0 - 35)
+                    .sort((a, b) => a.transform[4] - b.transform[4]);
+    const ini = cand.length ? parseDateFlexible(cand[0].str.trim()) : null;
+    return ini ? {inicio: formatDMY(ini), fin: formatDMY(sumarAnio(ini))} : null;
+  }catch(e){ return null; }
+}
+async function importarOtro(id){
+  const o = otrosRows.find(x => x.Id === id);
+  if(!o) return;
+  let res;
+  try{ res = await apiPost({action:"admin_smg_importar", key:KEY, patente: otrosClave(o), poliza: String(o.Poliza).trim(), codRamo: o.CodRamo}); }
+  catch(e){ otrosEstado[id] = {t:"error", txt:"sin conexión con la planilla"}; return; }
+  if(!res.ok){ otrosEstado[id] = {t:"error", txt: res.error || "No se pudo importar."}; return; }
+  const v = res.baseB64 ? await vigenciaDePdf(res.baseB64) : null;
+  try{ await apiPost({action:"admin_smg_otros_set", key:KEY, id, inicio: v && v.inicio, fin: v && v.fin, endoso: res.endoso}); }catch(e){}
+  otrosEstado[id] = v ? {t:"ok", txt:`Importada (endoso ${res.endoso})`} : {t:"aviso", txt:`Póliza importada (endoso ${res.endoso}); no encontré la fecha de inicio de vigencia.`};
+}
+$("btnOtrosAdd").onclick = async () => {
+  const cod = $("otrosRamo").value;
+  const items = $("otrosLista").value.split(/\n+/).map(l => l.trim()).filter(Boolean).map(l => {
+    const [pol, ...cli] = l.split(/[;\t]/);
+    return {codRamo: cod, poliza: (pol||"").trim(), cliente: cli.join(" ").trim()};
+  });
+  if(!items.length){ $("otrosMsg").innerHTML = `<div class="err">Pegá al menos un número de póliza.</div>`; return; }
+  const r = await apiPost({action:"admin_smg_otros_add", key:KEY, items});
+  if(!r.ok){ $("otrosMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo agregar.")}</div>`; return; }
+  $("otrosMsg").innerHTML = `<div class="ok">Agregadas: ${r.agregadas}${r.repetidas ? " · ya estaban: " + r.repetidas : ""}${r.invalidas ? " · inválidas: " + r.invalidas : ""}</div>`;
+  $("otrosLista").value = "";
+  await refrescarOtros();
+};
+$("btnOtrosTodas").onclick = async () => {
+  const f = $("otrosFiltro").value;
+  const lista = otrosRows.filter(o => !f || String(o.CodRamo) === f);
+  if(!lista.length) return;
+  const btn = $("btnOtrosTodas"); btn.disabled = true;
+  let i = 0;
+  for(const o of lista){
+    btn.textContent = `Importando ${++i} de ${lista.length}…`;
+    await importarOtro(o.Id);
+  }
+  btn.disabled = false; btn.textContent = "Importar todas";
+  await refrescarOtros();
+};
+$("otrosFiltro").addEventListener("change", renderOtros);
 
 // --- Importar de SMG todos los vehículos de una vez ---
 let bulkRun = false, bulkCancel = false;
