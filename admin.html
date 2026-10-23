@@ -170,6 +170,10 @@ tr:hover td{background:var(--tint)}
             Si subís otro PDF del mismo tipo, reemplaza al anterior.
           </p>
           <div id="docMsg"></div>
+          <div id="smgBox" class="hide" style="margin:0 0 12px">
+            <button class="btn" id="btnSmgForm">Importar póliza y credencial desde SMG</button>
+            <span class="muted" style="margin-left:8px">Trae la póliza y el certificado Mercosur directo de Swiss Medical.</span>
+          </div>
           <div id="docRows"></div>
         </div>
 
@@ -414,6 +418,7 @@ function renderTable(){
   let html = `<div class="tblwrap"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   if(isUsr) html += `<th>Acceso</th>`;
+  if(isVeh) html += `<th>SMG</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
@@ -421,6 +426,10 @@ function renderTable(){
       const bloq = isUsr && h === "Estado" && String(row[h]).trim().toLowerCase() === "bloqueado";
       html += `<td title="${esc(row[h])}"${bloq ? ' style="color:var(--danger);font-weight:700"' : ""}>${esc(row[h])}</td>`;
     });
+    if(isVeh){
+      const esSmg = /smg|swiss/i.test(String(row.Compania||""));
+      html += `<td>${esSmg ? `<button class="btn sm" data-smg-pat="${esc(row.Patente)}" data-smg-pol="${esc(row.Poliza)}">Importar póliza y credencial</button>` : ""}</td>`;
+    }
     if(isUsr){
       const esBloq = String(row.Estado||"").trim().toLowerCase() === "bloqueado";
       html += `<td><button class="btn sm" data-uid="${esc(row.UID)}" data-email="${esc(row.Email)}" data-nuevo="${esBloq ? "Activo" : "Bloqueado"}">${esBloq ? "Desbloquear" : "Bloquear"}</button></td>`;
@@ -439,7 +448,7 @@ function renderTable(){
     const bloqueados = currentRows.filter(r => String(r.Estado||"").trim().toLowerCase() === "bloqueado").length;
     html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
   }
-  else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla.</p>` + html;
+  else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
 
@@ -468,6 +477,12 @@ function renderTable(){
         }
         b.disabled = false;
       };
+    });
+  }
+
+  if(isVeh){
+    $("listArea").querySelectorAll("button[data-smg-pat]").forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); importarSmg(b.dataset.smgPat, b.dataset.smgPol, b, "smgMsg"); };
     });
   }
 
@@ -508,6 +523,7 @@ $("btnDescargarPdf").onclick = () => window.print();
 // ---- Vehículos: alta / actualización ----
 function fillVehFormFromRow(row){
   VEH_FIELDS.forEach(f => { if($("v_"+f)) $("v_"+f).value = row[f] || ""; });
+  actualizarBotonSmg();
   loadDocs();
 }
 
@@ -591,6 +607,36 @@ async function quitarDoc(id, btn){
     btn.disabled = false;
   }
 }
+// ---- Importar póliza y certificado desde Swiss Medical Seguros ----
+async function importarSmg(patente, poliza, btn, msgId){
+  const msg = $(msgId), txt = btn.textContent;
+  if(!normPat(patente) || !String(poliza||"").trim()){
+    msg.innerHTML = `<div class="err">Para importar de SMG el vehículo necesita patente y número de póliza.</div>`;
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Importando…";
+  msg.innerHTML = `<div class="muted">Pidiendo los PDF a Swiss Medical… puede tardar unos segundos.</div>`;
+  try{
+    const res = await apiPost({action:"admin_smg_importar", key:KEY, patente, poliza});
+    const hechos = [res.poliza ? "póliza" : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
+    const avisos = (res.avisos||[]).map(a => `<div>${esc(a)}</div>`).join("");
+    if(res.ok){
+      msg.innerHTML = `<div class="ok">${esc(patente)}: se importó ${hechos.join(" y ")}.</div>` + (avisos ? `<div class="err">${avisos}</div>` : "");
+    } else {
+      msg.innerHTML = `<div class="err">${esc(patente)}: no se pudo importar. ${esc(res.error || "")}</div>`;
+    }
+    if(normPat($("v_Patente").value) === normPat(patente)) loadDocs();
+  }catch(e){
+    msg.innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+  }
+  btn.disabled = false; btn.textContent = txt;
+}
+function actualizarBotonSmg(){
+  const esSmg = /smg|swiss/i.test($("v_Compania").value) && normPat($("v_Patente").value) && $("v_Poliza").value.trim();
+  $("smgBox").classList.toggle("hide", !esSmg);
+}
+$("btnSmgForm").onclick = () => importarSmg($("v_Patente").value, $("v_Poliza").value.trim(), $("btnSmgForm"), "docMsg");
+["v_Patente","v_Poliza","v_Compania"].forEach(id => { $(id).addEventListener("input", actualizarBotonSmg); $(id).addEventListener("change", actualizarBotonSmg); });
 $("v_Patente").addEventListener("change", loadDocs);
 $("v_Poliza").addEventListener("input", renderDocs);
 renderDocs();
