@@ -380,6 +380,7 @@ async function loadTab(tab){
     currentHeaders = res.headers || [];
     currentRows = (res.rows || []).slice().reverse(); // más recientes primero
     currentPage = 1;
+    if(tab === "Vehiculos") await cargarTodosDocs();
     renderTable();
   }catch(err){
     $("listArea").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
@@ -418,7 +419,7 @@ function renderTable(){
   let html = `<div class="tblwrap"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   if(isUsr) html += `<th>Acceso</th>`;
-  if(isVeh) html += `<th>SMG</th>`;
+  if(isVeh) html += `<th>PDF</th><th>SMG</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
@@ -428,6 +429,7 @@ function renderTable(){
     });
     if(isVeh){
       const esSmg = /smg|swiss/i.test(String(row.Compania||""));
+      html += `<td>${linksDocs(row.Patente, row.Poliza)}</td>`;
       html += `<td>${esSmg ? `<button class="btn sm" data-smg-pat="${esc(row.Patente)}" data-smg-pol="${esc(row.Poliza)}">Importar póliza y credencial</button>` : ""}</td>`;
     }
     if(isUsr){
@@ -481,6 +483,9 @@ function renderTable(){
   }
 
   if(isVeh){
+    $("listArea").querySelectorAll("a[data-ver-doc]").forEach(a => {
+      a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); verDoc(a.dataset.verDoc, "smgMsg"); };
+    });
     $("listArea").querySelectorAll("button[data-smg-pat]").forEach(b => {
       b.onclick = ev => { ev.stopPropagation(); importarSmg(b.dataset.smgPat, b.dataset.smgPol, b, "smgMsg"); };
     });
@@ -565,10 +570,11 @@ function renderDocs(){
         : `<span class="muted">Sin archivo</span>`}</div>
       <input type="file" accept="application/pdf,.pdf" data-doc-file="${tipo}" style="max-width:220px">
       <button class="btn sm pri" data-doc-up="${tipo}">${d ? "Reemplazar" : "Subir"}</button>
-      ${d ? `<button class="btn sm" data-doc-del="${esc(d.id)}">Quitar</button>` : ""}
+      ${d ? `<button class="btn sm" data-doc-view="${esc(d.id)}">Ver</button><button class="btn sm" data-doc-del="${esc(d.id)}">Quitar</button>` : ""}
     </div>`;
   }).join("");
   $("docRows").querySelectorAll("[data-doc-up]").forEach(b => b.onclick = () => subirDoc(b.dataset.docUp, b));
+  $("docRows").querySelectorAll("[data-doc-view]").forEach(b => b.onclick = () => verDoc(b.dataset.docView, "docMsg"));
   $("docRows").querySelectorAll("[data-doc-del]").forEach(b => b.onclick = () => quitarDoc(b.dataset.docDel, b));
 }
 async function subirDoc(tipo, btn){
@@ -587,6 +593,7 @@ async function subirDoc(tipo, btn){
     if(res.ok){
       $("docMsg").innerHTML = `<div class="ok">${res.reemplazado ? "PDF reemplazado." : "PDF subido."}</div>`;
       await loadDocs();
+      await refrescarTablaDocs("docMsg");
       return;
     }
     $("docMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo subir el archivo.")}</div>`;
@@ -602,12 +609,50 @@ async function quitarDoc(id, btn){
     const res = await apiPost({action:"admin_doc_delete", key:KEY, id});
     $("docMsg").innerHTML = res.ok ? `<div class="ok">PDF quitado.</div>` : `<div class="err">${esc(res.error || "No se pudo quitar.")}</div>`;
     await loadDocs();
+    await refrescarTablaDocs("docMsg");
   }catch(e){
     $("docMsg").innerHTML = `<div class="err">No se pudo conectar. Probá de nuevo.</div>`;
     btn.disabled = false;
   }
 }
 // ---- Importar póliza y certificado desde Swiss Medical Seguros ----
+// --- Ver los PDF guardados (póliza y credencial) ---
+let allDocs = [];
+const docKey = (pat, pol) => normPat(pat) + "|" + String(pol||"").trim();
+async function cargarTodosDocs(){
+  try{
+    const res = await apiPost({action:"admin_doc_list", key:KEY});
+    allDocs = res.ok ? res.docs : [];
+  }catch(e){ allDocs = []; }
+}
+function linksDocs(pat, pol){
+  const k = docKey(pat, pol);
+  const ds = allDocs.filter(d => docKey(d.patente, d.poliza) === k);
+  const out = DOC_TIPOS.map(([tipo, label]) => {
+    const d = ds.find(x => x.tipo === tipo);
+    return d ? `<a href="#" data-ver-doc="${esc(d.id)}" title="Ver ${esc(d.archivo)}">${label}</a>` : "";
+  }).filter(Boolean);
+  return out.length ? out.join(" · ") : `<span class="muted">—</span>`;
+}
+// Abre el PDF en otra pestaña (si el navegador bloquea la ventana, lo descarga).
+async function verDoc(id, msgId){
+  const w = window.open("", "_blank");
+  try{
+    const got = await apiPost({action:"admin_doc_get", key:KEY, id});
+    if(!got.ok) throw new Error(got.error || "No se pudo abrir el archivo.");
+    const url = URL.createObjectURL(new Blob([b64ToBytes(got.data)], {type:"application/pdf"}));
+    if(w){ w.location.href = url; }
+    else {
+      const a = document.createElement("a"); a.href = url; a.download = got.name || "documento.pdf";
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }catch(e){
+    if(w) w.close();
+    const m = $(msgId); if(m) m.innerHTML = `<div class="err">${esc(e.message || "No se pudo abrir el archivo.")}</div>`;
+  }
+}
+
 // --- Separar el certificado Mercosur (últimas páginas de la póliza) ---
 const PDFLIB_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
@@ -677,6 +722,26 @@ async function extraerMercosur(patente, poliza, baseB64){
   return {ok:true, paginas: idx.map(i => i + 1).join(", ")};
 }
 
+// Importa de SMG un vehículo (póliza + credencial) y devuelve un resumen, sin tocar la pantalla.
+async function importarSmgCore(patente, poliza, onPaso){
+  const res = await apiPost({action:"admin_smg_importar", key:KEY, patente, poliza});
+  const hechos = [res.poliza ? `póliza (último endoso vigente: ${res.endoso})` : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
+  let avisos = res.avisos || [];
+  // La credencial (certificado Mercosur) está en la póliza inicial (endoso 0): se separa acá.
+  if(res.ok && res.poliza && res.baseB64){
+    if(onPaso) onPaso("Separando el certificado Mercosur de la póliza inicial…");
+    try{
+      const m = await extraerMercosur(patente, poliza, res.baseB64);
+      avisos = avisos.filter(a => !/^Certificado:/.test(a));
+      if(m.ok) hechos.push(`credencial (certificado Mercosur, página ${m.paginas} de la póliza inicial)`);
+      else avisos.push("Credencial: " + m.motivo);
+    }catch(e){
+      avisos = avisos.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: no pude separar el certificado Mercosur (" + e.message + ")."]);
+    }
+  }
+  return {ok: !!res.ok, hechos, avisos, endoso: res.endoso, error: res.error || ""};
+}
+
 async function importarSmg(patente, poliza, btn, msgId){
   const msg = $(msgId), txt = btn.textContent;
   if(!normPat(patente) || !String(poliza||"").trim()){
@@ -686,35 +751,28 @@ async function importarSmg(patente, poliza, btn, msgId){
   btn.disabled = true; btn.textContent = "Importando…";
   msg.innerHTML = `<div class="muted">Pidiendo los PDF a Swiss Medical… puede tardar unos segundos.</div>`;
   try{
-    const res = await apiPost({action:"admin_smg_importar", key:KEY, patente, poliza});
-    const hechos = [res.poliza ? `póliza (último endoso vigente: ${res.endoso})` : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
-    let avisosArr = res.avisos || [];
-    // La credencial (certificado Mercosur) está en la póliza inicial (endoso 0): se separa acá.
-    if(res.ok && res.poliza && res.baseB64){
-      msg.innerHTML = `<div class="muted">Separando el certificado Mercosur de la póliza inicial…</div>`;
-      try{
-        const m = await extraerMercosur(patente, poliza, res.baseB64);
-        if(m.ok){
-          hechos.push(`credencial (certificado Mercosur, página ${m.paginas} de la póliza inicial)`);
-          avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a));
-        } else {
-          avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: " + m.motivo]);
-        }
-      }catch(e){
-        avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: no pude separar el certificado Mercosur (" + e.message + ")."]);
-      }
-    }
-    const avisos = avisosArr.map(a => `<div>${esc(a)}</div>`).join("");
-    if(res.ok){
-      msg.innerHTML = `<div class="ok">${esc(patente)}: se importó ${hechos.join(" y ")}.</div>` + (avisos ? `<div class="err">${avisos}</div>` : "");
+    const r = await importarSmgCore(patente, poliza, t => { msg.innerHTML = `<div class="muted">${esc(t)}</div>`; });
+    const avisos = r.avisos.map(a => `<div>${esc(a)}</div>`).join("");
+    if(r.ok){
+      msg.innerHTML = `<div class="ok">${esc(patente)}: se importó ${r.hechos.join(" y ")}.</div>` + (avisos ? `<div class="err">${avisos}</div>` : "");
     } else {
-      msg.innerHTML = `<div class="err">${esc(patente)}: no se pudo importar. ${esc(res.error || "")}</div>`;
+      msg.innerHTML = `<div class="err">${esc(patente)}: no se pudo importar. ${esc(r.error)}</div>`;
     }
     if(normPat($("v_Patente").value) === normPat(patente)) loadDocs();
+    await refrescarTablaDocs(msgId);
   }catch(e){
     msg.innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
   }
   btn.disabled = false; btn.textContent = txt;
+}
+
+// Vuelve a dibujar la lista de vehículos con los PDF nuevos, sin perder el mensaje.
+async function refrescarTablaDocs(msgId){
+  if(currentTab !== "Vehiculos") return;
+  const saved = $(msgId) ? $(msgId).innerHTML : "";
+  await cargarTodosDocs();
+  renderTable();
+  if($("smgMsg") && saved && msgId === "smgMsg") $("smgMsg").innerHTML = saved;
 }
 function actualizarBotonSmg(){
   const esSmg = /smg|swiss/i.test($("v_Compania").value) && normPat($("v_Patente").value) && $("v_Poliza").value.trim();
