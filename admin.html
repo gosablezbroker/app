@@ -608,6 +608,63 @@ async function quitarDoc(id, btn){
   }
 }
 // ---- Importar póliza y certificado desde Swiss Medical Seguros ----
+// --- Separar el certificado Mercosur (últimas páginas de la póliza) ---
+const PDFLIB_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+function cargarScript(src){
+  return new Promise((ok, fail) => {
+    const el = document.createElement("script");
+    el.src = src; el.onload = ok; el.onerror = () => fail(new Error("No se pudo cargar " + src));
+    document.head.appendChild(el);
+  });
+}
+async function libsPdf(){
+  if(!window.PDFLib) await cargarScript(PDFLIB_URL);
+  if(!window.pdfjsLib) await cargarScript(PDFJS_URL);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+}
+function b64ToBytes(b64){
+  const bin = atob(b64), out = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function bytesToB64(bytes){
+  let bin = "";
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+// Busca en la póliza el tramo final de páginas que mencionan MERCOSUR, lo recorta
+// como PDF aparte y lo guarda como "Credencial". Devuelve {ok, paginas} o {ok:false, motivo}.
+async function extraerMercosur(patente, poliza, polizaId){
+  await libsPdf();
+  const got = await apiPost({action:"admin_doc_get", key:KEY, id:polizaId});
+  if(!got.ok) throw new Error(got.error || "No pude leer la póliza guardada.");
+  const bytes = b64ToBytes(got.data);
+  const pdf = await window.pdfjsLib.getDocument({data: bytes.slice()}).promise;
+  const tiene = [];
+  for(let i = 1; i <= pdf.numPages; i++){
+    const tc = await (await pdf.getPage(i)).getTextContent();
+    tiene.push(/mercosur/i.test(tc.items.map(x => x.str).join(" ")));
+  }
+  let fin = tiene.lastIndexOf(true);
+  if(fin < 0) return {ok:false, motivo:"No encontré páginas con la palabra MERCOSUR en la póliza."};
+  let ini = fin;
+  while(ini > 0 && tiene[ini-1]) ini--;
+  const n = fin - ini + 1;
+  if(n >= pdf.numPages) return {ok:false, motivo:"La palabra MERCOSUR aparece en todas las páginas; no pude aislar el certificado."};
+  if(n > 4) return {ok:false, motivo:`No pude aislar el certificado: la palabra MERCOSUR aparece en ${n} páginas seguidas.`};
+  const idx = []; for(let i = ini; i <= fin; i++) idx.push(i);
+  const src = await window.PDFLib.PDFDocument.load(bytes);
+  const out = await window.PDFLib.PDFDocument.create();
+  (await out.copyPages(src, idx)).forEach(pg => out.addPage(pg));
+  const outBytes = await out.save();
+  const nro = String(poliza).replace(/\D/g, "");
+  const up = await apiPost({action:"admin_doc_upload", key:KEY, patente: normPat(patente), poliza: String(poliza).trim(), tipo:"Credencial", name:"Certificado Mercosur " + nro + ".pdf", data: bytesToB64(outBytes)});
+  if(!up.ok) throw new Error(up.error || "No se pudo guardar el certificado.");
+  return {ok:true, paginas: idx.map(i => i + 1).join(", ")};
+}
+
 async function importarSmg(patente, poliza, btn, msgId){
   const msg = $(msgId), txt = btn.textContent;
   if(!normPat(patente) || !String(poliza||"").trim()){
@@ -619,7 +676,23 @@ async function importarSmg(patente, poliza, btn, msgId){
   try{
     const res = await apiPost({action:"admin_smg_importar", key:KEY, patente, poliza});
     const hechos = [res.poliza ? "póliza" : null, res.credencial ? "credencial (certificado Mercosur)" : null].filter(Boolean);
-    const avisos = (res.avisos||[]).map(a => `<div>${esc(a)}</div>`).join("");
+    let avisosArr = res.avisos || [];
+    // El certificado Mercosur viene en las últimas páginas de la póliza: se separa acá.
+    if(res.ok && res.poliza && !res.credencial && res.polizaId){
+      msg.innerHTML = `<div class="muted">Separando el certificado Mercosur de la póliza…</div>`;
+      try{
+        const m = await extraerMercosur(patente, poliza, res.polizaId);
+        if(m.ok){
+          hechos.push(`credencial (certificado Mercosur, páginas ${m.paginas} de la póliza)`);
+          avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a));
+        } else {
+          avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: " + m.motivo]);
+        }
+      }catch(e){
+        avisosArr = avisosArr.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: no pude separar el certificado Mercosur (" + e.message + ")."]);
+      }
+    }
+    const avisos = avisosArr.map(a => `<div>${esc(a)}</div>`).join("");
     if(res.ok){
       msg.innerHTML = `<div class="ok">${esc(patente)}: se importó ${hechos.join(" y ")}.</div>` + (avisos ? `<div class="err">${avisos}</div>` : "");
     } else {
