@@ -196,6 +196,24 @@ tr:hover td{background:var(--tint)}
         </div>
 
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
+          <div class="panelTitle"><h2>Importar pólizas y credenciales de SMG (todas)</h2></div>
+          <p class="muted" style="padding:0 0 6px">
+            Trae de Swiss Medical, para cada vehículo de SMG, la póliza del último endoso vigente y la credencial
+            (certificado Mercosur de la póliza inicial). Los hace de a uno; dejá esta pestaña abierta hasta que termine.
+          </p>
+          <p class="muted" style="padding:0 0 10px" id="smgBulkInfo"></p>
+          <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:400">
+            <input type="checkbox" id="smgSoloFaltan" checked style="width:auto">
+            Solo los que todavía no tienen los dos PDF
+          </label>
+          <div id="smgBulkMsg"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn pri" id="btnSmgBulk">Importar todas las pólizas y credenciales</button>
+            <button class="btn hide" id="btnSmgBulkCancel">Cancelar</button>
+          </div>
+        </div>
+
+        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
           <div class="panelTitle"><h2>Enviar credenciales por email (masivo)</h2></div>
           <p class="muted" style="padding:0 0 10px">
             Le manda por mail la credencial de circulación a todos los vehículos que tengan un Email cargado.
@@ -453,6 +471,7 @@ function renderTable(){
   else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
+  if(isVeh) actualizarSmgBulkInfo();
 
   if(totalPages > 1){
     const scrollTop = () => $("listArea").scrollIntoView({behavior:"smooth", block:"start"});
@@ -765,6 +784,67 @@ async function importarSmg(patente, poliza, btn, msgId){
   }
   btn.disabled = false; btn.textContent = txt;
 }
+
+// --- Importar de SMG todos los vehículos de una vez ---
+let bulkRun = false, bulkCancel = false;
+const esSmgRow = r => /smg|swiss/i.test(String(r.Compania||""));
+function smgBulkLista(soloFaltan){
+  const vistos = new Set(), out = [];
+  currentRows.forEach(r => {
+    if(!esSmgRow(r) || !normPat(r.Patente) || !String(r.Poliza||"").trim()) return;
+    const k = docKey(r.Patente, r.Poliza);
+    if(vistos.has(k)) return;
+    vistos.add(k);
+    if(soloFaltan){
+      const ds = allDocs.filter(d => docKey(d.patente, d.poliza) === k);
+      if(ds.some(d => d.tipo === "Poliza") && ds.some(d => d.tipo === "Credencial")) return;
+    }
+    out.push(r);
+  });
+  return out;
+}
+function actualizarSmgBulkInfo(){
+  if(!$("smgBulkInfo") || bulkRun) return;
+  const todos = smgBulkLista(false).length, faltan = smgBulkLista(true).length;
+  $("smgBulkInfo").textContent = `${todos} vehículos de SMG en la lista; ${faltan} todavía sin póliza y credencial importadas.`;
+}
+async function importarTodosSmg(){
+  if(bulkRun) return;
+  const solo = $("smgSoloFaltan").checked;
+  const lista = smgBulkLista(solo);
+  const msg = $("smgBulkMsg");
+  if(!lista.length){ msg.innerHTML = `<div class="ok">No hay vehículos para importar${solo ? " (todos ya tienen póliza y credencial)" : ""}.</div>`; return; }
+  const min = Math.ceil(lista.length * 10 / 60);
+  if(!confirm(`Se van a importar ${lista.length} vehículos de SMG, de a uno. Puede tardar unos ${min} minutos y tenés que dejar esta pestaña abierta. ¿Seguir?`)) return;
+  bulkRun = true; bulkCancel = false;
+  $("btnSmgBulk").disabled = true; $("btnSmgBulkCancel").classList.remove("hide"); $("btnSmgBulkCancel").disabled = false;
+  const ok = [], parciales = [], fallos = [];
+  let cortado = "";
+  for(let i = 0; i < lista.length; i++){
+    if(bulkCancel){ cortado = "Cancelado por vos."; break; }
+    const r = lista[i], pat = r.Patente;
+    msg.innerHTML = `<div class="muted">Importando ${i+1} de ${lista.length}: <strong>${esc(pat)}</strong>… (completos: ${ok.length}, con avisos: ${parciales.length}, con error: ${fallos.length})</div>`;
+    let res;
+    try{ res = await importarSmgCore(pat, r.Poliza, null); }
+    catch(e){ res = {ok:false, hechos:[], avisos:[], error:"sin conexión con la planilla"}; }
+    if(!res.ok){
+      fallos.push(`${pat}: ${res.error}`);
+      if(/rechaz|Faltan los datos|Clave incorrecta|SMG_PRODUCTOR/i.test(res.error)){ cortado = "Se detuvo porque el error se repetiría en todos: " + res.error; break; }
+    } else if(res.avisos.length){ parciales.push(`${pat}: ${res.avisos.join(" ")}`); }
+    else ok.push(pat);
+  }
+  bulkRun = false;
+  $("btnSmgBulk").disabled = false; $("btnSmgBulkCancel").classList.add("hide");
+  await cargarTodosDocs();
+  renderTable();
+  const lis = arr => arr.slice(0, 30).map(x => `<div>${esc(x)}</div>`).join("") + (arr.length > 30 ? `<div>…y ${arr.length - 30} más</div>` : "");
+  msg.innerHTML = `<div class="${fallos.length || cortado ? "err" : "ok"}">${cortado ? esc(cortado) + " " : ""}Terminó: ${ok.length} importados completos, ${parciales.length} con avisos, ${fallos.length} con error.</div>` +
+    (parciales.length ? `<div class="muted" style="margin-top:8px"><strong>Con avisos:</strong>${lis(parciales)}</div>` : "") +
+    (fallos.length ? `<div class="err" style="margin-top:8px"><strong>Con error:</strong>${lis(fallos)}</div>` : "");
+}
+$("btnSmgBulk").onclick = importarTodosSmg;
+$("btnSmgBulkCancel").onclick = () => { bulkCancel = true; $("btnSmgBulkCancel").disabled = true; };
+$("smgSoloFaltan").onchange = actualizarSmgBulkInfo;
 
 // Vuelve a dibujar la lista de vehículos con los PDF nuevos, sin perder el mensaje.
 async function refrescarTablaDocs(msgId){
