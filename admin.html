@@ -196,6 +196,19 @@ tr:hover td{background:var(--tint)}
         </div>
 
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
+          <div class="panelTitle"><h2>Corregir vigencias de SMG</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            En los vehículos de SMG deja la vigencia en <strong>1 año desde el inicio</strong>: cambia el <em>Fin</em> a
+            Inicio + 1 año (el Inicio no se toca). Sirve para corregir las fechas que quedaron con el período mensual de refacturación.
+          </p>
+          <div id="vigMsg"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" id="btnVigPreview">Ver cuántas se corregirían</button>
+            <button class="btn pri" id="btnVigAplicar">Corregir vigencias de SMG</button>
+          </div>
+        </div>
+
+        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
           <div class="panelTitle"><h2>Importar pólizas y credenciales de SMG (todas)</h2></div>
           <p class="muted" style="padding:0 0 6px">
             Trae de Swiss Medical, para cada vehículo de SMG, la póliza del último endoso vigente y la credencial
@@ -704,18 +717,34 @@ async function extraerMercosur(patente, poliza, baseB64){
   await libsPdf();
   const bytes = b64ToBytes(baseB64);
   const pdf = await window.pdfjsLib.getDocument({data: bytes.slice()}).promise;
+  // "Inicio de Vigencia de Póliza" (frente de la póliza): es el inicio del año de seguro. El período
+  // mensual que figura al lado (refacturación) no es la vigencia.
+  let vigencia = null;
+  try{
+    // La fecha se ubica por posición: es la primera a la derecha del rótulo "Inicio de Vigencia de
+    // Póliza" (las que siguen son el período mensual de refacturación).
+    const its = (await (await pdf.getPage(1)).getTextContent()).items.filter(x => x.str.trim());
+    const lab = its.find(x => /^Inicio\s+de\b/i.test(x.str.trim()));
+    if(lab){
+      const x0 = lab.transform[4], y0 = lab.transform[5];
+      const cand = its.filter(x => /^\d{2}\/\d{2}\/\d{4}$/.test(x.str.trim()) && x.transform[4] > x0 && x.transform[5] <= y0 + 3 && x.transform[5] >= y0 - 35)
+                      .sort((a, b) => a.transform[4] - b.transform[4]);
+      const ini = cand.length ? parseDateFlexible(cand[0].str.trim()) : null;
+      if(ini) vigencia = {inicio: formatDMY(ini), fin: formatDMY(sumarAnio(ini))};
+    }
+  }catch(e){}
   const tiene = [];
   for(let i = 1; i <= pdf.numPages; i++){
     const tc = await (await pdf.getPage(i)).getTextContent();
     tiene.push(/mercosur/i.test(tc.items.map(x => x.str).join(" ")));
   }
   let fin = tiene.lastIndexOf(true);
-  if(fin < 0) return {ok:false, motivo:"No encontré páginas con la palabra MERCOSUR en la póliza."};
+  if(fin < 0) return {ok:false, vigencia, motivo:"No encontré páginas con la palabra MERCOSUR en la póliza."};
   let ini = fin;
   while(ini > 0 && tiene[ini-1]) ini--;
   const n = fin - ini + 1;
-  if(n >= pdf.numPages) return {ok:false, motivo:"La palabra MERCOSUR aparece en todas las páginas; no pude aislar el certificado."};
-  if(n > 4) return {ok:false, motivo:`No pude aislar el certificado: la palabra MERCOSUR aparece en ${n} páginas seguidas.`};
+  if(n >= pdf.numPages) return {ok:false, vigencia, motivo:"La palabra MERCOSUR aparece en todas las páginas; no pude aislar el certificado."};
+  if(n > 4) return {ok:false, vigencia, motivo:`No pude aislar el certificado: la palabra MERCOSUR aparece en ${n} páginas seguidas.`};
   const idx = []; for(let i = ini; i <= fin; i++) idx.push(i);
   // Las pólizas de SMG vienen protegidas (se pueden ver e imprimir, pero no copiar páginas).
   // Por eso cada página se dibuja como imagen (igual que al imprimir) y se arma un PDF nuevo.
@@ -738,7 +767,7 @@ async function extraerMercosur(patente, poliza, baseB64){
   const nro = String(poliza).replace(/\D/g, "");
   const up = await apiPost({action:"admin_doc_upload", key:KEY, patente: normPat(patente), poliza: String(poliza).trim(), tipo:"Credencial", name:"Certificado Mercosur " + nro + ".pdf", data: bytesToB64(outBytes)});
   if(!up.ok) throw new Error(up.error || "No se pudo guardar el certificado.");
-  return {ok:true, paginas: idx.map(i => i + 1).join(", ")};
+  return {ok:true, vigencia, paginas: idx.map(i => i + 1).join(", ")};
 }
 
 // Importa de SMG un vehículo (póliza + credencial) y devuelve un resumen, sin tocar la pantalla.
@@ -754,6 +783,14 @@ async function importarSmgCore(patente, poliza, onPaso){
       avisos = avisos.filter(a => !/^Certificado:/.test(a));
       if(m.ok) hechos.push(`credencial (certificado Mercosur, página ${m.paginas} de la póliza inicial)`);
       else avisos.push("Credencial: " + m.motivo);
+      // Vigencia exacta según la póliza: se corrige en la hoja del vehículo.
+      if(m.vigencia){
+        const v = await apiPost({action:"admin_set_vigencia", key:KEY, patente: normPat(patente), poliza: String(poliza).trim(), inicio: m.vigencia.inicio, fin: m.vigencia.fin});
+        if(v.ok) hechos.push(`vigencia corregida: ${m.vigencia.inicio} al ${m.vigencia.fin}`);
+        else avisos.push("Vigencia: " + (v.error || "no se pudo corregir."));
+      } else {
+        avisos.push("Vigencia: no encontré el \"Inicio de Vigencia de Póliza\" en la póliza, no se tocaron las fechas.");
+      }
     }catch(e){
       avisos = avisos.filter(a => !/^Certificado:/.test(a)).concat(["Credencial: no pude separar el certificado Mercosur (" + e.message + ")."]);
     }
@@ -842,6 +879,27 @@ async function importarTodosSmg(){
     (parciales.length ? `<div class="muted" style="margin-top:8px"><strong>Con avisos:</strong>${lis(parciales)}</div>` : "") +
     (fallos.length ? `<div class="err" style="margin-top:8px"><strong>Con error:</strong>${lis(fallos)}</div>` : "");
 }
+async function corregirVigencias(dryRun){
+  const msg = $("vigMsg");
+  if(!dryRun && !confirm("Se va a cambiar la fecha de Fin de los vehículos de SMG a Inicio + 1 año. ¿Seguir?")) return;
+  $("btnVigPreview").disabled = $("btnVigAplicar").disabled = true;
+  msg.innerHTML = `<div class="muted">${dryRun ? "Calculando…" : "Corrigiendo…"}</div>`;
+  try{
+    const res = await apiPost({action:"admin_fix_vigencias_smg", key:KEY, dryRun});
+    if(!res.ok){ msg.innerHTML = `<div class="err">${esc(res.error || "No se pudo.")}</div>`; }
+    else{
+      const ej = (res.ejemplos||[]).map(e => `<div>${esc(e.patente)}: Fin ${esc(e.finActual || "(vacío)")} → <strong>${esc(e.finNuevo)}</strong> (Inicio ${esc(e.inicio)})</div>`).join("");
+      const base = `${res.smg} vehículos de SMG: ${res.correctos} ya están bien, ${res.cambios} ${dryRun ? "se corregirían" : "corregidos"}` + (res.sinInicio ? `, ${res.sinInicio} sin fecha de inicio (no se tocan)` : "") + ".";
+      msg.innerHTML = `<div class="${dryRun ? "muted" : "ok"}">${base}</div>` + (ej ? `<div class="muted" style="margin-top:6px">${dryRun ? "Ejemplos:" : "Algunos cambios:"}${ej}</div>` : "");
+      if(!dryRun && currentTab === "Vehiculos") await loadTab("Vehiculos");
+    }
+  }catch(e){
+    msg.innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+  }
+  $("btnVigPreview").disabled = $("btnVigAplicar").disabled = false;
+}
+$("btnVigPreview").onclick = () => corregirVigencias(true);
+$("btnVigAplicar").onclick = () => corregirVigencias(false);
 $("btnSmgBulk").onclick = importarTodosSmg;
 $("btnSmgBulkCancel").onclick = () => { bulkCancel = true; $("btnSmgBulkCancel").disabled = true; };
 $("smgSoloFaltan").onchange = actualizarSmgBulkInfo;
@@ -931,6 +989,11 @@ function parseDateFlexible(v){
   if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
   const d = new Date(s);
   return isNaN(d) ? null : d;
+}
+// Suma un año (29/02 pasa a 28/02 del año siguiente).
+function sumarAnio(d){
+  const r = new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
+  return r.getMonth() !== d.getMonth() ? new Date(d.getFullYear() + 1, d.getMonth() + 1, 0) : r;
 }
 function formatDMY(d){
   if(!d) return "";
@@ -1029,7 +1092,9 @@ function parseCarrierExport(raw, sourceHeaders){
       Compania: colCompania ? String(r[colCompania]||"").trim() : "",
       Poliza: latest.basePoliza,
       Inicio: formatDMY(minInicio),
-      Fin: formatDMY(maxFin),
+      // SMG: la póliza dura 1 año desde el inicio; el export trae también períodos mensuales de
+      // refacturación, que no se usan como vigencia.
+      Fin: (/smg|swiss/i.test(colCompania ? String(r[colCompania]||"") : "") && minInicio) ? formatDMY(sumarAnio(minInicio)) : formatDMY(maxFin),
       Asegurado: cleanPersonName(aseguradoVal),
       Email: colEmail ? String(r[colEmail]||"").trim() : "",
       Celular: colCelular ? String(r[colCelular]||"").trim() : "",
