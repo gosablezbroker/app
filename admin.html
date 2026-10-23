@@ -123,6 +123,7 @@ tr:hover td{background:var(--tint)}
       <button class="tab" data-tab="Hogar-Comercio">Hogar / Comercio</button>
       <button class="tab" data-tab="Otras consultas">Otras consultas</button>
       <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
+      <button class="tab" data-tab="SMG">Pólizas SMG</button>
       <button class="tab" data-tab="Usuarios">Usuarios registrados</button>
     </div>
 
@@ -138,6 +139,58 @@ tr:hover td{background:var(--tint)}
           <span class="count" id="conteo"></span>
         </div>
         <div id="listArea"><div class="loading">Cargando…</div></div>
+      </div>
+
+      <div id="viewSmg" class="hide">
+        <div class="panelTitle">
+          <h2>Pólizas de SMG</h2>
+          <button class="btn sm" id="btnSmgRefrescar">Actualizar</button>
+        </div>
+        <p class="muted" style="padding:0 0 6px" id="smgResumen"></p>
+        <div id="smgListMsg"></div>
+        <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:10px">
+          <div class="panelTitle"><h2>Importar pólizas y credenciales de SMG (todas)</h2></div>
+          <p class="muted" style="padding:0 0 6px">
+            Trae de Swiss Medical, para cada vehículo de SMG, la póliza del último endoso vigente y la credencial
+            (certificado Mercosur de la póliza inicial). Los hace de a uno; dejá esta pestaña abierta hasta que termine.
+          </p>
+          <p class="muted" style="padding:0 0 10px" id="smgBulkInfo"></p>
+          <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:400">
+            <input type="checkbox" id="smgSoloFaltan" checked style="width:auto">
+            Solo los que todavía no tienen los dos PDF
+          </label>
+          <div id="smgBulkMsg"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn pri" id="btnSmgBulk">Importar todas las pólizas y credenciales</button>
+            <button class="btn hide" id="btnSmgBulkCancel">Cancelar</button>
+          </div>
+        </div>
+
+
+        <div class="toolbar" style="margin-top:16px">
+          <input type="search" id="smgBuscar" placeholder="Buscar patente, póliza o asegurado…">
+          <select id="smgFiltro" style="max-width:260px">
+            <option value="todas">Todas</option>
+            <option value="faltan">Sin importar (falta póliza o credencial)</option>
+            <option value="completas">Con póliza y credencial</option>
+            <option value="problemas">Con avisos o error</option>
+          </select>
+          <span class="count" id="smgConteo"></span>
+        </div>
+        <div id="smgTabla"><div class="loading">Cargando…</div></div>
+        <div style="margin-top:22px;padding:14px;border:1px solid var(--bd);border-radius:10px">
+          <div class="panelTitle"><h2>Corregir vigencias de SMG</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            En los vehículos de SMG deja la vigencia en <strong>1 año desde el inicio</strong>: cambia el <em>Fin</em> a
+            Inicio + 1 año (el Inicio no se toca). Sirve para corregir las fechas que quedaron con el período mensual de refacturación.
+          </p>
+          <div id="vigMsg"></div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" id="btnVigPreview">Ver cuántas se corregirían</button>
+            <button class="btn pri" id="btnVigAplicar">Corregir vigencias de SMG</button>
+          </div>
+        </div>
+
       </div>
 
       <div id="viewVeh" class="hide" style="margin-top:22px;padding-top:18px;border-top:1px solid var(--bd)">
@@ -193,37 +246,6 @@ tr:hover td{background:var(--tint)}
           <div id="importMsg"></div>
           <input type="file" id="importFile" accept=".xlsx,.xls">
           <div style="margin-top:14px"><button class="btn" id="btnImportar">Importar y reemplazar lista completa</button></div>
-        </div>
-
-        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
-          <div class="panelTitle"><h2>Corregir vigencias de SMG</h2></div>
-          <p class="muted" style="padding:0 0 10px">
-            En los vehículos de SMG deja la vigencia en <strong>1 año desde el inicio</strong>: cambia el <em>Fin</em> a
-            Inicio + 1 año (el Inicio no se toca). Sirve para corregir las fechas que quedaron con el período mensual de refacturación.
-          </p>
-          <div id="vigMsg"></div>
-          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn" id="btnVigPreview">Ver cuántas se corregirían</button>
-            <button class="btn pri" id="btnVigAplicar">Corregir vigencias de SMG</button>
-          </div>
-        </div>
-
-        <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
-          <div class="panelTitle"><h2>Importar pólizas y credenciales de SMG (todas)</h2></div>
-          <p class="muted" style="padding:0 0 6px">
-            Trae de Swiss Medical, para cada vehículo de SMG, la póliza del último endoso vigente y la credencial
-            (certificado Mercosur de la póliza inicial). Los hace de a uno; dejá esta pestaña abierta hasta que termine.
-          </p>
-          <p class="muted" style="padding:0 0 10px" id="smgBulkInfo"></p>
-          <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;font-weight:400">
-            <input type="checkbox" id="smgSoloFaltan" checked style="width:auto">
-            Solo los que todavía no tienen los dos PDF
-          </label>
-          <div id="smgBulkMsg"></div>
-          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn pri" id="btnSmgBulk">Importar todas las pólizas y credenciales</button>
-            <button class="btn hide" id="btnSmgBulkCancel">Cancelar</button>
-          </div>
         </div>
 
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
@@ -378,6 +400,8 @@ function selectTab(tab){
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
   const isVeh = tab === "Vehiculos";
   $("viewVeh").classList.toggle("hide", !isVeh);
+  $("viewSmg").classList.toggle("hide", tab !== "SMG");
+  $("viewList").classList.toggle("hide", tab === "SMG");
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -388,7 +412,7 @@ function selectTab(tab){
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
   currentPage = 1;
-  loadTab(tab);
+  if(tab === "SMG") loadSmg(); else loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
@@ -822,6 +846,96 @@ async function importarSmg(patente, poliza, btn, msgId){
   btn.disabled = false; btn.textContent = txt;
 }
 
+// --- Pestaña "Pólizas SMG" ---
+let smgPage = 1;
+const SMG_PAGE_SIZE = 25;
+const smgEstado = {};
+function setEstadoSmg(r, res){
+  const k = docKey(r.Patente, r.Poliza);
+  if(!res.ok) smgEstado[k] = {t:"error", txt: res.error || "No se pudo importar."};
+  else if(res.avisos && res.avisos.length) smgEstado[k] = {t:"aviso", txt: res.avisos.join(" ")};
+  else smgEstado[k] = {t:"ok", txt: "Importada" + (res.endoso != null ? " (endoso " + res.endoso + ")" : "")};
+}
+function smgFilas(){
+  const vistos = new Set(), out = [];
+  currentRows.forEach(r => {
+    if(!esSmgRow(r) || !normPat(r.Patente)) return;
+    const k = docKey(r.Patente, r.Poliza);
+    if(vistos.has(k)) return;
+    vistos.add(k); out.push(r);
+  });
+  return out;
+}
+function docsFila(r){
+  const ds = allDocs.filter(d => docKey(d.patente, d.poliza) === docKey(r.Patente, r.Poliza));
+  return {pol: ds.find(d => d.tipo === "Poliza"), cred: ds.find(d => d.tipo === "Credencial")};
+}
+async function loadSmg(){
+  $("smgTabla").innerHTML = `<div class="loading">Cargando…</div>`;
+  try{
+    const res = await apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"});
+    if(!res.ok){ $("smgTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
+    currentHeaders = res.headers || [];
+    currentRows = (res.rows || []).slice().reverse();
+    await cargarTodosDocs();
+    renderSmg();
+  }catch(e){
+    $("smgTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
+  }
+}
+function renderSmg(){
+  if(currentTab !== "SMG") return;
+  const todas = smgFilas();
+  const info = todas.map(r => ({r, d: docsFila(r), e: smgEstado[docKey(r.Patente, r.Poliza)]}));
+  const completas = info.filter(x => x.d.pol && x.d.cred).length;
+  $("smgResumen").textContent = `${todas.length} pólizas de SMG · ${completas} con póliza y credencial importadas · ${todas.length - completas} por importar.`;
+  actualizarSmgBulkInfo();
+  const q = $("smgBuscar").value.trim().toLowerCase(), f = $("smgFiltro").value;
+  const filas = info.filter(x => {
+    if(q && !["Patente","Poliza","Asegurado","Marca","Modelo"].some(h => String(x.r[h]||"").toLowerCase().includes(q))) return false;
+    if(f === "faltan") return !(x.d.pol && x.d.cred);
+    if(f === "completas") return !!(x.d.pol && x.d.cred);
+    if(f === "problemas") return !!x.e && x.e.t !== "ok";
+    return true;
+  });
+  const paginas = Math.max(1, Math.ceil(filas.length / SMG_PAGE_SIZE));
+  if(smgPage > paginas) smgPage = paginas;
+  if(smgPage < 1) smgPage = 1;
+  const ini = (smgPage - 1) * SMG_PAGE_SIZE, pag = filas.slice(ini, ini + SMG_PAGE_SIZE);
+  $("smgConteo").textContent = filas.length + (filas.length === 1 ? " resultado" : " resultados");
+  if(!pag.length){ $("smgTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar con este filtro.</div>`; return; }
+  const ver = d => d ? `<a href="#" data-ver-doc="${esc(d.id)}" title="${esc(d.archivo)}">✔ Ver</a>` : `<span class="muted">—</span>`;
+  const est = e => !e ? "" : `<span style="color:${e.t === "ok" ? "var(--wa,#1a9b5b)" : e.t === "aviso" ? "#b8860b" : "var(--danger,#d64545)"}">${e.t === "ok" ? "✔ " : e.t === "aviso" ? "⚠ " : "✕ "}${esc(e.txt)}</span>`;
+  let html = `<div class="tblwrap"><table><thead><tr><th>Patente</th><th>Póliza</th><th>Asegurado</th><th>Inicio</th><th>Fin</th><th>Póliza PDF</th><th>Credencial PDF</th><th>Estado</th><th></th></tr></thead><tbody>`;
+  pag.forEach(x => {
+    const r = x.r, sinPol = !String(r.Poliza||"").trim();
+    html += `<tr><td>${esc(r.Patente)}</td><td>${esc(r.Poliza)}</td><td>${esc(r.Asegurado)}</td><td>${esc(r.Inicio)}</td><td>${esc(r.Fin)}</td>
+      <td>${ver(x.d.pol)}</td><td>${ver(x.d.cred)}</td><td style="white-space:normal;min-width:180px">${est(x.e)}</td>
+      <td><button class="btn sm" data-smg-fila-pat="${esc(r.Patente)}" data-smg-fila-pol="${esc(r.Poliza)}" ${sinPol ? "disabled title=\"Falta el número de póliza\"" : ""}>${x.d.pol && x.d.cred ? "Reimportar" : "Importar"}</button></td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  if(paginas > 1){
+    html += `<div class="pager"><button class="btn sm" id="smgAnt" ${smgPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${smgPage} de ${paginas}</span><button class="btn sm" id="smgSig" ${smgPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
+  }
+  $("smgTabla").innerHTML = html;
+  $("smgTabla").querySelectorAll("a[data-ver-doc]").forEach(a => a.onclick = ev => { ev.preventDefault(); verDoc(a.dataset.verDoc, "smgListMsg"); });
+  $("smgTabla").querySelectorAll("button[data-smg-fila-pat]").forEach(b => b.onclick = () => importarFilaSmg(b.dataset.smgFilaPat, b.dataset.smgFilaPol, b));
+  if($("smgAnt")) $("smgAnt").onclick = () => { smgPage--; renderSmg(); };
+  if($("smgSig")) $("smgSig").onclick = () => { smgPage++; renderSmg(); };
+}
+async function importarFilaSmg(patente, poliza, btn){
+  btn.disabled = true; btn.textContent = "Importando…";
+  const fila = {Patente: patente, Poliza: poliza};
+  let res;
+  try{ res = await importarSmgCore(patente, poliza, null); }
+  catch(e){ res = {ok:false, hechos:[], avisos:[], error:"sin conexión con la planilla"}; }
+  setEstadoSmg(fila, res);
+  await loadSmg();
+}
+$("btnSmgRefrescar").onclick = loadSmg;
+$("smgBuscar").addEventListener("input", () => { smgPage = 1; renderSmg(); });
+$("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
+
 // --- Importar de SMG todos los vehículos de una vez ---
 let bulkRun = false, bulkCancel = false;
 const esSmgRow = r => /smg|swiss/i.test(String(r.Compania||""));
@@ -864,6 +978,8 @@ async function importarTodosSmg(){
     let res;
     try{ res = await importarSmgCore(pat, r.Poliza, null); }
     catch(e){ res = {ok:false, hechos:[], avisos:[], error:"sin conexión con la planilla"}; }
+    setEstadoSmg(r, res);
+    if(currentTab === "SMG") renderSmg();
     if(!res.ok){
       fallos.push(`${pat}: ${res.error}`);
       if(/rechaz|Faltan los datos|Clave incorrecta|SMG_PRODUCTOR/i.test(res.error)){ cortado = "Se detuvo porque el error se repetiría en todos: " + res.error; break; }
@@ -872,8 +988,7 @@ async function importarTodosSmg(){
   }
   bulkRun = false;
   $("btnSmgBulk").disabled = false; $("btnSmgBulkCancel").classList.add("hide");
-  await cargarTodosDocs();
-  renderTable();
+  if(currentTab === "SMG") await loadSmg(); else { await cargarTodosDocs(); renderTable(); }
   const lis = arr => arr.slice(0, 30).map(x => `<div>${esc(x)}</div>`).join("") + (arr.length > 30 ? `<div>…y ${arr.length - 30} más</div>` : "");
   msg.innerHTML = `<div class="${fallos.length || cortado ? "err" : "ok"}">${cortado ? esc(cortado) + " " : ""}Terminó: ${ok.length} importados completos, ${parciales.length} con avisos, ${fallos.length} con error.</div>` +
     (parciales.length ? `<div class="muted" style="margin-top:8px"><strong>Con avisos:</strong>${lis(parciales)}</div>` : "") +
@@ -892,6 +1007,7 @@ async function corregirVigencias(dryRun){
       const base = `${res.smg} vehículos de SMG: ${res.correctos} ya están bien, ${res.cambios} ${dryRun ? "se corregirían" : "corregidos"}` + (res.sinInicio ? `, ${res.sinInicio} sin fecha de inicio (no se tocan)` : "") + ".";
       msg.innerHTML = `<div class="${dryRun ? "muted" : "ok"}">${base}</div>` + (ej ? `<div class="muted" style="margin-top:6px">${dryRun ? "Ejemplos:" : "Algunos cambios:"}${ej}</div>` : "");
       if(!dryRun && currentTab === "Vehiculos") await loadTab("Vehiculos");
+      if(!dryRun && currentTab === "SMG") await loadSmg();
     }
   }catch(e){
     msg.innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
@@ -905,7 +1021,9 @@ $("btnSmgBulkCancel").onclick = () => { bulkCancel = true; $("btnSmgBulkCancel")
 $("smgSoloFaltan").onchange = actualizarSmgBulkInfo;
 
 // Vuelve a dibujar la lista de vehículos con los PDF nuevos, sin perder el mensaje.
+function redibujar(){ if(currentTab === "SMG") renderSmg(); else renderTable(); }
 async function refrescarTablaDocs(msgId){
+  if(currentTab === "SMG"){ await cargarTodosDocs(); renderSmg(); return; }
   if(currentTab !== "Vehiculos") return;
   const saved = $(msgId) ? $(msgId).innerHTML : "";
   await cargarTodosDocs();
