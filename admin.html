@@ -126,6 +126,7 @@ tr:hover td{background:var(--tint)}
       <button class="tab" data-tab="SMG">Pólizas SMG</button>
       <button class="tab" data-tab="CAR:SMO">SMG otros ramos</button>
       <button class="tab" data-tab="CAR:GAL">Galicia</button>
+      <button class="tab" data-tab="GALC">Galicia completa</button>
       <button class="tab" data-tab="CAR:RUS">Río Uruguay</button>
       <button class="tab" data-tab="CAR:MER">Mercantil</button>
       <button class="tab" data-tab="CAR:MDL">Meridional</button>
@@ -171,6 +172,32 @@ tr:hover td{background:var(--tint)}
           <span class="count" id="carConteo"></span>
         </div>
         <div id="carTabla"><div class="loading">Cargando…</div></div>
+      </div>
+
+      <div id="viewGalc" class="hide">
+        <div class="panelTitle">
+          <h2>Galicia — cartera completa</h2>
+          <button class="btn sm" id="btnGalRefrescar">Actualizar</button>
+        </div>
+        <p class="muted" style="padding:0 0 6px" id="galResumen"></p>
+        <div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:12px">
+          <div class="panelTitle"><h2>Actualizar desde Galicia</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            Subí el <strong>.zip</strong> que se descarga de Galicia (cartera completa). El panel lee las pólizas, clientes, vehículos y cuotas,
+            y se queda con el último endoso de cada póliza. No se guardan los datos de forma de pago ni de tarjetas.
+          </p>
+          <input type="file" id="galFile" accept=".zip">
+          <button class="btn pri" id="btnGalSubir" style="margin-left:8px">Subir y actualizar</button>
+          <div id="galMsg" style="margin-top:8px"></div>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="galBuscar" placeholder="Buscar póliza, cliente, patente, marca o modelo…">
+          <select id="galRamo" style="max-width:200px"><option value="">Autos y otros</option><option value="Autos">Solo autos</option><option value="Otros ramos">Solo otros ramos</option></select>
+          <select id="galAdm" style="max-width:200px"><option value="">En Adminse: todas</option><option value="si">Están en Adminse</option><option value="no">No están en Adminse</option></select>
+          <select id="galEstado" style="max-width:200px"><option value="vigente">Solo vigentes</option><option value="vencida">Solo vencidas</option><option value="">Todas</option></select>
+          <span class="count" id="galConteo"></span>
+        </div>
+        <div id="galTabla"><div class="loading">Cargando…</div></div>
       </div>
 
       <div id="viewSmg" class="hide">
@@ -471,7 +498,8 @@ function selectTab(tab){
   const isCar = tab.indexOf("CAR:") === 0;
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
-  $("viewList").classList.toggle("hide", tab === "SMG" || isCar);
+  $("viewGalc").classList.toggle("hide", tab !== "GALC");
+  $("viewList").classList.toggle("hide", tab === "SMG" || isCar || tab === "GALC");
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -482,7 +510,7 @@ function selectTab(tab){
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
   currentPage = 1;
-  if(tab === "SMG") loadSmg(); else if(isCar) loadCar(); else loadTab(tab);
+  if(tab === "SMG") loadSmg(); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
@@ -1124,6 +1152,144 @@ $("btnCarSubir").onclick = () => {
     finally{ btn.disabled = false; btn.textContent = "Subir y actualizar"; }
   };
   reader.readAsArrayBuffer(file);
+};
+
+// ---- Galicia: cartera completa (archivo .zip de Galicia) ----
+const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+let galRows = [], galActualizado = "", galPage = 1;
+const GAL_PAGE_SIZE = 50;
+function csvPartir(txt){
+  const out = [], n = txt.length; let row = [], cur = "", q = false;
+  for(let i = 0; i < n; i++){
+    const c = txt[i];
+    if(q){ if(c === '"'){ if(txt[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
+    else if(c === '"') q = true;
+    else if(c === ";"){ row.push(cur); cur = ""; }
+    else if(c === "\n"){ row.push(cur); out.push(row); row = []; cur = ""; }
+    else if(c !== "\r") cur += c;
+  }
+  if(cur.length || row.length){ row.push(cur); out.push(row); }
+  const h = (out.shift() || []).map(x => x.replace(/^﻿/, "").trim());
+  return out.filter(r => r.length > 1).map(r => { const o = {}; h.forEach((k, i) => o[k] = (r[i] || "").trim()); return o; });
+}
+// Une Poliza + Cliente + Detalle + Cuotas (por ID) y deja una fila por vehículo (o una por póliza si no hay vehículos).
+function galArmar(P, C, D, Q, hoy){
+  const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? "" : n; };
+  const dmy = v => { const m = String(v || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+  const porId = (arr) => { const m = {}; arr.forEach(r => (m[r.ID] = m[r.ID] || []).push(r)); return m; };
+  const cli = {}; C.forEach(r => { cli[r.ID] = r; });
+  const det = porId(D), cuo = porId(Q);
+  const ultimas = {}, primerDesde = {}, maxHasta = {};
+  P.forEach(r => {
+    const k = r.NroPoliza; if(!k) return;
+    const e = parseInt(r.NroEndoso || "0", 10) || 0;
+    if(!ultimas[k] || e >= ultimas[k].e) ultimas[k] = {e, r};
+    const d0 = dmy(r.FechaVigenciaDesde);
+    if(d0 && (!primerDesde[k] || d0 < primerDesde[k])) primerDesde[k] = d0;
+    const h0 = dmy(r.FechaVigenciaHasta);
+    if(h0 && (!maxHasta[k] || h0 > maxHasta[k])) maxHasta[k] = h0;
+  });
+  const out = [];
+  Object.keys(ultimas).forEach(k => {
+    const r = ultimas[k].r, c = cli[r.ID] || {}, items = det[r.ID] || [];
+    // Las pólizas con refacturación mensual traen períodos de un mes: la vigencia real es de 1 año desde el primer inicio.
+    const hastaUlt = dmy(r.FechaVigenciaHasta), iniUlt = dmy(r.FechaVigenciaDesde);
+    const ini = primerDesde[k] || iniUlt;
+    const mensual = hastaUlt && iniUlt && (hastaUlt - iniUlt) / 86400000 <= 62;
+    const fin = mensual && ini ? sumarAnio(ini) : (maxHasta[k] || hastaUlt);
+    const nombre = r.Asegurado || [c.Nombre, c.Apellido].filter(Boolean).join(" ").trim() || c.Asegurado || "";
+    const dom = [[c.DomicilioCalle, c.DomicilioNumero].filter(Boolean).join(" "), c.DomicilioLocalidad].filter(Boolean).join(", ");
+    const prox = (cuo[r.ID] || []).map(x => ({d: dmy(x.fec_venc), i: x.importe_cuota})).filter(x => x.d && x.d >= hoy).sort((a, b) => a.d - b.d)[0];
+    const base = {
+      Poliza: k, Endoso: ultimas[k].e, Estado: maxHasta[k] && maxHasta[k] >= hoy ? "vigente" : "vencida", Cliente: nombre,
+      CUIT: c.CUIT || c.NroDocumento || "", Email: c.Email || "", Telefono: c.TelefonoParticular || c["TeléfonoLaboral"] || "", Domicilio: dom,
+      Cuotas: r.CantidadCuotas || "", ProximaCuota: prox ? `${formatDMY(prox.d)} · $ ${prox.i}` : "",
+      Inicio: ini ? formatDMY(ini) : "", Fin: fin ? formatDMY(fin) : ""
+    };
+    const conPat = items.filter(x => x.Patente);
+    const lista = conPat.length ? conPat : [items[0] || {}];
+    lista.forEach((it, i) => {
+      out.push(Object.assign({}, base, {
+        Ramo: conPat.length ? "Autos" : "Otros ramos",
+        Patente: (it.Patente || "").toUpperCase(), Marca: it.Marca || "", Modelo: it.Modelo || "", Anio: it.Anio || "",
+        Motor: it.NroMotor || "", Chasis: it.NroChasis || "", Cobertura: it.CodCobertura || "",
+        Suma: num(it.SumaAsegurada) !== "" ? num(it.SumaAsegurada) : (i ? "" : num(r.SumaAsegurada)),
+        Prima: i ? "" : num(r.Prima), Premio: i ? "" : num(r.Premio),
+        Descripcion: conPat.length ? "" : String(it.Comentario || "").replace(/\s+/g, " ").slice(0, 200)
+      }));
+    });
+  });
+  return out;
+}
+async function loadGal(){
+  $("galTabla").innerHTML = `<div class="loading">Cargando…</div>`;
+  try{
+    const res = await apiPost({action:"admin_cartera_list", key:KEY, hoja:"galicia"});
+    if(!res.ok){ $("galTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
+    galRows = res.rows || []; galActualizado = res.actualizado || ""; galPage = 1;
+    if(!carRows.length){ try{ const a = await apiPost({action:"admin_cartera_list", key:KEY}); if(a.ok) carRows = a.rows || []; }catch(e){} }
+    renderGal();
+  }catch(e){ $("galTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`; }
+}
+function renderGal(){
+  if(currentTab !== "GALC") return;
+  const q = $("galBuscar").value.trim().toLowerCase(), fr = $("galRamo").value, fe = $("galEstado").value;
+  const enAdm = new Set(carRows.filter(r => /galicia/i.test(r.Compania || "")).map(r => String(r.Poliza).replace(/\D/g, "").replace(/^0+/, "")));
+  const fa = $("galAdm").value, esAdm = r => enAdm.has(String(r.Poliza).replace(/^0+/, ""));
+  const filas = galRows.filter(r => (!fr || r.Ramo === fr) && (!fe || r.Estado === fe) && (!fa || (fa === "si") === esAdm(r)) &&
+    (!q || ["Poliza","Cliente","Patente","Marca","Modelo","Descripcion"].some(h => String(r[h] || "").toLowerCase().includes(q))));
+  const pols = new Set(galRows.map(r => r.Poliza)), vig = new Set(galRows.filter(r => r.Estado === "vigente").map(r => r.Poliza));
+  $("galResumen").textContent = galRows.length
+    ? `${pols.size} pólizas (${vig.size} vigentes) · ${galRows.filter(r => r.Patente).length} vehículos${galActualizado ? " · actualizado " + galActualizado : ""}`
+    : "Todavía no cargaste el archivo de Galicia. Subí el .zip abajo.";
+  $("galConteo").textContent = filas.length + (filas.length === 1 ? " fila" : " filas");
+  const paginas = Math.max(1, Math.ceil(filas.length / GAL_PAGE_SIZE));
+  if(galPage > paginas) galPage = paginas;
+  const pag = filas.slice((galPage - 1) * GAL_PAGE_SIZE, galPage * GAL_PAGE_SIZE);
+  if(!pag.length){ $("galTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
+  const num = v => { const n = Number(v); return v === "" || isNaN(n) ? "" : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
+  let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Cliente</th><th>Patente</th><th>Vehículo / detalle</th><th>Premio</th><th>Inicio</th><th>Fin</th><th>Próx. cuota</th><th>Estado</th><th>Adminse</th><th>Contacto</th></tr></thead><tbody>`;
+  pag.forEach(r => {
+    const veh = r.Marca || r.Modelo ? `${esc(r.Marca)} ${esc(r.Modelo)} ${esc(r.Anio)}` : esc(r.Descripcion);
+    const en = enAdm.has(String(r.Poliza).replace(/^0+/, ""));
+    h += `<tr><td>${esc(r.Poliza)}</td><td>${esc(r.Cliente)}</td><td><strong>${esc(r.Patente)}</strong></td><td style="white-space:normal;min-width:200px">${veh}</td>
+      <td>${num(r.Premio)}</td><td>${esc(r.Inicio)}</td><td>${esc(r.Fin)}</td><td style="white-space:normal">${esc(r.ProximaCuota)}</td><td>${esc(r.Estado)}</td>
+      <td>${carRows.length ? (en ? "✔" : "<span class=\"muted\">no</span>") : ""}</td>
+      <td style="white-space:normal;min-width:160px">${esc(r.Email)}${r.Email && r.Telefono ? "<br>" : ""}${esc(r.Telefono)}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="galAnt" ${galPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${galPage} de ${paginas}</span><button class="btn sm" id="galSig" ${galPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
+  $("galTabla").innerHTML = h;
+  if($("galAnt")) $("galAnt").onclick = () => { galPage--; renderGal(); };
+  if($("galSig")) $("galSig").onclick = () => { galPage++; renderGal(); };
+}
+$("btnGalRefrescar").onclick = loadGal;
+$("galBuscar").addEventListener("input", () => { galPage = 1; renderGal(); });
+$("galRamo").addEventListener("change", () => { galPage = 1; renderGal(); });
+$("galEstado").addEventListener("change", () => { galPage = 1; renderGal(); });
+$("galAdm").addEventListener("change", () => { galPage = 1; renderGal(); });
+$("btnGalSubir").onclick = async () => {
+  const file = $("galFile").files[0], msg = $("galMsg"), btn = $("btnGalSubir");
+  if(!file){ msg.innerHTML = `<div class="err">Elegí primero el .zip descargado de Galicia.</div>`; return; }
+  btn.disabled = true; btn.textContent = "Leyendo…";
+  try{
+    if(!window.JSZip) await cargarScript(JSZIP_URL);
+    const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+    const leer = async sufijo => { const f = Object.values(zip.files).find(x => !x.dir && new RegExp("_" + sufijo + "\\.csv$", "i").test(x.name)); return f ? csvPartir(await f.async("string")) : null; };
+    const [P, C, D, Q] = [await leer("Poliza"), await leer("Cliente"), await leer("Detalle"), await leer("Cuotas")];
+    if(!P || !P.length || !("NroPoliza" in P[0])) throw new Error("formato");
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const rows = galArmar(P, C || [], D || [], Q || [], hoy);
+    if(!rows.length) throw new Error("vacio");
+    const pols = new Set(rows.map(r => r.Poliza)).size, vig = new Set(rows.filter(r => r.Estado === "vigente").map(r => r.Poliza)).size;
+    if(!confirm(`El archivo trae ${pols} pólizas (${vig} vigentes) en ${rows.length} filas. Se reemplaza la cartera de Galicia anterior. ¿Seguimos?`)) return;
+    btn.textContent = "Guardando…";
+    const r = await apiPost({action:"admin_cartera_import", key:KEY, hoja:"galicia", rows});
+    if(!r.ok) msg.innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`;
+    else{ msg.innerHTML = `<div class="ok">Guardadas ${r.guardadas} filas (${pols} pólizas, ${vig} vigentes).</div>`; $("galFile").value = ""; await loadGal(); }
+  }catch(err){
+    msg.innerHTML = `<div class="err">No pude leer el archivo. Tiene que ser el .zip de cartera que se descarga de Galicia.</div>`;
+  }finally{ btn.disabled = false; btn.textContent = "Subir y actualizar"; }
 };
 
 // --- Otros ramos de SMG (hogar, comercio, consorcio...) ---
