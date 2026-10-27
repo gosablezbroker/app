@@ -1074,6 +1074,19 @@ $("btnSmgRefrescar").onclick = loadSmg;
 $("smgBuscar").addEventListener("input", () => { smgPage = 1; renderSmg(); });
 $("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
 
+// Columnas: una por campo. [clave, título, esDinero]
+const COLS_CAR = [["Poliza","Póliza"],["Ramo","Ramo"],["Estado","Estado"],["Tomador","Tomador"],["Asegurado","Asegurado"],["CUIT","CUIT"],["DNI","DNI"],["Bien","Bien asegurado"],["Patente","Patente"],
+  ["Suma","Suma asegurada",1],["Prima","Prima",1],["Premio","Premio",1],["Inicio","Vigencia desde"],["Fin","Vigencia hasta"],["Email","Email"],["Telefono","Teléfono"],["Productor","Productor"],["Renovacion","Renovación"],["IdRef","Id referencia"]];
+const COLS_GAL = [["Poliza","Póliza"],["Endoso","Endoso"],["Estado","Estado"],["Cliente","Cliente"],["CUIT","CUIT"],["Email","Email"],["Telefono","Teléfono"],["Domicilio","Domicilio"],["Ramo","Ramo"],
+  ["Patente","Patente"],["Marca","Marca"],["Modelo","Modelo"],["Anio","Año"],["Motor","Motor"],["Chasis","Chasis"],["Cobertura","Cobertura"],["Suma","Suma asegurada",1],["Prima","Prima",1],["Premio","Premio",1],
+  ["Cuotas","Cuotas"],["ProximaCuota","Próxima cuota"],["Inicio","Vigencia desde"],["Fin","Vigencia hasta"],["Descripcion","Descripción"]];
+function tablaCampos(cols, filas, extraTitulo, extraFn){
+  const num = v => { const n = Number(v); return v === "" || v == null || isNaN(n) ? esc(v) : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
+  let h = `<div class="tblwrap"><table><thead><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}${extraTitulo ? `<th>${esc(extraTitulo)}</th>` : ""}</tr></thead><tbody>`;
+  filas.forEach(r => { h += "<tr>" + cols.map(c => `<td>${c[2] ? num(r[c[0]]) : esc(r[c[0]])}</td>`).join("") + (extraFn ? `<td>${extraFn(r)}</td>` : "") + "</tr>"; });
+  return h + `</tbody></table></div>`;
+}
+
 // ---- Cartera de otras compañías (Adminse) ----
 const CAR_GRUPOS = {
   SMO: {titulo:"SMG — otros ramos (hogar, comercio, caución, etc.)", test: c => /^smg$/i.test(c.trim())},
@@ -1121,15 +1134,7 @@ function renderCar(){
   if(carPage > paginas) carPage = paginas;
   const pag = filas.slice((carPage - 1) * CAR_PAGE_SIZE, carPage * CAR_PAGE_SIZE);
   if(!pag.length){ $("carTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
-  const num = v => { const n = Number(v); return v === "" || isNaN(n) ? "" : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
-  let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Ramo</th><th>Cliente</th><th>Bien / Patente</th><th>Premio</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Contacto</th></tr></thead><tbody>`;
-  pag.forEach(r => {
-    const bien = [r.Patente ? `<strong>${esc(r.Patente)}</strong>` : "", esc(r.Bien)].filter(Boolean).join(" · ");
-    h += `<tr><td>${esc(r.Poliza)}</td><td>${esc(r.Ramo)}</td><td>${esc(r.Tomador)}</td><td style="white-space:normal;min-width:200px">${bien}</td>
-      <td>${num(r.Premio)}</td><td>${esc(r.Inicio)}</td><td>${esc(r.Fin)}</td><td>${esc(r.Estado)}</td>
-      <td style="white-space:normal;min-width:160px">${esc(r.Email)}${r.Email && r.Telefono ? "<br>" : ""}${esc(r.Telefono)}</td></tr>`;
-  });
-  h += `</tbody></table></div>`;
+  let h = tablaCampos(COLS_CAR, pag);
   if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="carAnt" ${carPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${carPage} de ${paginas}</span><button class="btn sm" id="carSig" ${carPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
   $("carTabla").innerHTML = h;
   if($("carAnt")) $("carAnt").onclick = () => { carPage--; renderCar(); };
@@ -1301,17 +1306,7 @@ function renderGal(){
   if(galPage > paginas) galPage = paginas;
   const pag = filas.slice((galPage - 1) * GAL_PAGE_SIZE, galPage * GAL_PAGE_SIZE);
   if(!pag.length){ $("galTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
-  const num = v => { const n = Number(v); return v === "" || isNaN(n) ? "" : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
-  let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Cliente</th><th>Patente</th><th>Vehículo / detalle</th><th>Premio</th><th>Inicio</th><th>Fin</th><th>Próx. cuota</th><th>Estado</th><th>Adminse</th><th>Contacto</th></tr></thead><tbody>`;
-  pag.forEach(r => {
-    const veh = r.Marca || r.Modelo ? `${esc(r.Marca)} ${esc(r.Modelo)} ${esc(r.Anio)}` : esc(r.Descripcion);
-    const en = enAdm.has(String(r.Poliza).replace(/^0+/, ""));
-    h += `<tr><td>${esc(r.Poliza)}</td><td>${esc(r.Cliente)}</td><td><strong>${esc(r.Patente)}</strong></td><td style="white-space:normal;min-width:200px">${veh}</td>
-      <td>${num(r.Premio)}</td><td>${esc(r.Inicio)}</td><td>${esc(r.Fin)}</td><td style="white-space:normal">${esc(r.ProximaCuota)}</td><td>${esc(r.Estado)}</td>
-      <td>${carRows.length ? (en ? "✔" : "<span class=\"muted\">no</span>") : ""}</td>
-      <td style="white-space:normal;min-width:160px">${esc(r.Email)}${r.Email && r.Telefono ? "<br>" : ""}${esc(r.Telefono)}</td></tr>`;
-  });
-  h += `</tbody></table></div>`;
+  let h = tablaCampos(COLS_GAL, pag, "En Adminse", r => carRows.length ? (enAdm.has(String(r.Poliza).replace(/^0+/, "")) ? "✔" : "<span class=\"muted\">no</span>") : "");
   if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="galAnt" ${galPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${galPage} de ${paginas}</span><button class="btn sm" id="galSig" ${galPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
   $("galTabla").innerHTML = h;
   if($("galAnt")) $("galAnt").onclick = () => { galPage--; renderGal(); };
