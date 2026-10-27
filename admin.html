@@ -161,6 +161,14 @@ tr:hover td{background:var(--tint)}
         <div id="listArea"><div class="loading">Cargando…</div></div>
       </div>
 
+      <div id="polBusq" class="hide" style="margin-bottom:14px">
+        <div class="toolbar">
+          <input type="search" id="busqGlobal" placeholder="Buscar en todas las compañías: póliza, asegurado, patente, DNI / CUIT, ubicación, ramo…">
+          <span class="count" id="busqConteo"></span>
+        </div>
+      </div>
+      <div id="viewBusq" class="hide"><div id="busqTabla"></div></div>
+
       <div id="polBar" class="hide" style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:14px">
         <div class="panelTitle"><h2>Importar todas las compañías</h2></div>
         <p class="muted" style="padding:0 0 10px">
@@ -538,6 +546,9 @@ function selectTab(tab){
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC");
+  $("polBusq").classList.toggle("hide", sec !== "POL");
+  if(sec !== "POL") $("busqGlobal").value = "";
+  aplicarBusq();
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -1589,8 +1600,65 @@ $("btnImportAll").onclick = async () => {
   if(!ex || !zp) lineas.push(`<div class="muted">${[!ex ? "Excel de Adminse" : "", !zp ? "zip de Galicia" : ""].filter(Boolean).join(" y ")}: no se eligió, quedó como estaba.</div>`);
   pintar(true);
   btn.disabled = false; btn.textContent = txt; $("allExcel").value = ""; $("allZip").value = "";
-  carRows = []; await refrescarOtros();
+  carRows = []; busqDatos = null; await refrescarOtros();
 };
+
+// --- Buscador general de pólizas (todas las compañías) ---
+let busqDatos = null, busqCargando = null;
+async function cargarBusqueda(forzar){
+  if(busqDatos && !forzar && Date.now() - busqDatos.t < 120000) return busqDatos.rows;
+  if(busqCargando) return busqCargando;
+  busqCargando = (async () => {
+    const [adm, gal, veh, otr] = await Promise.all([
+      apiPost({action:"admin_cartera_list", key:KEY}).catch(() => ({})),
+      apiPost({action:"admin_cartera_list", key:KEY, hoja:"galicia"}).catch(() => ({})),
+      apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"}).catch(() => ({})),
+      apiPost({action:"admin_smg_otros_list", key:KEY}).catch(() => ({}))
+    ]);
+    if(adm.ok) carRows = adm.rows || [];
+    const galR = gal.ok ? (gal.rows || []) : [];
+    const rows = [], vistos = new Set();
+    const push = r => { const k = [r.Compania, r.Poliza, r.Patente].map(x => String(x || "").trim().toUpperCase().replace(/^0+/, "")).join("|"); if(vistos.has(k)) return; vistos.add(k); rows.push(r); };
+    galR.forEach(r => push(Object.assign({Compania:"Galicia Seguros"}, r)));
+    const admR = adm.ok ? (adm.rows || []) : [];
+    const admPorGal = {}; admR.filter(a => /galicia/i.test(a.Compania || "")).forEach(a => { admPorGal[String(a.Poliza).replace(/^0+/, "")] = a; });
+    rows.forEach(r => { const a = admPorGal[String(r.Poliza).replace(/^0+/, "")]; if(a && !r.Patente) Object.assign(r, {Ramo: a.Ramo || r.Ramo, Bien: a.Bien || "", Asegurado: a.Asegurado || "", Tomador: a.Tomador || "", DNI: a.DNI || "", Productor: a.Productor || "", Renovacion: a.Renovacion || "", IdRef: a.IdRef || ""}); });
+    admR.forEach(r => { if(galR.length && /galicia/i.test(r.Compania || "")) return; push(r); });
+    (veh.ok ? (veh.rows || []) : []).forEach(r => push(Object.assign({}, r, {Ramo: "Automotor", Compania: r.Compania || "SMG"})));
+    (otr.ok ? (otr.rows || []) : []).forEach(o => push({Compania:"SMG", Ramo: o.Ramo || (otr.ramos || {})[o.CodRamo] || "", Poliza: o.Poliza, Asegurado: o.Cliente, Inicio: o.Inicio, Fin: o.Fin}));
+    busqDatos = {t: Date.now(), rows};
+    return rows;
+  })();
+  try{ return await busqCargando; } finally{ busqCargando = null; }
+}
+const BUSQ_CAMPOS = ["Poliza","Asegurado","Tomador","Cliente","Patente","Bien","Descripcion","Ramo","Compania","CUIT","DNI","Email","Telefono","Marca","Modelo","Domicilio","Motor","Chasis","Productor"];
+let busqSeq = 0;
+function busqActiva(){ return !$("polBusq").classList.contains("hide") && $("busqGlobal").value.trim().length >= 2; }
+function aplicarBusq(){
+  const on = busqActiva();
+  $("viewBusq").classList.toggle("hide", !on);
+  if(on){ ["viewSmgCia", "viewCar", "viewGalc", "viewList", "viewSmg", "viewVeh"].forEach(id => $(id) && $(id).classList.add("hide")); }
+}
+async function buscarGlobal(){
+  const q = $("busqGlobal").value.trim().toLowerCase();
+  if(q.length < 2){ $("busqConteo").textContent = ""; selectTab(currentTab); return; }
+  aplicarBusq();
+  const mi = ++busqSeq;
+  $("busqTabla").innerHTML = `<div class="loading">Buscando en todas las compañías…</div>`;
+  const rows = await cargarBusqueda(false);
+  if(mi !== busqSeq) return;
+  const toks = q.split(/\s+/).filter(Boolean);
+  const hay = r => { const t = BUSQ_CAMPOS.map(k => String(r[k] || "")).join(" ").toLowerCase(); return toks.every(x => t.includes(x)); };
+  const res = rows.filter(hay);
+  const MAX = 100;
+  const porCia = {}; res.forEach(r => { porCia[r.Compania] = (porCia[r.Compania] || 0) + 1; });
+  $("busqConteo").textContent = res.length + (res.length === 1 ? " resultado" : " resultados");
+  if(!res.length){ $("busqTabla").innerHTML = `<div class="muted">No hay pólizas que coincidan en ninguna compañía.</div>`; return; }
+  $("busqTabla").innerHTML = `<p class="muted" style="padding:0 0 8px">${Object.entries(porCia).map(([k, v]) => esc(k) + ": " + v).join(" · ")}${res.length > MAX ? " · mostrando las primeras " + MAX + ", afiná la búsqueda" : ""}</p>` + tablaResumen(res.slice(0, MAX));
+  activarFichas($("busqTabla"));
+}
+let busqTimer = null;
+$("busqGlobal").addEventListener("input", () => { clearTimeout(busqTimer); busqTimer = setTimeout(buscarGlobal, 250); });
 
 // --- Importar de SMG todos los vehículos de una vez ---
 let bulkRun = false, bulkCancel = false;
