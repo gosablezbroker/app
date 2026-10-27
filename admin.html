@@ -178,6 +178,15 @@ tr:hover td{background:var(--tint)}
           <span class="count" id="smgConteo"></span>
         </div>
         <div id="smgTabla"><div class="loading">Cargando…</div></div>
+        <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:10px">
+          <div class="panelTitle"><h2>Autos vigentes en SMG que faltan en tu planilla</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            Compara la cartera de autos de SMG con la hoja de Vehículos y lista los vehículos vigentes que no están cargados.
+            Puede tardar 2 a 4 minutos.
+          </p>
+          <button class="btn" id="btnAuSync">Buscar autos que faltan</button>
+          <div id="auSyncMsg" style="margin-top:10px"></div>
+        </div>
 
         <div id="smgOtros" style="margin-top:22px;padding:14px;border:1px solid var(--bd);border-radius:10px">
           <div class="panelTitle"><h2>Otros ramos de SMG</h2></div>
@@ -185,6 +194,11 @@ tr:hover td{background:var(--tint)}
             Hogar, comercio, consorcio, accidentes personales, etc. Elegí el ramo y pegá los números de póliza, una por línea
             (opcional: <em>póliza; cliente</em>). Después tocá <strong>Importar</strong> para traer la póliza del último endoso vigente.
           </p>
+          <div style="margin:0 0 14px;padding-bottom:14px;border-bottom:1px solid var(--bd)">
+            <button class="btn pri" id="btnOtrosSync">Traer todas las vigentes de SMG</button>
+            <span class="muted" style="margin-left:8px">Lee la cartera de todos tus productores y carga sola la lista (puede tardar 1 a 3 minutos).</span>
+            <div id="otrosSyncMsg" style="margin-top:8px"></div>
+          </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
             <select id="otrosRamo" style="max-width:240px"></select>
             <textarea id="otrosLista" rows="3" style="flex:1;min-width:220px" placeholder="1234567&#10;7654321; Juan Pérez"></textarea>
@@ -1054,6 +1068,38 @@ $("btnOtrosTodas").onclick = async () => {
   await refrescarOtros();
 };
 $("otrosFiltro").addEventListener("change", renderOtros);
+
+// --- Sincronizar la cartera de SMG (servicio de exportación) ---
+async function smgSync(tipo, btn, msgEl){
+  const txt = btn.textContent; btn.disabled = true; btn.textContent = "Consultando a SMG…";
+  msgEl.innerHTML = `<div class="loading">Consultando a SMG, puede tardar unos minutos. No cierres esta pestaña…</div>`;
+  try{
+    const r = await apiPost({action:"admin_smg_sync", key:KEY, tipo});
+    if(!r.ok){ msgEl.innerHTML = `<div class="err">${esc(r.error || "No se pudo consultar a SMG.")}</div>`; return null; }
+    return r;
+  }catch(e){
+    msgEl.innerHTML = `<div class="err">Se cortó la conexión mientras SMG respondía. Probá de nuevo en un momento.</div>`; return null;
+  }finally{ btn.disabled = false; btn.textContent = txt; }
+}
+$("btnOtrosSync").onclick = async () => {
+  const r = await smgSync("OR", $("btnOtrosSync"), $("otrosSyncMsg"));
+  if(!r) return;
+  const rs = Object.entries(r.porRamo || {}).map(([k, v]) => `${esc(k)}: ${v}`).join(" · ");
+  $("otrosSyncMsg").innerHTML = `<div class="ok">SMG tiene ${r.vigentes} pólizas vigentes de otros ramos. Nuevas en la lista: ${r.nuevas || 0}${r.yaEstaban ? " · ya estaban: " + r.yaEstaban : ""}.${rs ? "<br>" + rs : ""}</div>`;
+  await refrescarOtros();
+};
+$("btnAuSync").onclick = async () => {
+  const r = await smgSync("AU", $("btnAuSync"), $("auSyncMsg"));
+  if(!r) return;
+  let h = `<div class="ok">SMG tiene ${r.vigentes} autos vigentes. Ya están en tu planilla: ${r.enSistema}. Faltan: ${r.faltan}.</div>`;
+  if(r.lista && r.lista.length){
+    h += `<div class="tblwrap"><table><thead><tr><th>Patente</th><th>Póliza</th><th>Vehículo</th><th>Asegurado</th><th>Inicio</th><th>Fin</th></tr></thead><tbody>` +
+      r.lista.map(x => `<tr><td>${esc(x.patente)}</td><td>${esc(x.poliza)}${x.endoso !== "" ? "-" + esc(x.endoso) : ""}</td><td>${esc((x.marca + " " + x.modelo).trim())}</td><td>${esc(x.cliente)}</td><td>${esc(x.inicio)}</td><td>${esc(x.fin)}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+    if(r.faltan > r.lista.length) h += `<p class="muted">Se muestran los primeros ${r.lista.length}.</p>`;
+  }
+  $("auSyncMsg").innerHTML = h;
+};
 
 // --- Importar de SMG todos los vehículos de una vez ---
 let bulkRun = false, bulkCancel = false;
