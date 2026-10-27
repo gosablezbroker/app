@@ -124,6 +124,7 @@ tr:hover td{background:var(--tint)}
       <button class="tab" data-tab="Otras consultas">Otras consultas</button>
       <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
       <button class="tab" data-tab="SMG">Pólizas SMG</button>
+      <button class="tab" data-tab="CAR:SMO">SMG otros ramos</button>
       <button class="tab" data-tab="CAR:GAL">Galicia</button>
       <button class="tab" data-tab="CAR:RUS">Río Uruguay</button>
       <button class="tab" data-tab="CAR:MER">Mercantil</button>
@@ -157,7 +158,7 @@ tr:hover td{background:var(--tint)}
           <div class="panelTitle"><h2>Actualizar desde Adminse</h2></div>
           <p class="muted" style="padding:0 0 10px">
             En Adminse: <strong>Producción &gt; Pólizas &gt; Descargar</strong> (Excel). Subí ese archivo acá y se actualizan las pestañas de
-            Galicia, Río Uruguay, Mercantil, Meridional, ATM y otras compañías. Las pólizas de SMG autos no se tocan (se manejan en <em>Pólizas SMG</em>).
+            Galicia, Río Uruguay, Mercantil, Meridional, ATM, SMG otros ramos y otras compañías. Los autos y motos de SMG no se tocan (se manejan en <em>Pólizas SMG</em>).
           </p>
           <input type="file" id="carFile" accept=".xlsx,.xls">
           <button class="btn pri" id="btnCarSubir" style="margin-left:8px">Subir y actualizar</button>
@@ -1009,13 +1010,14 @@ $("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
 
 // ---- Cartera de otras compañías (Adminse) ----
 const CAR_GRUPOS = {
+  SMO: {titulo:"SMG — otros ramos (hogar, comercio, caución, etc.)", test: c => /^smg$/i.test(c.trim())},
   GAL: {titulo:"Galicia Seguros", test: c => /galicia/i.test(c)},
   RUS: {titulo:"Río Uruguay Seguros", test: c => /rio\s*uruguay|río\s*uruguay/i.test(c)},
   MER: {titulo:"Mercantil Andina", test: c => /mercantil/i.test(c)},
   MDL: {titulo:"Meridional Seguros", test: c => /meridional/i.test(c)},
   ATM: {titulo:"ATM Seguros", test: c => /^atm\b/i.test(c)}
 };
-CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !/^smg$/i.test(c.trim()) && !["GAL","RUS","MER","MDL","ATM"].some(k => CAR_GRUPOS[k].test(c))};
+CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !["SMO","GAL","RUS","MER","MDL","ATM"].some(k => CAR_GRUPOS[k].test(c))};
 let carRows = [], carActualizado = "", carPage = 1;
 const CAR_PAGE_SIZE = 50;
 const carGrupo = () => CAR_GRUPOS[currentTab.replace("CAR:", "")];
@@ -1083,7 +1085,8 @@ function carParsear(workbook){
   const rows = [];
   raw.forEach(r => {
     const cia = t(r["Compañia"]);
-    if(!cia || /^smg$/i.test(cia)) return;
+    // SMG autos y motos se manejan en "Pólizas SMG"; el resto de SMG (hogar, comercio, caución...) sí se guarda.
+    if(!cia || (/^smg$/i.test(cia) && /^(automotores|motoveh)/i.test(t(r["Ramo"])))) return;
     const bien = t(r["Bien asegurado"]);
     const ms = bien.toUpperCase().match(patRe);
     rows.push({
@@ -1107,7 +1110,7 @@ $("btnCarSubir").onclick = () => {
     try{ parsed = carParsear(XLSX.read(new Uint8Array(e.target.result), {type:"array", cellDates:true})); }
     catch(err){ msg.innerHTML = `<div class="err">No pude leer el archivo. Tiene que ser el Excel de Pólizas que se descarga desde Adminse.</div>`; return; }
     if(!parsed.rows.length){ msg.innerHTML = `<div class="err">El archivo no tiene pólizas de otras compañías.</div>`; return; }
-    if(!confirm(`El archivo tiene ${parsed.total} pólizas. Se guardan ${parsed.rows.length} (todas menos las de SMG autos) y se reemplaza la cartera anterior. ¿Seguimos?`)) return;
+    if(!confirm(`El archivo tiene ${parsed.total} pólizas. Se guardan ${parsed.rows.length} (todas menos las de SMG autos y motos) y se reemplaza la cartera anterior. ¿Seguimos?`)) return;
     const btn = $("btnCarSubir"); btn.disabled = true; btn.textContent = "Guardando…";
     try{
       const r = await apiPost({action:"admin_cartera_import", key:KEY, rows: parsed.rows});
