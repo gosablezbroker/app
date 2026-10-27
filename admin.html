@@ -124,6 +124,12 @@ tr:hover td{background:var(--tint)}
       <button class="tab" data-tab="Otras consultas">Otras consultas</button>
       <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
       <button class="tab" data-tab="SMG">Pólizas SMG</button>
+      <button class="tab" data-tab="CAR:GAL">Galicia</button>
+      <button class="tab" data-tab="CAR:RUS">Río Uruguay</button>
+      <button class="tab" data-tab="CAR:MER">Mercantil</button>
+      <button class="tab" data-tab="CAR:MDL">Meridional</button>
+      <button class="tab" data-tab="CAR:ATM">ATM</button>
+      <button class="tab" data-tab="CAR:OTR">Otras compañías</button>
       <button class="tab" data-tab="Usuarios">Usuarios registrados</button>
     </div>
 
@@ -139,6 +145,31 @@ tr:hover td{background:var(--tint)}
           <span class="count" id="conteo"></span>
         </div>
         <div id="listArea"><div class="loading">Cargando…</div></div>
+      </div>
+
+      <div id="viewCar" class="hide">
+        <div class="panelTitle">
+          <h2 id="carTitulo">Cartera</h2>
+          <button class="btn sm" id="btnCarRefrescar">Actualizar</button>
+        </div>
+        <p class="muted" style="padding:0 0 6px" id="carResumen"></p>
+        <div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:12px">
+          <div class="panelTitle"><h2>Actualizar desde Adminse</h2></div>
+          <p class="muted" style="padding:0 0 10px">
+            En Adminse: <strong>Producción &gt; Pólizas &gt; Descargar</strong> (Excel). Subí ese archivo acá y se actualizan las pestañas de
+            Galicia, Río Uruguay, Mercantil, Meridional, ATM y otras compañías. Las pólizas de SMG autos no se tocan (se manejan en <em>Pólizas SMG</em>).
+          </p>
+          <input type="file" id="carFile" accept=".xlsx,.xls">
+          <button class="btn pri" id="btnCarSubir" style="margin-left:8px">Subir y actualizar</button>
+          <div id="carMsg" style="margin-top:8px"></div>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="carBuscar" placeholder="Buscar póliza, cliente, patente o bien…">
+          <select id="carRamo" style="max-width:240px"><option value="">Todos los ramos</option></select>
+          <select id="carEstado" style="max-width:200px"><option value="">Todos los estados</option></select>
+          <span class="count" id="carConteo"></span>
+        </div>
+        <div id="carTabla"><div class="loading">Cargando…</div></div>
       </div>
 
       <div id="viewSmg" class="hide">
@@ -436,8 +467,10 @@ function selectTab(tab){
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
   const isVeh = tab === "Vehiculos";
   $("viewVeh").classList.toggle("hide", !isVeh);
+  const isCar = tab.indexOf("CAR:") === 0;
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
-  $("viewList").classList.toggle("hide", tab === "SMG");
+  $("viewCar").classList.toggle("hide", !isCar);
+  $("viewList").classList.toggle("hide", tab === "SMG" || isCar);
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -448,7 +481,7 @@ function selectTab(tab){
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
   currentPage = 1;
-  if(tab === "SMG") loadSmg(); else loadTab(tab);
+  if(tab === "SMG") loadSmg(); else if(isCar) loadCar(); else loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
@@ -973,6 +1006,122 @@ async function importarFilaSmg(patente, poliza, btn){
 $("btnSmgRefrescar").onclick = loadSmg;
 $("smgBuscar").addEventListener("input", () => { smgPage = 1; renderSmg(); });
 $("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
+
+// ---- Cartera de otras compañías (Adminse) ----
+const CAR_GRUPOS = {
+  GAL: {titulo:"Galicia Seguros", test: c => /galicia/i.test(c)},
+  RUS: {titulo:"Río Uruguay Seguros", test: c => /rio\s*uruguay|río\s*uruguay/i.test(c)},
+  MER: {titulo:"Mercantil Andina", test: c => /mercantil/i.test(c)},
+  MDL: {titulo:"Meridional Seguros", test: c => /meridional/i.test(c)},
+  ATM: {titulo:"ATM Seguros", test: c => /^atm\b/i.test(c)}
+};
+CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !/^smg$/i.test(c.trim()) && !["GAL","RUS","MER","MDL","ATM"].some(k => CAR_GRUPOS[k].test(c))};
+let carRows = [], carActualizado = "", carPage = 1;
+const CAR_PAGE_SIZE = 50;
+const carGrupo = () => CAR_GRUPOS[currentTab.replace("CAR:", "")];
+async function loadCar(){
+  const g = carGrupo(); if(!g) return;
+  $("carTitulo").textContent = g.titulo;
+  $("carTabla").innerHTML = `<div class="loading">Cargando…</div>`;
+  try{
+    const res = await apiPost({action:"admin_cartera_list", key:KEY});
+    if(!res.ok){ $("carTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
+    carRows = res.rows || []; carActualizado = res.actualizado || ""; carPage = 1;
+    renderCar();
+  }catch(e){ $("carTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`; }
+}
+function renderCar(){
+  const g = carGrupo(); if(!g || currentTab.indexOf("CAR:") !== 0) return;
+  const propias = carRows.filter(r => g.test(String(r.Compania || "")));
+  const llenar = (id, vals, todos) => {
+    const el = $(id), v = el.value;
+    el.innerHTML = `<option value="">${todos}</option>` + [...new Set(vals)].filter(Boolean).sort().map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
+    el.value = [...el.options].some(o => o.value === v) ? v : "";
+  };
+  llenar("carRamo", propias.map(r => r.Ramo), "Todos los ramos");
+  llenar("carEstado", propias.map(r => r.Estado), "Todos los estados");
+  const q = $("carBuscar").value.trim().toLowerCase(), fr = $("carRamo").value, fe = $("carEstado").value;
+  const filas = propias.filter(r => (!fr || r.Ramo === fr) && (!fe || r.Estado === fe) &&
+    (!q || ["Poliza","Tomador","Asegurado","Bien","Patente","Ramo"].some(h => String(r[h] || "").toLowerCase().includes(q))));
+  const porRamo = {}; propias.forEach(r => { porRamo[r.Ramo] = (porRamo[r.Ramo] || 0) + 1; });
+  const rs = Object.entries(porRamo).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k)}: ${v}`).join(" · ");
+  $("carResumen").innerHTML = carRows.length
+    ? `${propias.length} pólizas de ${esc(g.titulo)}${carActualizado ? " · actualizado " + esc(carActualizado) : ""}${rs ? "<br>" + rs : ""}`
+    : "Todavía no cargaste el Excel de Adminse. Subilo abajo para llenar estas pestañas.";
+  $("carConteo").textContent = filas.length + (filas.length === 1 ? " resultado" : " resultados");
+  const paginas = Math.max(1, Math.ceil(filas.length / CAR_PAGE_SIZE));
+  if(carPage > paginas) carPage = paginas;
+  const pag = filas.slice((carPage - 1) * CAR_PAGE_SIZE, carPage * CAR_PAGE_SIZE);
+  if(!pag.length){ $("carTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
+  const num = v => { const n = Number(v); return v === "" || isNaN(n) ? "" : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
+  let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Ramo</th><th>Cliente</th><th>Bien / Patente</th><th>Premio</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Contacto</th></tr></thead><tbody>`;
+  pag.forEach(r => {
+    const bien = [r.Patente ? `<strong>${esc(r.Patente)}</strong>` : "", esc(r.Bien)].filter(Boolean).join(" · ");
+    h += `<tr><td>${esc(r.Poliza)}</td><td>${esc(r.Ramo)}</td><td>${esc(r.Tomador)}</td><td style="white-space:normal;min-width:200px">${bien}</td>
+      <td>${num(r.Premio)}</td><td>${esc(r.Inicio)}</td><td>${esc(r.Fin)}</td><td>${esc(r.Estado)}</td>
+      <td style="white-space:normal;min-width:160px">${esc(r.Email)}${r.Email && r.Telefono ? "<br>" : ""}${esc(r.Telefono)}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="carAnt" ${carPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${carPage} de ${paginas}</span><button class="btn sm" id="carSig" ${carPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
+  $("carTabla").innerHTML = h;
+  if($("carAnt")) $("carAnt").onclick = () => { carPage--; renderCar(); };
+  if($("carSig")) $("carSig").onclick = () => { carPage++; renderCar(); };
+}
+$("btnCarRefrescar").onclick = loadCar;
+$("carBuscar").addEventListener("input", () => { carPage = 1; renderCar(); });
+$("carRamo").addEventListener("change", () => { carPage = 1; renderCar(); });
+$("carEstado").addEventListener("change", () => { carPage = 1; renderCar(); });
+
+// Pasa las filas del Excel de Adminse ("Pólizas") al formato de la hoja. Se omiten las de SMG autos.
+function carParsear(workbook){
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(sheet, {defval: "", raw: true});
+  if(!raw.length || !("Numero" in raw[0]) || !("Compañia" in raw[0])) throw new Error("formato");
+  const patRe = /\b([A-Z]{2}\d{3}[A-Z]{2}|[A-Z]{3}\d{3}|\d{3}[A-Z]{3}|[A-Z]\d{3}[A-Z]{3})\b/g;
+  const f = v => { const d = parseDateFlexible(v); return d ? formatDMY(d) : ""; };
+  const t = v => String(v == null ? "" : v).trim();
+  const rows = [];
+  raw.forEach(r => {
+    const cia = t(r["Compañia"]);
+    if(!cia || /^smg$/i.test(cia)) return;
+    const bien = t(r["Bien asegurado"]);
+    const ms = bien.toUpperCase().match(patRe);
+    rows.push({
+      Compania: cia, Ramo: t(r["Ramo"]), Poliza: t(r["Numero"]), Estado: t(r["Estado"]),
+      Tomador: t(r["Tomador/es"]), Asegurado: t(r["Asegurado/s"]), Bien: bien, Patente: ms ? ms[ms.length - 1] : "",
+      Suma: r["Suma asegurada"], Prima: r["Prima"], Premio: r["Premio"],
+      Inicio: f(r["Vigencia desde"]), Fin: f(r["Vigencia Hasta"]),
+      Email: t(r["Mails tomadores/asegurados"]), Telefono: t(r["Teléfonos tomadores/asegurados"]),
+      CUIT: t(r["CUIT tomadores/asegurados"]), DNI: t(r["DNI tomadores/asegurados"]),
+      Productor: t(r["Productor"]), Renovacion: t(r["Tipo de renovacion"]), IdRef: t(r["Id referencia"])
+    });
+  });
+  return {rows, total: raw.length};
+}
+$("btnCarSubir").onclick = () => {
+  const file = $("carFile").files[0], msg = $("carMsg");
+  if(!file){ msg.innerHTML = `<div class="err">Elegí primero el Excel descargado de Adminse.</div>`; return; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    let parsed;
+    try{ parsed = carParsear(XLSX.read(new Uint8Array(e.target.result), {type:"array", cellDates:true})); }
+    catch(err){ msg.innerHTML = `<div class="err">No pude leer el archivo. Tiene que ser el Excel de Pólizas que se descarga desde Adminse.</div>`; return; }
+    if(!parsed.rows.length){ msg.innerHTML = `<div class="err">El archivo no tiene pólizas de otras compañías.</div>`; return; }
+    if(!confirm(`El archivo tiene ${parsed.total} pólizas. Se guardan ${parsed.rows.length} (todas menos las de SMG autos) y se reemplaza la cartera anterior. ¿Seguimos?`)) return;
+    const btn = $("btnCarSubir"); btn.disabled = true; btn.textContent = "Guardando…";
+    try{
+      const r = await apiPost({action:"admin_cartera_import", key:KEY, rows: parsed.rows});
+      if(!r.ok) msg.innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`;
+      else{
+        msg.innerHTML = `<div class="ok">Guardadas ${r.guardadas} pólizas: ${Object.entries(r.porCompania || {}).map(([k, v]) => esc(k) + " " + v).join(" · ")}.</div>`;
+        $("carFile").value = "";
+        await loadCar();
+      }
+    }catch(err){ msg.innerHTML = `<div class="err">Se cortó la conexión. Probá de nuevo.</div>`; }
+    finally{ btn.disabled = false; btn.textContent = "Subir y actualizar"; }
+  };
+  reader.readAsArrayBuffer(file);
+};
 
 // --- Otros ramos de SMG (hogar, comercio, consorcio...) ---
 let otrosRows = [], otrosRamos = {}, otrosEstado = {};
