@@ -179,12 +179,14 @@ tr:hover td{background:var(--tint)}
         </div>
         <div id="smgTabla"><div class="loading">Cargando…</div></div>
         <div style="margin-top:14px;padding:14px;border:1px solid var(--bd);border-radius:10px">
-          <div class="panelTitle"><h2>Autos vigentes en SMG que faltan en tu planilla</h2></div>
+          <div class="panelTitle"><h2>Actualizar autos de SMG desde SMG</h2></div>
           <p class="muted" style="padding:0 0 10px">
-            Compara la cartera de autos de SMG con la hoja de Vehículos y lista los vehículos vigentes que no están cargados.
-            Puede tardar 2 a 4 minutos.
+            Reemplaza en <strong>Vehículos y pólizas</strong> todos los autos de SMG por la cartera vigente que informa SMG
+            (patente, póliza, asegurado, marca, modelo, vigencia de 1 año desde el inicio). Se conservan el email y el celular que ya tenías cargados.
+            Los autos de otras compañías no se tocan, y antes de cambiar nada se guarda una copia de la hoja. Tarda 2 a 4 minutos.
+            Además se hace solo todos los días si activás la sincronización diaria en el script.
           </p>
-          <button class="btn" id="btnAuSync">Buscar autos que faltan</button>
+          <button class="btn pri" id="btnAuSync">Reemplazar autos de SMG</button>
           <div id="auSyncMsg" style="margin-top:10px"></div>
         </div>
 
@@ -1089,16 +1091,18 @@ $("btnOtrosSync").onclick = async () => {
   await refrescarOtros();
 };
 $("btnAuSync").onclick = async () => {
-  const r = await smgSync("AU", $("btnAuSync"), $("auSyncMsg"));
-  if(!r) return;
-  let h = `<div class="ok">SMG tiene ${r.vigentes} autos vigentes. Ya están en tu planilla: ${r.enSistema}. Faltan: ${r.faltan}.</div>`;
-  if(r.lista && r.lista.length){
-    h += `<div class="tblwrap"><table><thead><tr><th>Patente</th><th>Póliza</th><th>Vehículo</th><th>Asegurado</th><th>Inicio</th><th>Fin</th></tr></thead><tbody>` +
-      r.lista.map(x => `<tr><td>${esc(x.patente)}</td><td>${esc(x.poliza)}${x.endoso !== "" ? "-" + esc(x.endoso) : ""}</td><td>${esc((x.marca + " " + x.modelo).trim())}</td><td>${esc(x.cliente)}</td><td>${esc(x.inicio)}</td><td>${esc(x.fin)}</td></tr>`).join("") +
-      `</tbody></table></div>`;
-    if(r.faltan > r.lista.length) h += `<p class="muted">Se muestran los primeros ${r.lista.length}.</p>`;
-  }
-  $("auSyncMsg").innerHTML = h;
+  const btn = $("btnAuSync"), msg = $("auSyncMsg"), txt = btn.textContent;
+  btn.disabled = true; btn.textContent = "Actualizando…";
+  msg.innerHTML = `<div class="loading">Consultando a SMG y actualizando la hoja, puede tardar unos minutos. No cierres esta pestaña…</div>`;
+  try{
+    const r = await apiPost({action:"admin_smg_reemplazar_autos", key:KEY});
+    if(!r.ok){ msg.innerHTML = `<div class="err">${esc(r.error || "No se pudo actualizar.")}</div>`; return; }
+    msg.innerHTML = `<div class="ok">Listo. SMG informa ${r.vigentes} autos vigentes. Actualizados: ${r.actualizados} · agregados: ${r.agregados} · quitados (ya no vigentes en SMG): ${r.quitados}` +
+      `${r.conflictos ? " · omitidos por estar cargados con otra compañía: " + r.conflictos : ""}.<br>Copia de seguridad en la hoja "${esc(r.respaldo)}".</div>`;
+    await loadSmg();
+  }catch(e){
+    msg.innerHTML = `<div class="err">Se cortó la conexión mientras SMG respondía. Revisá la hoja Vehículos y probá de nuevo.</div>`;
+  }finally{ btn.disabled = false; btn.textContent = txt; }
 };
 
 // --- Importar de SMG todos los vehículos de una vez ---
