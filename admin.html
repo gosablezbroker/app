@@ -1078,20 +1078,75 @@ $("smgFiltro").addEventListener("change", () => { smgPage = 1; renderSmg(); });
 const FICHA_ETIQ = {Compania:"Compañía",Poliza:"Póliza",Endoso:"Endoso",Ramo:"Ramo",Estado:"Estado",Tomador:"Tomador",Cliente:"Cliente",Asegurado:"Asegurado",CUIT:"CUIT",DNI:"DNI",Email:"Email",Telefono:"Teléfono",
   Domicilio:"Domicilio",Bien:"Bien asegurado",Descripcion:"Descripción",Patente:"Patente",Marca:"Marca",Modelo:"Modelo",Anio:"Año",Motor:"Motor",Chasis:"Chasis",Cobertura:"Cobertura",Suma:"Suma asegurada",Prima:"Prima",
   Premio:"Premio",Cuotas:"Cuotas",ProximaCuota:"Próxima cuota",Inicio:"Vigencia desde",Fin:"Vigencia hasta",Productor:"Productor",Renovacion:"Tipo de renovación",IdRef:"Id referencia"};
+// Separa el texto "Bien asegurado" / descripción según el tipo de ramo. Devuelve {resumen, campos:[[etiqueta, valor]]}.
+function riesgoDe(r){
+  const ramo = String(r.Ramo || ""), bien = String(r.Bien || r.Descripcion || "").replace(/\s+/g, " ").trim();
+  const aseg = r.Asegurado || r.Tomador || r.Cliente || "";
+  const out = {resumen: "", campos: []};
+  const add = (k, v) => { if(v !== undefined && v !== null && String(v).trim() !== "") out.campos.push([k, String(v).trim()]); };
+  if(r.Patente){
+    add("Patente", r.Patente); add("Marca", r.Marca); add("Modelo", r.Modelo); add("Año", r.Anio); add("Motor", r.Motor); add("Chasis", r.Chasis);
+    if(!r.Marca && !r.Modelo) add("Vehículo", bien.replace(r.Patente, "").trim());
+    out.resumen = `<strong>${esc(r.Patente)}</strong>` + (r.Marca || r.Modelo ? " · " + esc((r.Marca + " " + r.Modelo).trim()) : (bien ? " · " + esc(bien.replace(r.Patente, "").trim()) : ""));
+    return out;
+  }
+  let m;
+  if(/^art\b/i.test(ramo) && (m = bien.match(/^(.*?)\s*\((\d+)(?:\.0)?\)\s*\/\s*Alicuota:\s*([\d.,]+)\s*\/\s*Capitas:\s*(\d+)\s*\/\s*Masa Salarial:\s*(.*)$/i))){
+    add("Empresa", m[1]); add("CUIT", m[2]); add("Alícuota %", m[3]); add("Cápitas (empleados)", m[4]); add("Masa salarial", m[5]);
+    out.resumen = `${esc(m[1])} · ${esc(m[4])} cápitas`; return out;
+  }
+  if(/^art\b/i.test(ramo)){ add("Detalle", bien); out.resumen = esc(aseg); return out; }
+  if(/vida|accidentes personales|sepelio|salud/i.test(ramo)){
+    const dni = (bien.match(/\s(\d{6,11})$/) || [])[1] || r.DNI || "";
+    const nombre = bien ? bien.replace(/\s\d{6,11}$/, "") : aseg;
+    add("Persona asegurada", nombre); add("DNI", dni); if(bien && !dni && nombre !== aseg) add("Detalle", bien);
+    out.resumen = esc(nombre) + (dni ? " · DNI " + esc(dni) : ""); return out;
+  }
+  if(/cultivo|granizo|agr[ií]cola|cosecha/i.test(ramo + " " + bien) && (m = bien.match(/Cultivo:\s*(.*?)\s*Ubicacion:\s*(.*)$/i))){
+    add("Cultivo", m[1]); add("Ubicación del riesgo", m[2]); out.resumen = esc([m[1], m[2]].filter(Boolean).join(" · ")); return out;
+  }
+  if(/casco|embarcaci|n[aá]utic|buque/i.test(ramo) || /Nombre:\s*.*Tipo:/i.test(bien)){
+    const g = (re) => { const x = bien.match(re); return x ? x[1].trim() : ""; };
+    const nombre = g(/Nombre:\s*(.*?)\s*(?:Tipo:|Astillero|Matr[ií]cula|$)/i), tipo = g(/Tipo:\s*(.*?)\s*(?:Astillero|Matr[ií]cula|Nombre:|$)/i);
+    const resto = bien.replace(/Nombre:\s*.*?(?=Tipo:|$)/i, "").replace(/Tipo:\s*/i, "").replace(tipo, "").trim();
+    add("Embarcación", nombre); add("Tipo", tipo); add("Astillero / otros datos", resto);
+    if(!nombre && bien) add("Detalle", bien);
+    out.resumen = esc([nombre ? "⛵ " + nombre : "", tipo].filter(Boolean).join(" · ") || bien); return out;
+  }
+  // Ramos con ubicación: "DIRECCIÓN - CP: 1234 - ACTIVIDAD / OTRA DIRECCIÓN - CP: ..."
+  const ubis = bien.split(/\s+\/\s+(?=[^/]*?-\s*CP:)/i).map(x => x.match(/^(.*?)\s*-\s*CP:\s*(\d*)\s*-?\s*(.*)$/i)).filter(Boolean);
+  if(ubis.length){
+    ubis.forEach((u, i) => { const p = ubis.length > 1 ? ` ${i + 1}` : ""; add("Ubicación del riesgo" + p, u[1]); add("CP" + p, u[2]); add("Actividad / detalle" + p, u[3]); });
+    const u = ubis[0];
+    out.resumen = esc(u[1] + (u[2] ? " (CP " + u[2] + ")" : "")) + (ubis.length > 1 ? ` <span class="muted">+${ubis.length - 1} ubicaciones más</span>` : "");
+    return out;
+  }
+  // Texto libre de Galicia: ACTIVIDAD: ... UBICACION: ...
+  const act = bien.match(/ACTIVIDAD:\s*(.*?)\s*(?=UBICACION:|$)/i), ub = bien.match(/UBICACION:\s*(.*?)\s*(?=SUMAS|$)/i);
+  if(act || ub){ add("Actividad", act && act[1]); add("Ubicación del riesgo", ub && ub[1]); out.resumen = esc((ub && ub[1]) || (act && act[1]) || ""); return out; }
+  add("Detalle del riesgo", bien); add("Domicilio del cliente", r.Domicilio);
+  out.resumen = esc(bien || r.Domicilio || ""); return out;
+}
 function fichaPoliza(r, cols){
-  const it = Object.keys(FICHA_ETIQ).filter(k => r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== "").map(k => {
-    let v = r[k]; const n = Number(v);
-    if(["Suma","Prima","Premio"].includes(k) && v !== "" && !isNaN(n)) v = n.toLocaleString("es-AR", {maximumFractionDigits: 2});
-    return `<div><span class="muted">${esc(FICHA_ETIQ[k])}</span><br><strong>${esc(v)}</strong></div>`;
-  }).join("");
-  return `<tr class="det hide"><td colspan="${cols}" style="white-space:normal;background:var(--card)"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 18px;padding:10px 4px">${it}</div></td></tr>`;
+  const num = v => { const n = Number(v); return v === "" || v == null || isNaN(n) ? v : n.toLocaleString("es-AR", {maximumFractionDigits: 2}); };
+  const seccion = (titulo, pares) => {
+    const it = pares.filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "").map(([k, v]) => `<div><span class="muted">${esc(k)}</span><br><strong>${esc(v)}</strong></div>`).join("");
+    return it ? `<div style="margin:6px 0 12px"><div style="font-weight:800;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin-bottom:6px">${esc(titulo)}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 18px">${it}</div></div>` : "";
+  };
+  const rd = riesgoDe(r);
+  const h = seccion("Póliza", [["Compañía", r.Compania], ["Póliza", r.Poliza], ["Endoso", r.Endoso], ["Ramo", r.Ramo], ["Estado", r.Estado], ["Tipo de renovación", r.Renovacion], ["Id referencia", r.IdRef], ["Productor", r.Productor]]) +
+    seccion("Asegurado", [["Tomador", r.Tomador], ["Asegurado", r.Asegurado || r.Cliente], ["CUIT", r.CUIT], ["DNI", r.DNI], ["Email", r.Email], ["Teléfono", r.Telefono], ["Domicilio", r.Domicilio]]) +
+    seccion("Riesgo asegurado", rd.campos.concat(r.Cobertura ? [["Cobertura", r.Cobertura]] : [])) +
+    seccion("Vigencia", [["Desde", r.Inicio], ["Hasta", r.Fin]]) +
+    seccion("Importes", [["Suma asegurada", num(r.Suma)], ["Prima", num(r.Prima)], ["Premio", num(r.Premio)], ["Cuotas", r.Cuotas], ["Próxima cuota", r.ProximaCuota]]);
+  return `<tr class="det hide"><td colspan="${cols}" style="white-space:normal;background:var(--card);padding:12px 14px">${h}</td></tr>`;
 }
 function tablaResumen(filas, cia){
   let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Asegurado</th><th>Compañía</th><th>Ramo</th><th>Vigencia</th><th>Patente / ubicación del riesgo</th><th>Estado</th></tr></thead><tbody>`;
   filas.forEach(r => {
     const aseg = r.Asegurado || r.Tomador || r.Cliente || "";
     const vig = r.Inicio || r.Fin ? `${esc(r.Inicio)} → ${esc(r.Fin)}` : "";
-    const lugar = r.Patente ? `<strong>${esc(r.Patente)}</strong>${r.Marca || r.Modelo ? " · " + esc((r.Marca + " " + r.Modelo).trim()) : ""}` : esc(r.Bien || r.Descripcion || r.Domicilio || "");
+    const lugar = riesgoDe(r).resumen;
     h += `<tr class="fila" style="cursor:pointer"><td>${esc(r.Poliza)}</td><td style="white-space:normal;min-width:160px">${esc(aseg)}</td><td>${esc(cia || r.Compania)}</td><td>${esc(r.Ramo)}</td><td>${vig}</td>` +
       `<td style="white-space:normal;min-width:200px">${lugar}</td><td>${esc(r.Estado)}</td></tr>` + fichaPoliza(Object.assign({Compania: cia || r.Compania}, r), 7);
   });
@@ -1288,7 +1343,7 @@ function galArmar(P, C, D, Q, hoy){
         Motor: it.NroMotor || "", Chasis: it.NroChasis || "", Cobertura: it.CodCobertura || "",
         Suma: num(it.SumaAsegurada) !== "" ? num(it.SumaAsegurada) : (i ? "" : num(r.SumaAsegurada)),
         Prima: i ? "" : num(r.Prima), Premio: i ? "" : num(r.Premio),
-        Descripcion: conPat.length ? "" : String(it.Comentario || "").replace(/\s+/g, " ").slice(0, 200)
+        Descripcion: conPat.length ? "" : String(it.Comentario || "").replace(/\s+/g, " ").slice(0, 600)
       }));
     });
   });
@@ -1320,7 +1375,10 @@ function renderGal(){
   if(galPage > paginas) galPage = paginas;
   const pag = filas.slice((galPage - 1) * GAL_PAGE_SIZE, galPage * GAL_PAGE_SIZE);
   if(!pag.length){ $("galTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
-  let h = tablaResumen(pag, "Galicia Seguros");
+  const admPor = {}; carRows.filter(a => /galicia/i.test(a.Compania || "")).forEach(a => { admPor[String(a.Poliza).replace(/^0+/, "")] = a; });
+  const enr = pag.map(r => { const a = admPor[String(r.Poliza).replace(/^0+/, "")]; if(!a || r.Patente) return r;
+    return Object.assign({}, r, {Ramo: a.Ramo || r.Ramo, Bien: a.Bien || "", Asegurado: a.Asegurado || "", Tomador: a.Tomador || "", DNI: a.DNI || "", Productor: a.Productor || "", Renovacion: a.Renovacion || "", IdRef: a.IdRef || ""}); });
+  let h = tablaResumen(enr, "Galicia Seguros");
   if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="galAnt" ${galPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${galPage} de ${paginas}</span><button class="btn sm" id="galSig" ${galPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
   $("galTabla").innerHTML = h; activarFichas($("galTabla"));
   if($("galAnt")) $("galAnt").onclick = () => { galPage--; renderGal(); };
