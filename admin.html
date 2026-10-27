@@ -135,9 +135,7 @@ tr:hover td{background:var(--tint)}
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
-        <button class="tab" data-sec="POL" data-tab="SMGO">SMG · importar PDF</button>
         <button class="tab" data-sec="POL" data-tab="GALC">Galicia</button>
-        <button class="tab" data-sec="POL" data-tab="CAR:GAL">Galicia (Adminse)</button>
         <button class="tab" data-sec="POL" data-tab="CAR:RUS">Río Uruguay</button>
         <button class="tab" data-sec="POL" data-tab="CAR:MER">Mercantil</button>
         <button class="tab" data-sec="POL" data-tab="CAR:MDL">Meridional</button>
@@ -163,20 +161,40 @@ tr:hover td{background:var(--tint)}
         <div id="listArea"><div class="loading">Cargando…</div></div>
       </div>
 
+      <div id="polBar" class="hide" style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:14px">
+        <div class="panelTitle"><h2>Importar todas las compañías</h2></div>
+        <p class="muted" style="padding:0 0 10px">
+          Trae SMG automáticamente (autos y otros ramos). Para el resto elegí los archivos: el <strong>Excel de Adminse</strong>
+          (Producción &gt; Pólizas &gt; Descargar) para Río Uruguay, Mercantil, Meridional, ATM y otras, y el <strong>.zip de Galicia</strong>.
+          Lo que no elijas no se toca.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label class="muted">Excel Adminse <input type="file" id="allExcel" accept=".xlsx,.xls"></label>
+          <label class="muted">Zip Galicia <input type="file" id="allZip" accept=".zip"></label>
+          <button class="btn pri" id="btnImportAll">Importar todas las compañías</button>
+        </div>
+        <div id="allMsg" style="margin-top:10px"></div>
+      </div>
+
+      <div id="viewSmgCia" class="hide">
+        <div class="panelTitle">
+          <h2>SMG — pólizas</h2>
+          <button class="btn pri" id="btnSmgImp">Importar SMG</button>
+        </div>
+        <p class="muted" style="padding:0 0 10px">Consulta a SMG y actualiza los autos (hoja de Vehículos) y la lista de otros ramos (hogar, comercio, etc.). Tarda unos minutos.</p>
+        <div id="smgImpMsg" style="margin-bottom:12px"></div>
+      </div>
+
       <div id="viewCar" class="hide">
         <div class="panelTitle">
           <h2 id="carTitulo">Cartera</h2>
           <button class="btn sm" id="btnCarRefrescar">Actualizar</button>
         </div>
         <p class="muted" style="padding:0 0 6px" id="carResumen"></p>
-        <div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:12px">
-          <div class="panelTitle"><h2>Actualizar desde Adminse</h2></div>
-          <p class="muted" style="padding:0 0 10px">
-            En Adminse: <strong>Producción &gt; Pólizas &gt; Descargar</strong> (Excel). Subí ese archivo acá y se actualizan las pestañas de
-            Galicia, Río Uruguay, Mercantil, Meridional, ATM, SMG otros ramos y otras compañías. Los autos y motos de SMG no se tocan (se manejan en <em>Pólizas SMG</em>).
-          </p>
-          <input type="file" id="carFile" accept=".xlsx,.xls">
-          <button class="btn pri" id="btnCarSubir" style="margin-left:8px">Subir y actualizar</button>
+        <div style="margin-bottom:12px">
+          <button class="btn pri" id="btnCarSubir">Importar</button>
+          <input type="file" id="carFile" accept=".xlsx,.xls" class="hide">
+          <span class="muted" style="margin-left:8px">Elegí el Excel de Adminse (Producción &gt; Pólizas &gt; Descargar); solo se actualizan las pólizas de esta compañía.</span>
           <div id="carMsg" style="margin-top:8px"></div>
         </div>
         <div class="toolbar">
@@ -194,14 +212,10 @@ tr:hover td{background:var(--tint)}
           <button class="btn sm" id="btnGalRefrescar">Actualizar</button>
         </div>
         <p class="muted" style="padding:0 0 6px" id="galResumen"></p>
-        <div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:12px">
-          <div class="panelTitle"><h2>Actualizar desde Galicia</h2></div>
-          <p class="muted" style="padding:0 0 10px">
-            Subí el <strong>.zip</strong> que se descarga de Galicia (cartera completa). El panel lee las pólizas, clientes, vehículos y cuotas,
-            y se queda con el último endoso de cada póliza. No se guardan los datos de forma de pago ni de tarjetas.
-          </p>
-          <input type="file" id="galFile" accept=".zip">
-          <button class="btn pri" id="btnGalSubir" style="margin-left:8px">Subir y actualizar</button>
+        <div style="margin-bottom:12px">
+          <button class="btn pri" id="btnGalSubir">Importar Galicia</button>
+          <input type="file" id="galFile" accept=".zip" class="hide">
+          <span class="muted" style="margin-left:8px">Elegí el .zip de cartera completa de Galicia (pólizas, clientes, vehículos y cuotas; no se guardan datos de pago).</span>
           <div id="galMsg" style="margin-top:8px"></div>
         </div>
         <div class="toolbar">
@@ -505,9 +519,8 @@ document.querySelectorAll(".tab").forEach(btn => {
 });
 
 const SEC_PRIMERA = {SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
+$("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
-// En "Importar de SMG" se muestra todo menos el bloque de otros ramos; en "SMG · importar PDF", solo ese bloque.
-[...$("viewSmg").children].forEach(c => { if(c.id !== "smgOtros") c.classList.add("smgAutos"); });
 function selectTab(tab){
   currentTab = tab;
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
@@ -515,15 +528,16 @@ function selectTab(tab){
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("hide", b.dataset.sec !== sec));
   $("subtabs").classList.toggle("hide", sec === "USU");
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
-  document.querySelectorAll("#viewSmg .smgAutos").forEach(c => c.classList.toggle("hide", tab === "SMGO"));
-  $("smgOtros").classList.toggle("hide", tab !== "SMGO");
+  const isSmgCia = tab === "CAR:SMO";
+  $("polBar").classList.toggle("hide", sec !== "POL");
+  $("viewSmgCia").classList.toggle("hide", !isSmgCia);
   const isVeh = tab === "Vehiculos";
   $("viewVeh").classList.toggle("hide", !isVeh);
-  const isCar = tab.indexOf("CAR:") === 0;
-  $("viewSmg").classList.toggle("hide", tab !== "SMG" && tab !== "SMGO");
+  const isCar = tab.indexOf("CAR:") === 0 && !isSmgCia;
+  $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  $("viewList").classList.toggle("hide", tab === "SMG" || tab === "SMGO" || isCar || tab === "GALC");
+  $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC");
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -534,7 +548,7 @@ function selectTab(tab){
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
   currentPage = 1;
-  if(tab === "SMG") loadSmg(); else if(tab === "SMGO") cargarTodosDocs().then(loadOtros); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
+  if(tab === "SMG") loadSmg(); else if(isSmgCia) cargarTodosDocs().then(loadOtros); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
@@ -1101,7 +1115,7 @@ function renderCar(){
   const rs = Object.entries(porRamo).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k)}: ${v}`).join(" · ");
   $("carResumen").innerHTML = carRows.length
     ? `${propias.length} pólizas de ${esc(g.titulo)}${carActualizado ? " · actualizado " + esc(carActualizado) : ""}${rs ? "<br>" + rs : ""}`
-    : "Todavía no cargaste el Excel de Adminse. Subilo abajo para llenar estas pestañas.";
+    : "Todavía no importaste esta compañía. Usá el botón Importar.";
   $("carConteo").textContent = filas.length + (filas.length === 1 ? " resultado" : " resultados");
   const paginas = Math.max(1, Math.ceil(filas.length / CAR_PAGE_SIZE));
   if(carPage > paginas) carPage = paginas;
@@ -1153,29 +1167,45 @@ function carParsear(workbook){
   });
   return {rows, total: raw.length};
 }
-$("btnCarSubir").onclick = () => {
-  const file = $("carFile").files[0], msg = $("carMsg");
-  if(!file){ msg.innerHTML = `<div class="err">Elegí primero el Excel descargado de Adminse.</div>`; return; }
-  const reader = new FileReader();
-  reader.onload = async e => {
-    let parsed;
-    try{ parsed = carParsear(XLSX.read(new Uint8Array(e.target.result), {type:"array", cellDates:true})); }
-    catch(err){ msg.innerHTML = `<div class="err">No pude leer el archivo. Tiene que ser el Excel de Pólizas que se descarga desde Adminse.</div>`; return; }
-    if(!parsed.rows.length){ msg.innerHTML = `<div class="err">El archivo no tiene pólizas de otras compañías.</div>`; return; }
-    if(!confirm(`El archivo tiene ${parsed.total} pólizas. Se guardan ${parsed.rows.length} (todas menos las de SMG autos y motos) y se reemplaza la cartera anterior. ¿Seguimos?`)) return;
-    const btn = $("btnCarSubir"); btn.disabled = true; btn.textContent = "Guardando…";
-    try{
-      const r = await apiPost({action:"admin_cartera_import", key:KEY, rows: parsed.rows});
-      if(!r.ok) msg.innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`;
-      else{
-        msg.innerHTML = `<div class="ok">Guardadas ${r.guardadas} pólizas: ${Object.entries(r.porCompania || {}).map(([k, v]) => esc(k) + " " + v).join(" · ")}.</div>`;
-        $("carFile").value = "";
-        await loadCar();
-      }
-    }catch(err){ msg.innerHTML = `<div class="err">Se cortó la conexión. Probá de nuevo.</div>`; }
-    finally{ btn.disabled = false; btn.textContent = "Subir y actualizar"; }
-  };
-  reader.readAsArrayBuffer(file);
+// Lee el Excel de Adminse y lo guarda. grupo = clave de CAR_GRUPOS (reemplaza solo esa compañía) o null (reemplaza todo).
+// Devuelve {ok, texto} (o {ok:false, error}); si sinConfirmar es false pregunta antes de guardar.
+async function carImportarArchivo(file, grupo, sinConfirmar){
+  let parsed;
+  try{
+    parsed = carParsear(XLSX.read(new Uint8Array(await file.arrayBuffer()), {type:"array", cellDates:true}));
+  }catch(err){ return {ok:false, error:"No pude leer el archivo. Tiene que ser el Excel de Pólizas que se descarga desde Adminse."}; }
+  let rows = parsed.rows, previas = [];
+  if(grupo){
+    const g = CAR_GRUPOS[grupo];
+    if(!carRows.length){
+      const res = await apiPost({action:"admin_cartera_list", key:KEY});
+      if(res.ok) carRows = res.rows || [];
+    }
+    previas = carRows.filter(r => !g.test(String(r.Compania || "")));
+    rows = parsed.rows.filter(r => g.test(String(r.Compania || "")));
+    if(!rows.length) return {ok:false, error:"El Excel no trae pólizas de " + g.titulo + "."};
+  }
+  if(!rows.length) return {ok:false, error:"El archivo no tiene pólizas de otras compañías."};
+  if(!sinConfirmar && !confirm(grupo
+      ? `El Excel trae ${rows.length} pólizas de ${CAR_GRUPOS[grupo].titulo}. Se reemplazan las anteriores de esa compañía. ¿Seguimos?`
+      : `El archivo tiene ${parsed.total} pólizas. Se guardan ${rows.length} (todas menos las de SMG autos y motos) y se reemplaza la cartera anterior. ¿Seguimos?`)) return {ok:false, cancelado:true};
+  try{
+    const r = await apiPost({action:"admin_cartera_import", key:KEY, rows: previas.concat(rows)});
+    if(!r.ok) return {ok:false, error:r.error || "No se pudo guardar."};
+    carRows = []; // se recarga al entrar a la pestaña
+    return {ok:true, texto:`Adminse: ${rows.length} pólizas guardadas${grupo ? " de " + CAR_GRUPOS[grupo].titulo : " (" + Object.entries(r.porCompania || {}).map(([k, v]) => esc(k) + " " + v).join(" · ") + ")"}.`};
+  }catch(err){ return {ok:false, error:"Se cortó la conexión. Probá de nuevo."}; }
+}
+$("btnCarSubir").onclick = () => $("carFile").click();
+$("carFile").onchange = async () => {
+  const file = $("carFile").files[0], msg = $("carMsg"), btn = $("btnCarSubir");
+  if(!file) return;
+  btn.disabled = true; const txt = btn.textContent; btn.textContent = "Importando…";
+  const r = await carImportarArchivo(file, currentTab.replace("CAR:", ""), false);
+  btn.disabled = false; btn.textContent = txt; $("carFile").value = "";
+  if(r.cancelado) return;
+  msg.innerHTML = r.ok ? `<div class="ok">${r.texto}</div>` : `<div class="err">${esc(r.error)}</div>`;
+  if(r.ok) await loadCar();
 };
 
 // ---- Galicia: cartera completa (archivo .zip de Galicia) ----
@@ -1265,7 +1295,7 @@ function renderGal(){
   const pols = new Set(galRows.map(r => r.Poliza)), vig = new Set(galRows.filter(r => r.Estado === "vigente").map(r => r.Poliza));
   $("galResumen").textContent = galRows.length
     ? `${pols.size} pólizas (${vig.size} vigentes) · ${galRows.filter(r => r.Patente).length} vehículos${galActualizado ? " · actualizado " + galActualizado : ""}`
-    : "Todavía no cargaste el archivo de Galicia. Subí el .zip abajo.";
+    : "Todavía no importaste Galicia. Usá el botón Importar Galicia.";
   $("galConteo").textContent = filas.length + (filas.length === 1 ? " fila" : " filas");
   const paginas = Math.max(1, Math.ceil(filas.length / GAL_PAGE_SIZE));
   if(galPage > paginas) galPage = paginas;
@@ -1292,10 +1322,8 @@ $("galBuscar").addEventListener("input", () => { galPage = 1; renderGal(); });
 $("galRamo").addEventListener("change", () => { galPage = 1; renderGal(); });
 $("galEstado").addEventListener("change", () => { galPage = 1; renderGal(); });
 $("galAdm").addEventListener("change", () => { galPage = 1; renderGal(); });
-$("btnGalSubir").onclick = async () => {
-  const file = $("galFile").files[0], msg = $("galMsg"), btn = $("btnGalSubir");
-  if(!file){ msg.innerHTML = `<div class="err">Elegí primero el .zip descargado de Galicia.</div>`; return; }
-  btn.disabled = true; btn.textContent = "Leyendo…";
+// Lee el .zip de Galicia y lo guarda. Devuelve {ok, texto} / {ok:false, error} / {cancelado:true}.
+async function galImportarArchivo(file, sinConfirmar){
   try{
     if(!window.JSZip) await cargarScript(JSZIP_URL);
     const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
@@ -1306,14 +1334,24 @@ $("btnGalSubir").onclick = async () => {
     const rows = galArmar(P, C || [], D || [], Q || [], hoy);
     if(!rows.length) throw new Error("vacio");
     const pols = new Set(rows.map(r => r.Poliza)).size, vig = new Set(rows.filter(r => r.Estado === "vigente").map(r => r.Poliza)).size;
-    if(!confirm(`El archivo trae ${pols} pólizas (${vig} vigentes) en ${rows.length} filas. Se reemplaza la cartera de Galicia anterior. ¿Seguimos?`)) return;
-    btn.textContent = "Guardando…";
+    if(!sinConfirmar && !confirm(`El archivo trae ${pols} pólizas (${vig} vigentes) en ${rows.length} filas. Se reemplaza la cartera de Galicia anterior. ¿Seguimos?`)) return {ok:false, cancelado:true};
     const r = await apiPost({action:"admin_cartera_import", key:KEY, hoja:"galicia", rows});
-    if(!r.ok) msg.innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`;
-    else{ msg.innerHTML = `<div class="ok">Guardadas ${r.guardadas} filas (${pols} pólizas, ${vig} vigentes).</div>`; $("galFile").value = ""; await loadGal(); }
+    if(!r.ok) return {ok:false, error:r.error || "No se pudo guardar."};
+    return {ok:true, texto:`Galicia: guardadas ${r.guardadas} filas (${pols} pólizas, ${vig} vigentes).`};
   }catch(err){
-    msg.innerHTML = `<div class="err">No pude leer el archivo. Tiene que ser el .zip de cartera que se descarga de Galicia.</div>`;
-  }finally{ btn.disabled = false; btn.textContent = "Subir y actualizar"; }
+    return {ok:false, error:"No pude leer el archivo. Tiene que ser el .zip de cartera que se descarga de Galicia."};
+  }
+}
+$("btnGalSubir").onclick = () => $("galFile").click();
+$("galFile").onchange = async () => {
+  const file = $("galFile").files[0], msg = $("galMsg"), btn = $("btnGalSubir");
+  if(!file) return;
+  btn.disabled = true; const txt = btn.textContent; btn.textContent = "Importando…";
+  const r = await galImportarArchivo(file, false);
+  btn.disabled = false; btn.textContent = txt; $("galFile").value = "";
+  if(r.cancelado) return;
+  msg.innerHTML = r.ok ? `<div class="ok">${r.texto}</div>` : `<div class="err">${esc(r.error)}</div>`;
+  if(r.ok) await loadGal();
 };
 
 // --- Otros ramos de SMG (hogar, comercio, consorcio...) ---
@@ -1445,6 +1483,46 @@ $("btnAuSync").onclick = async () => {
   }catch(e){
     msg.innerHTML = `<div class="err">Se cortó la conexión mientras SMG respondía. Revisá la hoja Vehículos y probá de nuevo.</div>`;
   }finally{ btn.disabled = false; btn.textContent = txt; }
+};
+
+// --- Pólizas: importar SMG (autos + otros ramos) y "todas las compañías" ---
+async function smgImportarTodo(){
+  const partes = [];
+  try{
+    const a = await apiPost({action:"admin_smg_reemplazar_autos", key:KEY});
+    if(!a.ok) return {ok:false, error:"SMG autos: " + (a.error || "no se pudo actualizar.")};
+    partes.push(`SMG autos: ${a.vigentes} vigentes (actualizados ${a.actualizados} · agregados ${a.agregados} · quitados ${a.quitados})`);
+    const o = await apiPost({action:"admin_smg_sync", key:KEY, tipo:"OR"});
+    if(!o.ok) return {ok:false, error:"SMG otros ramos: " + (o.error || "no se pudo consultar.")};
+    partes.push(`SMG otros ramos: ${o.vigentes} vigentes (nuevas en la lista ${o.nuevas || 0})`);
+    return {ok:true, texto:partes.join(" · ") + "."};
+  }catch(e){ return {ok:false, error:"Se cortó la conexión mientras SMG respondía. Probá de nuevo."}; }
+}
+$("btnSmgImp").onclick = async () => {
+  const btn = $("btnSmgImp"), msg = $("smgImpMsg"), txt = btn.textContent;
+  btn.disabled = true; btn.textContent = "Importando…";
+  msg.innerHTML = `<div class="loading">Consultando a SMG, puede tardar unos minutos. No cierres esta pestaña…</div>`;
+  const r = await smgImportarTodo();
+  btn.disabled = false; btn.textContent = txt;
+  msg.innerHTML = r.ok ? `<div class="ok">${esc(r.texto)}</div>` : `<div class="err">${esc(r.error)}</div>`;
+  if(r.ok) await refrescarOtros();
+};
+$("btnImportAll").onclick = async () => {
+  const btn = $("btnImportAll"), msg = $("allMsg"), txt = btn.textContent;
+  const ex = $("allExcel").files[0], zp = $("allZip").files[0];
+  if(!confirm("Se va a importar SMG" + (ex ? ", el Excel de Adminse" : "") + (zp ? " y el zip de Galicia" : "") + ". Reemplaza las carteras anteriores de esas compañías. ¿Seguimos?")) return;
+  btn.disabled = true; btn.textContent = "Importando…";
+  const lineas = [];
+  const pintar = fin => { msg.innerHTML = lineas.join("") + (fin ? "" : `<div class="loading">Trabajando… no cierres esta pestaña.</div>`); };
+  const paso = r => lineas.push(r.ok ? `<div class="ok">${esc(r.texto).replace(/&amp;/g, "&")}</div>` : `<div class="err">${esc(r.error)}</div>`);
+  pintar(false);
+  paso(await smgImportarTodo()); pintar(false);
+  if(ex){ const r = await carImportarArchivo(ex, null, true); lineas.push(r.ok ? `<div class="ok">${r.texto}</div>` : `<div class="err">${esc(r.error)}</div>`); pintar(false); }
+  if(zp){ paso(await galImportarArchivo(zp, true)); pintar(false); }
+  if(!ex || !zp) lineas.push(`<div class="muted">${[!ex ? "Excel de Adminse" : "", !zp ? "zip de Galicia" : ""].filter(Boolean).join(" y ")}: no se eligió, quedó como estaba.</div>`);
+  pintar(true);
+  btn.disabled = false; btn.textContent = txt; $("allExcel").value = ""; $("allZip").value = "";
+  carRows = []; await refrescarOtros();
 };
 
 // --- Importar de SMG todos los vehículos de una vez ---
