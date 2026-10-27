@@ -53,7 +53,12 @@ input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3p
 .btn.sm{padding:7px 12px;font-size:.82rem}
 .err{background:rgba(179,57,47,.08);border:1px solid var(--danger);color:var(--danger);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
 .ok{background:rgba(26,122,76,.08);border:1px solid var(--wa);color:var(--wa);border-radius:10px;padding:10px 14px;font-size:.85rem;font-weight:600;margin:10px 0}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:20}
+.nav{position:sticky;top:0;background:var(--bg);padding:10px 0 4px;z-index:20;margin:0 0 14px}
+.secs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.sec{padding:11px 18px;border-radius:11px;border:2px solid var(--bd);background:var(--card);color:var(--mut);font-weight:800;font-size:.92rem;cursor:pointer}
+.sec.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px}
+.tabs .tab.hide{display:none}
 .tab{padding:9px 14px;border-radius:9px;border:1.5px solid var(--bd);background:var(--card);color:var(--mut);font-weight:700;font-size:.86rem;cursor:pointer}
 .tab.on{background:var(--tint);color:var(--iconc);border-color:var(--ac)}
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
@@ -118,21 +123,30 @@ tr:hover td{background:var(--tint)}
       </div>
     </div>
 
-    <div class="tabs">
-      <button class="tab" data-tab="Automotor">Automotor</button>
-      <button class="tab" data-tab="Hogar-Comercio">Hogar / Comercio</button>
-      <button class="tab" data-tab="Otras consultas">Otras consultas</button>
-      <button class="tab" data-tab="Vehiculos">Vehículos y pólizas</button>
-      <button class="tab" data-tab="SMG">Pólizas SMG</button>
-      <button class="tab" data-tab="CAR:SMO">SMG otros ramos</button>
-      <button class="tab" data-tab="CAR:GAL">Galicia</button>
-      <button class="tab" data-tab="GALC">Galicia completa</button>
-      <button class="tab" data-tab="CAR:RUS">Río Uruguay</button>
-      <button class="tab" data-tab="CAR:MER">Mercantil</button>
-      <button class="tab" data-tab="CAR:MDL">Meridional</button>
-      <button class="tab" data-tab="CAR:ATM">ATM</button>
-      <button class="tab" data-tab="CAR:OTR">Otras compañías</button>
-      <button class="tab" data-tab="Usuarios">Usuarios registrados</button>
+    <div class="nav">
+      <div class="secs" id="secs">
+        <button class="sec" data-sec="SIN">Siniestros</button>
+        <button class="sec" data-sec="POL">Pólizas</button>
+        <button class="sec" data-sec="CRE">Credenciales automotores</button>
+        <button class="sec" data-sec="USU">Usuarios</button>
+      </div>
+      <div class="tabs" id="subtabs">
+        <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
+        <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
+        <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
+        <button class="tab" data-sec="POL" data-tab="SMGO">SMG · importar PDF</button>
+        <button class="tab" data-sec="POL" data-tab="GALC">Galicia</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:GAL">Galicia (Adminse)</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:RUS">Río Uruguay</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:MER">Mercantil</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:MDL">Meridional</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:ATM">ATM</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:OTR">Otras compañías</button>
+        <button class="tab" data-sec="CRE" data-tab="Vehiculos">Vehículos y credenciales</button>
+        <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
+        <button class="tab" data-sec="USU" data-tab="Usuarios">Usuarios registrados</button>
+      </div>
     </div>
 
     <div class="card">
@@ -490,16 +504,26 @@ document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => selectTab(btn.dataset.tab);
 });
 
+const SEC_PRIMERA = {SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
+document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
+// En "Importar de SMG" se muestra todo menos el bloque de otros ramos; en "SMG · importar PDF", solo ese bloque.
+[...$("viewSmg").children].forEach(c => { if(c.id !== "smgOtros") c.classList.add("smgAutos"); });
 function selectTab(tab){
   currentTab = tab;
+  const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
+  document.querySelectorAll(".sec").forEach(b => b.classList.toggle("on", b.dataset.sec === sec));
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("hide", b.dataset.sec !== sec));
+  $("subtabs").classList.toggle("hide", sec === "USU");
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
+  document.querySelectorAll("#viewSmg .smgAutos").forEach(c => c.classList.toggle("hide", tab === "SMGO"));
+  $("smgOtros").classList.toggle("hide", tab !== "SMGO");
   const isVeh = tab === "Vehiculos";
   $("viewVeh").classList.toggle("hide", !isVeh);
   const isCar = tab.indexOf("CAR:") === 0;
-  $("viewSmg").classList.toggle("hide", tab !== "SMG");
+  $("viewSmg").classList.toggle("hide", tab !== "SMG" && tab !== "SMGO");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  $("viewList").classList.toggle("hide", tab === "SMG" || isCar || tab === "GALC");
+  $("viewList").classList.toggle("hide", tab === "SMG" || tab === "SMGO" || isCar || tab === "GALC");
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -510,7 +534,7 @@ function selectTab(tab){
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
   currentPage = 1;
-  if(tab === "SMG") loadSmg(); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
+  if(tab === "SMG") loadSmg(); else if(tab === "SMGO") cargarTodosDocs().then(loadOtros); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
 }
 
 $("btnRefrescar").onclick = () => loadTab(currentTab);
