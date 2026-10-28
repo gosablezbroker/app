@@ -244,6 +244,12 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       </div>
       <div id="viewClientes" class="hide">
         <div class="panelTitle"><h2>Clientes</h2><button class="btn sm" id="btnCliRef">Actualizar</button></div>
+        <div style="margin-bottom:12px">
+          <button class="btn pri" id="btnCliSubir">Importar clientes</button>
+          <input type="file" id="cliFile" accept=".xlsx,.xls" class="hide">
+          <span class="muted" style="margin-left:8px">Elegí el Excel de Adminse (Clientes &gt; Descargar). Reemplaza la lista de clientes.</span>
+          <div id="cliMsg" style="margin-top:8px"></div>
+        </div>
         <div class="kpis" id="cliKpi"></div>
         <div class="toolbar"><input type="search" id="cliBuscar" placeholder="Buscar cliente, DNI / CUIT, email o teléfono…"><span class="count" id="cliConteo"></span></div>
         <div id="cliTabla"></div>
@@ -667,6 +673,7 @@ const datosModulo = {};
 async function cargarModulo(tab, forzar){
   const cont = {Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
+  if(tab === "Clientes" && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
   if(currentTab !== tab) return;
   ({Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
@@ -689,12 +696,21 @@ function renderInicio(){
     `<div class="panelBox"><h3>Próximos vencimientos <small>(60 días)</small></h3>${prox.length ? `<div class="tblwrap"><table><thead><tr><th>Días</th><th>Cliente</th><th>Póliza</th><th>Compañía</th><th>Ramo</th><th>Vence</th></tr></thead><tbody>${prox.map(x => `<tr><td><span class="pill ${x.dias <= 7 ? "k-bad" : "k-warn"}">${x.dias}</span></td><td>${esc(nombreDe(x.r))}</td><td>${esc(x.r.Poliza)}</td><td>${esc(x.r.Compania)}</td><td>${esc(x.r.Ramo)}</td><td>${esc(x.r.Fin)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="muted">No hay vencimientos en los próximos 60 días.</div>`}</div>`;
 }
 const CLI_PAGE = 50; let cliPage = 1;
+const docDe = v => String(v || "").replace(/\D/g, "").replace(/^0+/, "");
 function renderClientes(){
-  const mapa = new Map();
+  const mapa = new Map(), porDoc = new Map(), porNom = new Map();
+  (datosModulo.clientes || []).forEach(c => {
+    const o = {nom: String(c.Nombre || "").trim(), doc: docDe(c.CUIT) || docDe(c.DNI), dni: docDe(c.DNI), email: String(c.Mails || ""), tel: String(c.Telefonos || ""), dir: String(c.Direccion || ""), tipo: c.TipoCliente || "", prod: c.Productor || "", pols: [], ramos: new Set(), prox: null, nac: c.Nacimiento || "", alta: c.Alta || ""};
+    if(!o.nom) return;
+    mapa.set(c.IdRef || o.nom, o);
+    if(docDe(c.CUIT)) porDoc.set(docDe(c.CUIT), o); if(o.dni) porDoc.set(o.dni, o);
+    porNom.set(o.nom.toLowerCase(), o);
+  });
   datosModulo.rows.forEach(r => {
     const nom = nombreDe(r); if(!nom) return;
-    const doc = String(r.CUIT || r.DNI || "").replace(/\D/g, ""), key = doc || nom.toLowerCase();
-    let c = mapa.get(key); if(!c){ c = {nom, doc, email: "", tel: "", pols: [], ramos: new Set(), prox: null}; mapa.set(key, c); }
+    const d1 = docDe(r.CUIT), d2 = docDe(r.DNI);
+    let c = (d1 && porDoc.get(d1)) || (d2 && porDoc.get(d2)) || porNom.get(nom.toLowerCase());
+    if(!c){ c = {nom, doc: d1 || d2, email: "", tel: "", dir: "", pols: [], ramos: new Set(), prox: null}; mapa.set("p:" + (d1 || d2 || nom.toLowerCase()), c); if(c.doc) porDoc.set(c.doc, c); porNom.set(nom.toLowerCase(), c); }
     c.email = c.email || r.Email || ""; c.tel = c.tel || r.Telefono || r.Celular || ""; c.pols.push(r); if(r.Ramo) c.ramos.add(r.Ramo);
     const e = estadoPol(r); if(e.k === "vigente" && e.d && (!c.prox || e.d < c.prox)) c.prox = e.d;
   });
@@ -702,15 +718,16 @@ function renderClientes(){
   const q = $("cliBuscar").value.trim().toLowerCase();
   const f = q ? todos.filter(c => [c.nom, c.doc, c.email, c.tel].some(x => String(x).toLowerCase().includes(q))) : todos;
   const conMail = todos.filter(c => c.email).length, multi = todos.filter(c => c.pols.length > 1).length;
+  if(!(datosModulo.clientes || []).length) $("cliMsg").innerHTML = `<div class="muted" style="padding:0">Todavía no importaste la agenda de clientes: se muestran solo los clientes que tienen pólizas.</div>`;
   const k = (n, t, c) => `<div class="kpi ${c || ""}"><b>${n}</b><span>${t}</span></div>`;
-  $("cliKpi").innerHTML = k(todos.length, "Clientes") + k(multi, "Con más de una póliza") + k(conMail, "Con email") + k(todos.length - conMail, "Sin email", "k-warn");
+  $("cliKpi").innerHTML = k(todos.length, "Clientes") + k(multi, "Con más de una póliza") + k(todos.filter(c => !c.pols.length).length, "Sin pólizas", "k-mut") + k(conMail, "Con email") + k(todos.length - conMail, "Sin email", "k-warn");
   $("cliConteo").textContent = f.length + " resultados";
   const paginas = Math.max(1, Math.ceil(f.length / CLI_PAGE)); if(cliPage > paginas) cliPage = paginas;
   const pag = f.slice((cliPage - 1) * CLI_PAGE, cliPage * CLI_PAGE);
   let h = `<div class="tblwrap"><table><thead><tr><th>Cliente</th><th>Documento</th><th>Contacto</th><th>Pólizas</th><th>Ramos</th><th>Próx. vencimiento</th></tr></thead><tbody>`;
   pag.forEach(c => {
     h += `<tr class="fila" style="cursor:pointer"><td style="white-space:normal;min-width:180px"><b>${esc(c.nom)}</b></td><td>${esc(c.doc)}</td><td>${esc(c.tel)}${c.tel && c.email ? "<br>" : ""}${esc(c.email)}</td><td><span class="pill">${c.pols.length}</span></td><td style="white-space:normal;min-width:160px">${esc([...c.ramos].join(", "))}</td><td>${c.prox ? esc(formatDMY(c.prox)) : ""}</td></tr>` +
-      `<tr class="hide"><td colspan="6" style="white-space:normal;background:var(--tint)">${c.pols.map(p => `<div style="padding:3px 0">${esc(p.Compania)} · <b>${esc(p.Poliza)}</b> · ${esc(p.Ramo)} · ${esc(riesgoDe(p).resumen.replace(/<[^>]+>/g, ""))} · ${esc(p.Inicio)} → ${esc(p.Fin)} ${pillEstado(p)}</div>`).join("")}</td></tr>`;
+      `<tr class="hide"><td colspan="6" style="white-space:normal;background:var(--tint)">${[c.dir && "<b>Domicilio:</b> " + esc(c.dir), c.nac && "<b>Nacimiento:</b> " + esc(c.nac), c.tipo && "<b>Tipo:</b> " + esc(c.tipo), c.prod && "<b>Productor:</b> " + esc(c.prod)].filter(Boolean).map(x => `<div style="padding:2px 0">${x}</div>`).join("")}${c.pols.length ? "" : "<div class=\"muted\" style=\"padding:2px 0\">Sin pólizas en la cartera importada.</div>"}${c.pols.map(p => `<div style="padding:3px 0">${esc(p.Compania)} · <b>${esc(p.Poliza)}</b> · ${esc(p.Ramo)} · ${esc(riesgoDe(p).resumen.replace(/<[^>]+>/g, ""))} · ${esc(p.Inicio)} → ${esc(p.Fin)} ${pillEstado(p)}</div>`).join("")}</td></tr>`;
   });
   h += `</tbody></table></div>`;
   if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="cliAnt" ${cliPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${cliPage} de ${paginas}</span><button class="btn sm" id="cliSig" ${cliPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
@@ -745,6 +762,31 @@ $("btnRenoRef").onclick = () => cargarModulo("Renovaciones", true);
 $("btnVigRef").onclick = () => cargarModulo("Vigentes", true);
 $("cliBuscar").addEventListener("input", () => { cliPage = 1; renderClientes(); });
 ["renoRango", "renoCia"].forEach(id => $(id).addEventListener("change", renderReno));
+
+function cliParsear(wb){
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval: "", raw: true});
+  if(!raw.length || !("Nombre" in raw[0]) || !("Tipo Persona" in raw[0])) throw new Error("formato");
+  const t = v => String(v == null ? "" : v).trim();
+  const f = v => { const d = parseDateFlexible(v); return d && d.getFullYear() > 1910 ? formatDMY(d) : ""; };
+  return raw.map(r => ({Tipo: t(r["Tipo Persona"]), Nombre: t(r["Nombre"]), CUIT: t(r["CUIT"]), DNI: t(r["DNI"]), Nacimiento: f(r["Nacimiento"]), Direccion: t(r["Direcciones"]),
+    Telefonos: t(r["Telefonos"]), Mails: t(r["Mails"]), Grupo: t(r["Grupo"]), Ramos: t(r["Ramos"]), Productor: t(r["Productor"]), Alta: f(r["Creacion"]), TipoCliente: t(r["Tipo de Cliente"]), IdRef: t(r["id"])})).filter(r => r.Nombre);
+}
+$("btnCliSubir").onclick = () => $("cliFile").click();
+$("cliFile").onchange = async () => {
+  const file = $("cliFile").files[0]; if(!file) return;
+  $("cliMsg").innerHTML = `<div class="loading">Leyendo y guardando…</div>`;
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type: "array", cellDates: true});
+    const rows = cliParsear(wb);
+    const r = await apiPost({action:"admin_clientes_import", key:KEY, rows});
+    if(!r.ok) throw new Error(r.error || "No se pudo guardar. ¿Actualizaste el script de Google?");
+    $("cliMsg").innerHTML = `<div class="ok">Listo: ${r.guardadas} clientes guardados.</div>`;
+    await cargarModulo("Clientes", true);
+  }catch(e){
+    $("cliMsg").innerHTML = `<div class="err">${e.message === "formato" ? "Ese archivo no parece la Agenda de clientes de Adminse." : "No se pudo importar: " + esc(e.message)}</div>`;
+  }
+  $("cliFile").value = "";
+};
 
 function selectTab(tab){
   currentTab = tab;
