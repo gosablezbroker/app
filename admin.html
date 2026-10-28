@@ -279,9 +279,23 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 
       <div id="viewImp" class="hide">
         <div class="panelTitle"><h2>Importar datos</h2><button class="btn sm" id="impRef">Actualizar</button></div>
-        <p class="muted" style="padding:0 0 10px">Elegí la compañía. Cada una te lleva a su pantalla de importación.</p>
+        <p class="muted" style="padding:0 0 10px">Un botón por compañía: al tocarlo se abre la selección del archivo (SMG se importa directo). El resultado se ve en la pestaña de esa compañía.</p>
         <div class="chips" id="impTipo"><button class="chip on">Operaciones (pólizas)</button><button class="chip" disabled title="Próximamente">Pagos pendientes</button><button class="chip" disabled title="Próximamente">Pagos realizados</button><button class="chip" disabled title="Próximamente">Comisiones</button></div>
         <div class="impGrid" id="impGrid"><div class="loading">Cargando…</div></div>
+      <div id="polBar" style="padding:14px;border:1px solid var(--bd);border-radius:16px;margin-top:18px">
+        <div class="panelTitle"><h2>Importar todas las compañías</h2></div>
+        <p class="muted" style="padding:0 0 10px">
+          Trae SMG automáticamente (autos y otros ramos). Para el resto elegí los archivos: el <strong>Excel de Adminse</strong>
+          (Producción &gt; Pólizas &gt; Descargar) para Río Uruguay, Mercantil, Meridional, ATM y otras, y el <strong>.zip de Galicia</strong>.
+          Lo que no elijas no se toca.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label class="muted">Excel Adminse <input type="file" id="allExcel" accept=".xlsx,.xls"></label>
+          <label class="muted">Zip Galicia <input type="file" id="allZip" accept=".zip"></label>
+          <button class="btn pri" id="btnImportAll">Importar todas las compañías</button>
+        </div>
+        <div id="allMsg" style="margin-top:10px"></div>
+      </div>
       </div>
       <div id="viewTodas" class="hide">
         <div class="kpis" id="tdKpi"></div>
@@ -348,25 +362,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       </div>
       <div id="viewBusq" class="hide"><div id="busqTabla"></div></div>
 
-      <div id="polBar" class="hide" style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:14px">
-        <div class="panelTitle"><h2>Importar todas las compañías</h2></div>
-        <p class="muted" style="padding:0 0 10px">
-          Trae SMG automáticamente (autos y otros ramos). Para el resto elegí los archivos: el <strong>Excel de Adminse</strong>
-          (Producción &gt; Pólizas &gt; Descargar) para Río Uruguay, Mercantil, Meridional, ATM y otras, y el <strong>.zip de Galicia</strong>.
-          Lo que no elijas no se toca.
-        </p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <label class="muted">Excel Adminse <input type="file" id="allExcel" accept=".xlsx,.xls"></label>
-          <label class="muted">Zip Galicia <input type="file" id="allZip" accept=".zip"></label>
-          <button class="btn pri" id="btnImportAll">Importar todas las compañías</button>
-        </div>
-        <div id="allMsg" style="margin-top:10px"></div>
-      </div>
-
       <div id="viewSmgCia" class="hide">
         <div class="panelTitle">
           <h2>SMG — pólizas</h2>
-          <button class="btn pri" id="btnSmgImp">Importar SMG</button>
+          <button class="btn pri hide" id="btnSmgImp">Importar SMG</button>
         </div>
         <p class="muted" style="padding:0 0 10px">Consulta a SMG y actualiza los autos (hoja de Vehículos) y la lista de otros ramos (hogar, comercio, etc.). Tarda unos minutos.</p>
         <div id="smgImpMsg" style="margin-bottom:12px"></div>
@@ -380,9 +379,9 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div class="kpis" id="carKpi"></div>
         <p class="muted" style="padding:0 0 6px" id="carResumen"></p>
         <div style="margin-bottom:12px">
-          <button class="btn pri" id="btnCarSubir">Importar</button>
+          <button class="btn pri hide" id="btnCarSubir">Importar</button>
           <input type="file" id="carFile" accept=".xlsx,.xls" class="hide">
-          <span class="muted" style="margin-left:8px">Elegí el Excel de Adminse (Producción &gt; Pólizas &gt; Descargar); solo se actualizan las pólizas de esta compañía.</span>
+          <span class="muted hide" style="margin-left:8px">Elegí el Excel de Adminse (Producción &gt; Pólizas &gt; Descargar); solo se actualizan las pólizas de esta compañía.</span>
           <div id="carMsg" style="margin-top:8px"></div>
         </div>
         <div class="toolbar">
@@ -401,9 +400,9 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         </div>
         <p class="muted" style="padding:0 0 6px" id="galResumen"></p>
         <div style="margin-bottom:12px">
-          <button class="btn pri" id="btnGalSubir">Importar Galicia</button>
+          <button class="btn pri hide" id="btnGalSubir">Importar Galicia</button>
           <input type="file" id="galFile" accept=".zip" class="hide">
-          <span class="muted" style="margin-left:8px">Elegí el .zip de cartera completa de Galicia (pólizas, clientes, vehículos y cuotas; no se guardan datos de pago).</span>
+          <span class="muted hide" style="margin-left:8px">Elegí el .zip de cartera completa de Galicia (pólizas, clientes, vehículos y cuotas; no se guardan datos de pago).</span>
           <div id="galMsg" style="margin-top:8px"></div>
         </div>
         <div class="toolbar">
@@ -998,7 +997,12 @@ function renderImp(){
     {n:"Clientes", sub:"Agenda de clientes de Adminse", met:"Por archivo", tab:"Clientes", c: (datosModulo.clientes || []).length, f: datosModulo.clientesAct || ""}
   ];
   $("impGrid").innerHTML = items.map((it, i) => `<div class="impCard"><div class="impTop"><b>${esc(it.n)}</b><span class="pill ${it.met.startsWith("Auto") ? "k-ok" : ""}">${esc(it.met)}</span></div><div class="muted" style="padding:0">${esc(it.sub)}</div><div class="impNum">${it.c}<small>${it.n === "Clientes" ? "clientes" : "pólizas"}</small></div><div class="muted" style="padding:0 0 10px">${it.f ? "Última importación: " + esc(it.f) : (it.c ? "" : "Sin importar todavía")}</div><button class="btn pri sm" data-i="${i}">Importar</button></div>`).join("");
-  $("impGrid").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => selectTab(items[Number(b.dataset.i)].tab));
+  const disparo = {"CAR:SMO":"btnSmgImp", GALC:"btnGalSubir", Clientes:"btnCliSubir"};
+  $("impGrid").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
+    const t = items[Number(b.dataset.i)].tab;
+    selectTab(t);
+    const btn = $(disparo[t] || "btnCarSubir"); if(btn) btn.click();
+  });
 }
 $("impRef").onclick = () => cargarModulo("Importar", true);
 
@@ -1010,7 +1014,7 @@ function selectTab(tab){
   
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
   const isSmgCia = tab === "CAR:SMO";
-  $("polBar").classList.toggle("hide", sec !== "POL");
+  
   $("viewSmgCia").classList.toggle("hide", !isSmgCia);
   const isVeh = tab === "Vehiculos";
   $("viewVeh").classList.toggle("hide", !isVeh);
