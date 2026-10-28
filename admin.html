@@ -151,6 +151,20 @@ tr:hover td{background:var(--tint)}
 .panelTitle h2{font-size:1.15rem;font-weight:700}
 input[type=file]{padding:8px 10px;font-size:.82rem}
 .gate{border-radius:24px;box-shadow:var(--shadow-md)}
+
+.hero2{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 14px}
+.hero2>div{flex:1 1 260px;border-radius:20px;padding:20px 22px;color:#fff;background:linear-gradient(135deg,#122246,#0550e6)}
+.hero2 small{display:block;font-size:.7rem;letter-spacing:.08em;opacity:.8}
+.hero2 b{display:block;font-size:2.1rem;line-height:1.15;font-weight:700}
+.hero2 span{font-size:.82rem;opacity:.85}
+.twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
+.panelBox{border:1px solid var(--bd);border-radius:18px;padding:16px 18px;background:var(--card);margin-bottom:14px}
+.twocol .panelBox{margin:0}
+.panelBox h3{margin:0 0 12px;font-size:.98rem}.panelBox h3 small{color:var(--mut);font-weight:400}
+.bar{display:grid;grid-template-columns:minmax(90px,1.2fr) 2fr auto;gap:10px;align-items:center;margin:7px 0;font-size:.82rem}
+.bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt{height:9px;background:var(--tint);border-radius:99px;overflow:hidden}.bt i{display:block;height:100%;background:var(--ac);border-radius:99px}
+.bv{font-weight:600;text-align:right}.bv small{color:var(--mut);font-weight:400;margin-left:6px}
 @media (max-width:860px){
   .burger{display:inline-flex;align-items:center;justify-content:center}
   .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;width:272px}
@@ -181,12 +195,19 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       <div class="brand"><img src="assets/icon-192.png" alt="Gosalbez"><div><strong>Gosalbez</strong><small>Panel interno</small></div></div>
       <nav class="nav">
         <div class="secs" id="secs">
+        <button class="sec" data-sec="INI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button>
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
+        <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
+        <button class="sec" data-sec="REP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Reportes</span></button>
         <button class="sec" data-sec="CRE"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l2-6h14l2 6M3 13v5h3v-2h12v2h3v-5M3 13h18M7 16h.01M17 16h.01"/></svg><span>Credenciales automotores</span></button>
         <button class="sec" data-sec="USU"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span>Usuarios</span></button>
       </div>
         <div class="tabs" id="subtabs">
+        <button class="tab" data-sec="INI" data-tab="Inicio">Resumen de cartera</button>
+        <button class="tab" data-sec="CLI" data-tab="Clientes">Clientes</button>
+        <button class="tab" data-sec="REP" data-tab="Renovaciones">Renovaciones</button>
+        <button class="tab" data-sec="REP" data-tab="Vigentes">Vigentes por ramo</button>
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
@@ -216,6 +237,30 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
     </header>
     <div class="content">
     <div class="card">
+
+      <div id="viewInicio" class="hide">
+        <div class="panelTitle"><h2>Resumen de cartera</h2><button class="btn sm" id="btnIniRef">Actualizar</button></div>
+        <div id="iniBody"><div class="loading">Cargando…</div></div>
+      </div>
+      <div id="viewClientes" class="hide">
+        <div class="panelTitle"><h2>Clientes</h2><button class="btn sm" id="btnCliRef">Actualizar</button></div>
+        <div class="kpis" id="cliKpi"></div>
+        <div class="toolbar"><input type="search" id="cliBuscar" placeholder="Buscar cliente, DNI / CUIT, email o teléfono…"><span class="count" id="cliConteo"></span></div>
+        <div id="cliTabla"></div>
+      </div>
+      <div id="viewReno" class="hide">
+        <div class="panelTitle"><h2 id="renoTitulo">Renovaciones</h2><button class="btn sm" id="btnRenoRef">Actualizar</button></div>
+        <div class="toolbar">
+          <select id="renoRango" style="max-width:240px"><option value="30">Vencen en 30 días</option><option value="60" selected>Vencen en 60 días</option><option value="90">Vencen en 90 días</option><option value="0">Ya vencidas</option></select>
+          <select id="renoCia" style="max-width:240px"><option value="">Todas las compañías</option></select>
+          <span class="count" id="renoConteo"></span>
+        </div>
+        <div id="renoTabla"></div>
+      </div>
+      <div id="viewVigRamo" class="hide">
+        <div class="panelTitle"><h2>Vigentes por ramo y compañía</h2><button class="btn sm" id="btnVigRef">Actualizar</button></div>
+        <div id="vigBody"></div>
+      </div>
 
       <div id="viewList">
         <div class="panelTitle">
@@ -590,7 +635,7 @@ $("btnBackup").onclick = async () => {
 function enterApp(){
   $("gate").classList.add("hide");
   $("app").classList.remove("hide");
-  selectTab("Automotor");
+  selectTab("Inicio");
 }
 
 // ---- Tabs ----
@@ -601,12 +646,112 @@ document.querySelectorAll(".tab").forEach(btn => {
 const SEC_PRIMERA = {SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
 $("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
+
+// ===== Módulos tipo Adminse calculados con la cartera ya importada =====
+const num = v => { if(typeof v === "number") return v; const t = String(v == null ? "" : v).replace(/[^\d.,-]/g, ""); if(!t) return 0; const n = t.includes(",") ? parseFloat(t.replace(/\./g, "").replace(",", ".")) : parseFloat(t); return isNaN(n) ? 0 : n; };
+const money = n => "$ " + Math.round(n).toLocaleString("es-AR");
+const nombreDe = r => String(r.Asegurado || r.Tomador || r.Cliente || "").trim();
+function estadoPol(r){
+  const e = String(r.Estado || ""), d = parseDateFlexible(r.Fin), hoy = new Date(); hoy.setHours(0,0,0,0);
+  if(/anul|baja|cancel/i.test(e)) return {k:"anulada", d};
+  if(d && d < hoy) return {k:"vencida", d};
+  return {k:"vigente", d, dias: d ? Math.round((d - hoy) / 864e5) : null};
+}
+function barras(mapa, total, max){
+  const e = Object.entries(mapa).sort((a, b) => b[1] - a[1]); const top = e.slice(0, max || 8);
+  const resto = e.slice(max || 8).reduce((s, x) => s + x[1], 0); if(resto) top.push(["Otros", resto]);
+  const m = top[0] ? top[0][1] : 1;
+  return top.map(([k, v]) => `<div class="bar"><span class="bl">${esc(k || "—")}</span><span class="bt"><i style="width:${Math.max(3, v / m * 100)}%"></i></span><span class="bv">${v}<small>${(v / total * 100).toFixed(1)}%</small></span></div>`).join("");
+}
+const datosModulo = {};
+async function cargarModulo(tab, forzar){
+  const cont = {Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
+  if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
+  if(currentTab !== tab) return;
+  ({Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
+}
+function renderInicio(){
+  const rows = datosModulo.rows, hoy = new Date(); hoy.setHours(0,0,0,0);
+  if(!rows.length){ $("iniBody").innerHTML = `<div class="muted">Todavía no hay pólizas importadas. Importalas desde Pólizas.</div>`; return; }
+  const v = rows.map(r => Object.assign({r}, estadoPol(r))), vig = v.filter(x => x.k === "vigente");
+  const mes = vig.filter(x => x.d && x.d.getMonth() === hoy.getMonth() && x.d.getFullYear() === hoy.getFullYear()).length;
+  const pv30 = vig.filter(x => x.dias != null && x.dias <= 30).length;
+  const premio = vig.reduce((s, x) => s + num(x.r.Premio), 0), prima = vig.reduce((s, x) => s + num(x.r.Prima), 0);
+  const clientes = new Set(rows.map(r => (String(r.CUIT || r.DNI || "").replace(/\D/g, "") || nombreDe(r).toLowerCase())).filter(Boolean)).size;
+  const k = (n, t, c) => `<div class="kpi ${c || ""}"><b>${n}</b><span>${t}</span></div>`;
+  const porCia = {}, porRamo = {};
+  vig.forEach(x => { const c = x.r.Compania || "—", ra = x.r.Ramo || "—"; porCia[c] = (porCia[c] || 0) + 1; porRamo[ra] = (porRamo[ra] || 0) + 1; });
+  const prox = vig.filter(x => x.dias != null && x.dias <= 60).sort((a, b) => a.dias - b.dias).slice(0, 10);
+  $("iniBody").innerHTML = `<div class="hero2"><div><small>CARTERA VIGENTE</small><b>${vig.length}</b><span>pólizas · ${clientes} clientes</span></div>` +
+      (premio ? `<div><small>PREMIO TOTAL</small><b>${money(premio)}</b>${prima ? `<span>Prima ${money(prima)}</span>` : ""}</div>` : "") + `</div>` +
+    `<div class="kpis">${k(mes, "Vencen este mes", "k-warn")}${k(pv30, "Vencen en 30 días", "k-warn")}${k(v.filter(x => x.k === "vencida").length, "Vencidas", "k-bad")}${k(v.filter(x => x.k === "anulada").length, "Anuladas", "k-mut")}</div>` +
+    `<div class="twocol"><div class="panelBox"><h3>Por compañía</h3>${barras(porCia, vig.length)}</div><div class="panelBox"><h3>Por ramo</h3>${barras(porRamo, vig.length, 10)}</div></div>` +
+    `<div class="panelBox"><h3>Próximos vencimientos <small>(60 días)</small></h3>${prox.length ? `<div class="tblwrap"><table><thead><tr><th>Días</th><th>Cliente</th><th>Póliza</th><th>Compañía</th><th>Ramo</th><th>Vence</th></tr></thead><tbody>${prox.map(x => `<tr><td><span class="pill ${x.dias <= 7 ? "k-bad" : "k-warn"}">${x.dias}</span></td><td>${esc(nombreDe(x.r))}</td><td>${esc(x.r.Poliza)}</td><td>${esc(x.r.Compania)}</td><td>${esc(x.r.Ramo)}</td><td>${esc(x.r.Fin)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="muted">No hay vencimientos en los próximos 60 días.</div>`}</div>`;
+}
+const CLI_PAGE = 50; let cliPage = 1;
+function renderClientes(){
+  const mapa = new Map();
+  datosModulo.rows.forEach(r => {
+    const nom = nombreDe(r); if(!nom) return;
+    const doc = String(r.CUIT || r.DNI || "").replace(/\D/g, ""), key = doc || nom.toLowerCase();
+    let c = mapa.get(key); if(!c){ c = {nom, doc, email: "", tel: "", pols: [], ramos: new Set(), prox: null}; mapa.set(key, c); }
+    c.email = c.email || r.Email || ""; c.tel = c.tel || r.Telefono || r.Celular || ""; c.pols.push(r); if(r.Ramo) c.ramos.add(r.Ramo);
+    const e = estadoPol(r); if(e.k === "vigente" && e.d && (!c.prox || e.d < c.prox)) c.prox = e.d;
+  });
+  const todos = [...mapa.values()].sort((a, b) => a.nom.localeCompare(b.nom, "es"));
+  const q = $("cliBuscar").value.trim().toLowerCase();
+  const f = q ? todos.filter(c => [c.nom, c.doc, c.email, c.tel].some(x => String(x).toLowerCase().includes(q))) : todos;
+  const conMail = todos.filter(c => c.email).length, multi = todos.filter(c => c.pols.length > 1).length;
+  const k = (n, t, c) => `<div class="kpi ${c || ""}"><b>${n}</b><span>${t}</span></div>`;
+  $("cliKpi").innerHTML = k(todos.length, "Clientes") + k(multi, "Con más de una póliza") + k(conMail, "Con email") + k(todos.length - conMail, "Sin email", "k-warn");
+  $("cliConteo").textContent = f.length + " resultados";
+  const paginas = Math.max(1, Math.ceil(f.length / CLI_PAGE)); if(cliPage > paginas) cliPage = paginas;
+  const pag = f.slice((cliPage - 1) * CLI_PAGE, cliPage * CLI_PAGE);
+  let h = `<div class="tblwrap"><table><thead><tr><th>Cliente</th><th>Documento</th><th>Contacto</th><th>Pólizas</th><th>Ramos</th><th>Próx. vencimiento</th></tr></thead><tbody>`;
+  pag.forEach(c => {
+    h += `<tr class="fila" style="cursor:pointer"><td style="white-space:normal;min-width:180px"><b>${esc(c.nom)}</b></td><td>${esc(c.doc)}</td><td>${esc(c.tel)}${c.tel && c.email ? "<br>" : ""}${esc(c.email)}</td><td><span class="pill">${c.pols.length}</span></td><td style="white-space:normal;min-width:160px">${esc([...c.ramos].join(", "))}</td><td>${c.prox ? esc(formatDMY(c.prox)) : ""}</td></tr>` +
+      `<tr class="hide"><td colspan="6" style="white-space:normal;background:var(--tint)">${c.pols.map(p => `<div style="padding:3px 0">${esc(p.Compania)} · <b>${esc(p.Poliza)}</b> · ${esc(p.Ramo)} · ${esc(riesgoDe(p).resumen.replace(/<[^>]+>/g, ""))} · ${esc(p.Inicio)} → ${esc(p.Fin)} ${pillEstado(p)}</div>`).join("")}</td></tr>`;
+  });
+  h += `</tbody></table></div>`;
+  if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="cliAnt" ${cliPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${cliPage} de ${paginas}</span><button class="btn sm" id="cliSig" ${cliPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
+  $("cliTabla").innerHTML = h; activarFichas($("cliTabla"));
+  if($("cliAnt")) $("cliAnt").onclick = () => { cliPage--; renderClientes(); };
+  if($("cliSig")) $("cliSig").onclick = () => { cliPage++; renderClientes(); };
+}
+function renderReno(){
+  const dias = Number($("renoRango").value), cia = $("renoCia").value;
+  const cias = [...new Set(datosModulo.rows.map(r => r.Compania).filter(Boolean))].sort();
+  const sel = $("renoCia"); if(sel.options.length <= 1) cias.forEach(c => sel.insertAdjacentHTML("beforeend", `<option>${esc(c)}</option>`));
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const lista = datosModulo.rows.map(r => ({r, d: parseDateFlexible(r.Fin), e: estadoPol(r)})).filter(x => x.d && x.e.k !== "anulada" && (!cia || x.r.Compania === cia) &&
+    (dias === 0 ? x.d < hoy && (hoy - x.d) / 864e5 <= 90 : x.d >= hoy && (x.d - hoy) / 864e5 <= dias)).sort((a, b) => a.d - b.d);
+  $("renoConteo").textContent = lista.length + " pólizas";
+  if(!lista.length){ $("renoTabla").innerHTML = `<div class="muted">No hay pólizas en este rango.</div>`; return; }
+  $("renoTabla").innerHTML = `<div class="tblwrap"><table><thead><tr><th>Vence</th><th>Días</th><th>Cliente</th><th>Póliza</th><th>Compañía</th><th>Ramo</th><th>Bien / riesgo</th><th>Contacto</th></tr></thead><tbody>` +
+    lista.slice(0, 500).map(x => { const dd = Math.round((x.d - hoy) / 864e5); return `<tr><td>${esc(x.r.Fin)}</td><td><span class="pill ${dd < 0 ? "k-bad" : dd <= 7 ? "k-bad" : dd <= 30 ? "k-warn" : "k-ok"}">${dd}</span></td><td style="white-space:normal;min-width:160px">${esc(nombreDe(x.r))}</td><td>${esc(x.r.Poliza)}</td><td>${esc(x.r.Compania)}</td><td>${esc(x.r.Ramo)}</td><td style="white-space:normal;min-width:180px">${riesgoDe(x.r).resumen}</td><td>${esc(x.r.Telefono || x.r.Celular || x.r.Email || "")}</td></tr>`; }).join("") + `</tbody></table></div>` + (lista.length > 500 ? `<p class="muted">Se muestran las primeras 500.</p>` : "");
+}
+function renderVig(){
+  const vig = datosModulo.rows.filter(r => estadoPol(r).k === "vigente");
+  const cias = [...new Set(vig.map(r => r.Compania || "—"))].sort(), ramos = [...new Set(vig.map(r => r.Ramo || "—"))].sort();
+  const m = {}; vig.forEach(r => { const a = r.Ramo || "—", c = r.Compania || "—"; (m[a] = m[a] || {})[c] = (m[a][c] || 0) + 1; });
+  ramos.sort((a, b) => Object.values(m[b]).reduce((s, x) => s + x, 0) - Object.values(m[a]).reduce((s, x) => s + x, 0));
+  $("vigBody").innerHTML = `<div class="tblwrap"><table><thead><tr><th>Ramo</th>${cias.map(c => `<th>${esc(c)}</th>`).join("")}<th>Total</th></tr></thead><tbody>` +
+    ramos.map(a => `<tr><td><b>${esc(a)}</b></td>${cias.map(c => `<td>${m[a][c] || ""}</td>`).join("")}<td><span class="pill">${Object.values(m[a]).reduce((s, x) => s + x, 0)}</span></td></tr>`).join("") +
+    `<tr><td><b>Total</b></td>${cias.map(c => `<td><b>${vig.filter(r => (r.Compania || "—") === c).length}</b></td>`).join("")}<td><b>${vig.length}</b></td></tr></tbody></table></div>`;
+}
+$("btnIniRef").onclick = () => cargarModulo("Inicio", true);
+$("btnCliRef").onclick = () => cargarModulo("Clientes", true);
+$("btnRenoRef").onclick = () => cargarModulo("Renovaciones", true);
+$("btnVigRef").onclick = () => cargarModulo("Vigentes", true);
+$("cliBuscar").addEventListener("input", () => { cliPage = 1; renderClientes(); });
+["renoRango", "renoCia"].forEach(id => $(id).addEventListener("change", renderReno));
+
 function selectTab(tab){
   currentTab = tab;
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
   document.querySelectorAll(".sec").forEach(b => b.classList.toggle("on", b.dataset.sec === sec));
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("hide", b.dataset.sec !== sec));
-  $("subtabs").classList.toggle("hide", sec === "USU");
+  $("subtabs").classList.toggle("hide", sec === "USU" || sec === "INI" || sec === "CLI");
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
   const isSmgCia = tab === "CAR:SMO";
   $("polBar").classList.toggle("hide", sec !== "POL");
@@ -617,14 +762,17 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC");
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo"};
+  ["viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
+  if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.toggle("hide", sec !== "POL");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
   { const sb = document.querySelector(`.sec[data-sec="${sec}"] span`); $("crumbSec").textContent = sb ? sb.textContent : "Panel";
     $("crumbTab").textContent = btnTab ? btnTab.textContent : tab;
     document.body.classList.remove("menuOpen"); }
-  const titles = {
+  const titles = {"Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
