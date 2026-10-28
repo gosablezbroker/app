@@ -883,12 +883,50 @@ function tdTarjeta(c){
   const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio);
   return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b>${tdEstadoPill(c)}</div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
 }
+// ---- Documentos adjuntos de una póliza (PDF) ----
+const polDocKey = r => normPat(r.Patente) || ("POL" + normPat(r.Compania).slice(0, 4) + normPat(r.Poliza));
+async function docsPoliza(c){
+  const r = c.r, key = polDocKey(r), esAuto = !!normPat(r.Patente), pol = String(r.Poliza || "").trim();
+  const box = $("drawerDocs"); let docs = [];
+  try{ const res = await apiPost({action:"admin_doc_list", key:KEY, patente:key}); docs = res.ok ? res.docs : []; }catch(e){}
+  if($("drawerDocs") !== box) return;
+  const tipos = DOC_TIPOS.filter(([t]) => esAuto || t === "Poliza");
+  box.innerHTML = `<h3>Documentos</h3><div id="drawerDocMsg"></div>` + tipos.map(([tipo, label]) => {
+    const d = docs.find(x => x.tipo === tipo && String(x.poliza || "").trim() === pol);
+    return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--bd)"><b style="flex:0 0 90px">${label}</b>
+      <span style="flex:1 1 140px;font-size:.84rem">${d ? `✔ ${esc(d.archivo)}` : `<span class="muted" style="padding:0">Sin archivo</span>`}</span>
+      <input type="file" accept="application/pdf,.pdf" data-df="${tipo}" style="max-width:200px">
+      <button class="btn sm pri" data-du="${tipo}">${d ? "Reemplazar" : "Adjuntar"}</button>
+      ${d ? `<button class="btn sm" data-dv="${esc(d.id)}">Ver</button><button class="btn sm" data-dd="${esc(d.id)}">Quitar</button>` : ""}</div>`;
+  }).join("");
+  const msg = h => { $("drawerDocMsg").innerHTML = h; };
+  box.querySelectorAll("[data-dv]").forEach(b => b.onclick = () => verDoc(b.dataset.dv, "drawerDocMsg"));
+  box.querySelectorAll("[data-dd]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Quitar este PDF?")) return; b.disabled = true;
+    try{ const x = await apiPost({action:"admin_doc_delete", key:KEY, id:b.dataset.dd}); if(!x.ok) throw new Error(x.error); }catch(e){ msg(`<div class="err">No se pudo quitar.</div>`); b.disabled = false; return; }
+    docsPoliza(c);
+  });
+  box.querySelectorAll("[data-du]").forEach(b => b.onclick = async () => {
+    const tipo = b.dataset.du, file = (box.querySelector(`[data-df="${tipo}"]`) || {}).files?.[0];
+    if(!file){ msg(`<div class="err">Elegí primero un archivo PDF.</div>`); return; }
+    if(!/\.pdf$/i.test(file.name) && file.type !== "application/pdf"){ msg(`<div class="err">El archivo tiene que ser un PDF.</div>`); return; }
+    if(file.size > MAX_DOC_MB * 1024 * 1024){ msg(`<div class="err">El PDF pesa más de ${MAX_DOC_MB} MB.</div>`); return; }
+    b.disabled = true; b.textContent = "Subiendo…";
+    try{
+      const x = await apiPost({action:"admin_doc_upload", key:KEY, patente:key, poliza:pol, tipo, name:file.name, data: await fileToBase64(file)});
+      if(!x.ok) throw new Error(x.error || "error");
+      await docsPoliza(c); $("drawerDocMsg").innerHTML = `<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF adjuntado."}</div>`;
+    }catch(e){ msg(`<div class="err">${esc(e.message || "No se pudo subir el archivo.")}</div>`); b.disabled = false; b.textContent = "Adjuntar"; }
+  });
+}
+
 function abrirPoliza(c){
   const r = c.r, t = document.createElement("table"); t.innerHTML = "<tbody>" + fichaPoliza(Object.assign({}, r), 6) + "</tbody>";
   const ficha = t.querySelector("td") ? t.querySelector("td").innerHTML : "";
   const prem = num(r.Premio);
   $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>`;
-  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>` + ficha;
+  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs"><h3>Documentos</h3><div class="loading">Cargando…</div></div>` + ficha;
+  docsPoliza(c);
   $("drawer").classList.remove("hide"); $("drawerScrim").classList.remove("hide");
 }
 function cerrarPoliza(){ $("drawer").classList.add("hide"); $("drawerScrim").classList.add("hide"); }
