@@ -367,7 +367,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <h2>SMG — pólizas</h2>
           <button class="btn pri hide" id="btnSmgImp">Importar SMG</button>
         </div>
-        <p class="muted" style="padding:0 0 10px">Consulta a SMG y actualiza los autos (hoja de Vehículos) y la lista de otros ramos (hogar, comercio, etc.). Tarda unos minutos.</p>
+        <p class="muted" style="padding:0 0 10px">Pólizas de SMG. Para actualizarlas desde SMG usá Importaciones.</p>
         <div id="smgImpMsg" style="margin-bottom:12px"></div>
       </div>
 
@@ -717,7 +717,6 @@ document.querySelectorAll(".sec").forEach(b => {
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
 const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
-$("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
 // ===== Módulos tipo Adminse calculados con la cartera ya importada =====
@@ -738,11 +737,11 @@ function barras(mapa, total, max){
 }
 const datosModulo = {};
 async function cargarModulo(tab, forzar){
-  const cont = {Importar:"impGrid", TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
+  const cont = {"CAR:SMO":"tdTabla", Importar:"impGrid", TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
   if((tab === "Clientes" || tab === "Importar") && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
   if(currentTab !== tab) return;
-  ({Importar:renderImp, TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
+  ({"CAR:SMO":renderTodas, Importar:renderImp, TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
 function renderInicio(){
   const rows = datosModulo.rows, hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -856,7 +855,7 @@ $("cliFile").onchange = async () => {
 };
 
 // ===== Pólizas: listado unificado al estilo Adminse =====
-let tdFiltro = "vigentes", tdVista = "lista", tdPage = 1; const TD_PAGE = 25;
+let llenarCiaSmg = false, tdFiltro = "vigentes", tdVista = "lista", tdPage = 1; const TD_PAGE = 25;
 const TD_CHIPS = [["todas","Todas"],["vigentes","Vigentes"],["porvencer","Por vencer"],["vencidas","Vencidas"],["anuladas","Anuladas"]];
 function tdClasif(r){
   const e = estadoPol(r);
@@ -933,6 +932,7 @@ $("drawerCerrar").onclick = cerrarPoliza; $("drawerScrim").onclick = cerrarPoliz
 document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarPoliza(); });
 
 function renderTodas(){
+  if(currentTab === "CAR:SMO"){ if($("tdCia").value !== "SMG"){ tdPage = 1; } llenarCiaSmg = true; } else if(llenarCiaSmg){ llenarCiaSmg = false; $("tdCia").value = ""; }
   const base = datosModulo.rows.map((r, i) => Object.assign({r, i}, tdClasif(r)));
   const cnt = {todas: base.length, vigentes: 0, porvencer: 0, vencidas: 0, anuladas: 0};
   base.forEach(c => { cnt[c.g]++; });
@@ -943,7 +943,7 @@ function renderTodas(){
   $("tdChips").innerHTML = TD_CHIPS.map(([id, t]) => `<button class="chip ${tdFiltro === id ? "on" : ""}" data-f="${id}">${t} <small>${id === "vigentes" ? cnt.vigentes + cnt.porvencer : cnt[id]}</small></button>`).join("");
   $("tdChips").querySelectorAll(".chip").forEach(b => b.onclick = () => { tdFiltro = b.dataset.f; tdPage = 1; renderTodas(); });
   const llenar = (id, vals, todos) => { const el = $(id), v = el.value; el.innerHTML = `<option value="">${todos}</option>` + [...new Set(vals)].filter(Boolean).sort().map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join(""); el.value = [...el.options].some(o => o.value === v) ? v : ""; };
-  llenar("tdCia", base.map(c => c.r.Compania), "Todas las compañías"); llenar("tdRamo", base.map(c => c.r.Ramo), "Todos los ramos");
+  llenar("tdCia", base.map(c => c.r.Compania), "Todas las compañías"); if(currentTab === "CAR:SMO") $("tdCia").value = [...$("tdCia").options].map(o => o.value).find(v => /^smg$/i.test(v)) || ""; llenar("tdRamo", base.map(c => c.r.Ramo), "Todos los ramos");
   const q = $("tdBuscar").value.trim().toLowerCase(), cia = $("tdCia").value, ramo = $("tdRamo").value;
   let f = base.filter(c => (tdFiltro === "todas" || (tdFiltro === "vigentes" ? c.g === "vigentes" || c.g === "porvencer" : c.g === tdFiltro)) &&
     (!cia || c.r.Compania === cia) && (!ramo || c.r.Ramo === ramo) &&
@@ -1022,7 +1022,7 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", Importar:"viewImp"};
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp"};
   ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
   if(nuevas[tab]) cargarModulo(tab);
