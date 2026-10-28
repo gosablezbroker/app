@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
@@ -95,6 +95,71 @@ tr:hover td{background:var(--tint)}
   .printHead{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #000}
   .printHead img{width:36px;height:36px}
 }
+/* ===== Rediseño: identidad de la app + organización tipo Adminse ===== */
+:root{--bg:#f4f7fc;--card:#fff;--tx:#122246;--mut:#5d6b86;--bd:#e3e9f4;--navy:#122246;--ac:#0550e6;--ac2:#0444c4;--iconc:#0550e6;--tint:#eaf1ff;--ring:rgba(5,80,230,.18);--side:#122246;
+  --shadow-sm:0 1px 2px rgba(18,34,70,.05);--shadow-md:0 6px 18px -8px rgba(18,34,70,.15)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--card:#141d2e;--tx:#e7ecf5;--mut:#8d97ac;--bd:#263349;--ac:#5b9bff;--iconc:#8fbaff;--tint:rgba(91,155,255,.14);--side:#0a1226}}
+body{font-family:Poppins,system-ui,-apple-system,"Segoe UI",sans-serif}
+body:has(#app:not(.hide)) .wrap{max-width:none;padding:0}
+.btn{border-radius:999px;font-weight:600}
+.btn.pri{background:var(--ac);border-color:var(--ac)}
+.btn.pri:hover{background:var(--ac2);filter:none}
+.btn:hover{border-color:var(--ac);color:var(--ac)}.btn.pri:hover{color:#fff}
+input,select{border-radius:12px;background:var(--card)}
+.card{border-radius:20px;padding:22px;box-shadow:var(--shadow-md)}
+.shell{display:flex;min-height:100vh}
+.side{width:264px;flex:0 0 264px;background:var(--side);color:#cfd9ee;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow:auto;padding:18px 14px}
+.brand{display:flex;align-items:center;gap:11px;padding:4px 8px 18px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:14px}
+.brand img{width:40px;height:40px;border-radius:12px;background:#fff}
+.brand strong{display:block;color:#fff;font-size:1.02rem;line-height:1.15}
+.brand small{color:#8fa3cc;font-size:.74rem}
+.side .nav{position:static;background:none;padding:0;margin:0;flex:1}
+.side .secs{display:flex;flex-direction:column;gap:3px;margin:0}
+.side .sec{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 12px;border:0;border-radius:12px;background:none;color:#cfd9ee;font:600 .88rem Poppins,sans-serif;cursor:pointer}
+.side .sec svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.side .sec:hover{background:rgba(255,255,255,.07);color:#fff}
+.side .sec.on{background:var(--ac);color:#fff;box-shadow:0 6px 16px -6px rgba(5,80,230,.7)}
+.side .tabs{display:flex;flex-direction:column;gap:2px;margin:10px 0 0 17px;padding-left:12px;border-left:1px solid rgba(255,255,255,.14)}
+.side .tab{text-align:left;border:0;background:none;color:#a9b9d9;border-radius:9px;padding:8px 11px;font:500 .82rem Poppins,sans-serif;cursor:pointer}
+.side .tab:hover{color:#fff;background:rgba(255,255,255,.06)}
+.side .tab.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
+.sideFoot{font-size:.72rem;color:#6f84b0;padding:12px 8px 0}
+.mainCol{flex:1;min-width:0}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:14px 28px;background:rgba(244,247,252,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--bd)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .top{background:rgba(11,18,32,.88)}}
+.crumb{font-size:.9rem;color:var(--mut);display:flex;gap:8px;align-items:center;min-width:0}
+.crumb i{font-style:normal;opacity:.5}.crumb b{color:var(--tx);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topAct{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topAct .muted{padding:0}
+.burger{display:none;border:1px solid var(--bd);background:var(--card);border-radius:12px;width:40px;height:40px;cursor:pointer}
+.burger svg{width:20px;height:20px;stroke:var(--tx);fill:none;stroke-width:2;stroke-linecap:round}
+.content{padding:24px 28px 56px;max-width:1280px}
+.scrim{display:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 14px}
+.kpis:empty{display:none}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+.kpi b{display:block;font-size:1.6rem;line-height:1.1;color:var(--tx);font-weight:700}
+.kpi span{font-size:.78rem;color:var(--mut);font-weight:500}
+.kpi.k-ok b{color:#1a7a4c}.kpi.k-warn b{color:#b8741a}.kpi.k-bad b{color:#b3392f}.kpi.k-mut b{color:var(--mut)}
+.tblwrap{border-radius:16px;border:1px solid var(--bd);max-height:62vh}
+th{background:#f4f7fc;font-size:.68rem;color:#5d6b86}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) th{background:#101a2c}}
+td{font-size:.84rem}
+tr:hover td{background:var(--tint)}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.74rem;font-weight:600;background:#eaf1ff;color:#0550e6}
+.pill.k-ok{background:#e4f5ec;color:#1a7a4c}.pill.k-warn{background:#fdf0dc;color:#9a5f0f}.pill.k-bad{background:#fbe6e3;color:#b3392f}.pill.k-mut{background:#eceff5;color:#5d6b86}
+.panelTitle h2{font-size:1.15rem;font-weight:700}
+input[type=file]{padding:8px 10px;font-size:.82rem}
+.gate{border-radius:24px;box-shadow:var(--shadow-md)}
+@media (max-width:860px){
+  .burger{display:inline-flex;align-items:center;justify-content:center}
+  .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;width:272px}
+  body.menuOpen .side{transform:none}
+  body.menuOpen .scrim{display:block;position:fixed;inset:0;background:rgba(10,20,40,.5);z-index:30}
+  .top{padding:10px 14px}.content{padding:16px 14px 48px}
+  .topAct #btnBackup{display:none}
+  .card{padding:16px;border-radius:18px}
+}
 </style>
 </head>
 <body>
@@ -110,27 +175,18 @@ tr:hover td{background:var(--tint)}
   </div>
 
   <div id="app" class="hide">
-    <div class="hdr">
-      <img src="assets/icon-192.png" alt="Gosalbez">
-      <div>
-        <h1>Panel interno — Gosalbez Broker de Seguros</h1>
-        <p class="sub">Siniestros, consultas y pólizas registrados desde la web</p>
+    <div class="shell">
+    <div class="scrim" id="scrim"></div>
+    <aside class="side" id="side">
+      <div class="brand"><img src="assets/icon-192.png" alt="Gosalbez"><div><strong>Gosalbez</strong><small>Panel interno</small></div></div>
+      <nav class="nav">
+        <div class="secs" id="secs">
+        <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
+        <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
+        <button class="sec" data-sec="CRE"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l2-6h14l2 6M3 13v5h3v-2h12v2h3v-5M3 13h18M7 16h.01M17 16h.01"/></svg><span>Credenciales automotores</span></button>
+        <button class="sec" data-sec="USU"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span>Usuarios</span></button>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="muted" id="backupMsg"></span>
-        <button class="btn sm" id="btnBackup">Backup completo</button>
-        <button class="btn sm" id="btnSalir">Salir</button>
-      </div>
-    </div>
-
-    <div class="nav">
-      <div class="secs" id="secs">
-        <button class="sec" data-sec="SIN">Siniestros</button>
-        <button class="sec" data-sec="POL">Pólizas</button>
-        <button class="sec" data-sec="CRE">Credenciales automotores</button>
-        <button class="sec" data-sec="USU">Usuarios</button>
-      </div>
-      <div class="tabs" id="subtabs">
+        <div class="tabs" id="subtabs">
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
@@ -145,8 +201,20 @@ tr:hover td{background:var(--tint)}
         <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
         <button class="tab" data-sec="USU" data-tab="Usuarios">Usuarios registrados</button>
       </div>
-    </div>
-
+      </nav>
+      <div class="sideFoot">Broker de Seguros</div>
+    </aside>
+    <div class="mainCol">
+    <header class="top">
+      <button class="burger" id="burger" aria-label="Menú"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="crumb"><span id="crumbSec">Panel</span><i>/</i><b id="crumbTab"></b></div>
+      <div class="topAct">
+        <span class="muted" id="backupMsg"></span>
+        <button class="btn sm" id="btnBackup">Backup completo</button>
+        <button class="btn sm" id="btnSalir">Salir</button>
+      </div>
+    </header>
+    <div class="content">
     <div class="card">
 
       <div id="viewList">
@@ -198,6 +266,7 @@ tr:hover td{background:var(--tint)}
           <h2 id="carTitulo">Cartera</h2>
           <button class="btn sm" id="btnCarRefrescar">Actualizar</button>
         </div>
+        <div class="kpis" id="carKpi"></div>
         <p class="muted" style="padding:0 0 6px" id="carResumen"></p>
         <div style="margin-bottom:12px">
           <button class="btn pri" id="btnCarSubir">Importar</button>
@@ -394,6 +463,9 @@ tr:hover td{background:var(--tint)}
       </div>
 
     </div>
+    </div>
+    </div>
+    </div>
   </div>
 
   <div id="modalOverlay" class="modalOverlay hide">
@@ -549,6 +621,9 @@ function selectTab(tab){
   $("polBusq").classList.toggle("hide", sec !== "POL");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
+  { const sb = document.querySelector(`.sec[data-sec="${sec}"] span`); $("crumbSec").textContent = sb ? sb.textContent : "Panel";
+    $("crumbTab").textContent = btnTab ? btnTab.textContent : tab;
+    document.body.classList.remove("menuOpen"); }
   const titles = {
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
@@ -1152,6 +1227,15 @@ function fichaPoliza(r, cols){
     seccion("Importes", [["Suma asegurada", num(r.Suma)], ["Prima", num(r.Prima)], ["Premio", num(r.Premio)], ["Cuotas", r.Cuotas], ["Próxima cuota", r.ProximaCuota]]);
   return `<tr class="det hide"><td colspan="${cols}" style="white-space:normal;background:var(--card);padding:12px 14px">${h}</td></tr>`;
 }
+function pillEstado(r){
+  const e = String(r.Estado || "").trim(); if(!e) return "";
+  const d = parseDateFlexible(r.Fin), hoy = new Date(); hoy.setHours(0,0,0,0);
+  let c = "k-mut";
+  if(/anul|baja|cancel/i.test(e)) c = "k-bad";
+  else if(d && d < hoy) c = "k-bad";
+  else if(/vigent|activ/i.test(e)) c = (d && (d - hoy) / 864e5 <= 30) ? "k-warn" : "k-ok";
+  return `<span class="pill ${c}">${esc(e)}</span>`;
+}
 function tablaResumen(filas, cia){
   let h = `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Asegurado</th><th>Compañía</th><th>Ramo</th><th>Vigencia</th><th>Patente / ubicación del riesgo</th><th>Estado</th></tr></thead><tbody>`;
   filas.forEach(r => {
@@ -1159,7 +1243,7 @@ function tablaResumen(filas, cia){
     const vig = r.Inicio || r.Fin ? `${esc(r.Inicio)} → ${esc(r.Fin)}` : "";
     const lugar = riesgoDe(r).resumen;
     h += `<tr class="fila" style="cursor:pointer"><td>${esc(r.Poliza)}</td><td style="white-space:normal;min-width:160px">${esc(aseg)}</td><td>${esc(cia || r.Compania)}</td><td>${esc(r.Ramo)}</td><td>${vig}</td>` +
-      `<td style="white-space:normal;min-width:200px">${lugar}</td><td>${esc(r.Estado)}</td></tr>` + fichaPoliza(Object.assign({Compania: cia || r.Compania}, r), 7);
+      `<td style="white-space:normal;min-width:200px">${lugar}</td><td>${pillEstado(r)}</td></tr>` + fichaPoliza(Object.assign({Compania: cia || r.Compania}, r), 7);
   });
   return h + `</tbody></table></div><p class="muted" style="margin-top:6px">Tocá una póliza para ver todos sus datos.</p>`;
 }
@@ -1209,6 +1293,19 @@ function renderCar(){
   $("carResumen").innerHTML = carRows.length
     ? `${propias.length} pólizas de ${esc(g.titulo)}${carActualizado ? " · actualizado " + esc(carActualizado) : ""}${rs ? "<br>" + rs : ""}`
     : "Todavía no importaste esta compañía. Usá el botón Importar.";
+  (function(){
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    let vig = 0, pv = 0, ven = 0, anu = 0;
+    propias.forEach(r => {
+      const est = String(r.Estado || ""), d = parseDateFlexible(r.Fin);
+      if(/anul/i.test(est)){ anu++; return; }
+      if(d && d < hoy){ ven++; return; }
+      vig++;
+      if(d && (d - hoy) / 864e5 <= 30) pv++;
+    });
+    const k = (n, t, c) => `<div class="kpi ${c}"><b>${n}</b><span>${t}</span></div>`;
+    $("carKpi").innerHTML = propias.length ? k(propias.length, "Pólizas", "") + k(vig, "Vigentes", "k-ok") + k(pv, "Vencen en 30 días", "k-warn") + k(ven, "Vencidas", "k-bad") + (anu ? k(anu, "Anuladas", "k-mut") : "") : "";
+  })();
   $("carConteo").textContent = filas.length + (filas.length === 1 ? " resultado" : " resultados");
   const paginas = Math.max(1, Math.ceil(filas.length / CAR_PAGE_SIZE));
   if(carPage > paginas) carPage = paginas;
@@ -1221,6 +1318,8 @@ function renderCar(){
   if($("carSig")) $("carSig").onclick = () => { carPage++; renderCar(); };
 }
 $("btnCarRefrescar").onclick = loadCar;
+$("burger").onclick = () => document.body.classList.toggle("menuOpen");
+$("scrim").onclick = () => document.body.classList.remove("menuOpen");
 $("carBuscar").addEventListener("input", () => { carPage = 1; renderCar(); });
 $("carRamo").addEventListener("change", () => { carPage = 1; renderCar(); });
 $("carEstado").addEventListener("change", () => { carPage = 1; renderCar(); });
