@@ -258,6 +258,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="POL" data-tab="CAR:MER">Mercantil</button>
         <button class="tab" data-sec="POL" data-tab="CAR:MDL">Meridional</button>
         <button class="tab" data-sec="POL" data-tab="CAR:ATM">ATM</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:MAP">Mapfre</button>
+        <button class="tab" data-sec="POL" data-tab="CAR:ZUR">Zurich</button>
         <button class="tab" data-sec="POL" data-tab="CAR:OTR">Otras compañías</button>
         <button class="tab" data-sec="CRE" data-tab="Vehiculos">Vehículos y credenciales</button>
         <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
@@ -1038,6 +1040,8 @@ function renderImp(){
     {n:"Mercantil Andina", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:MER", c: cnt("MER"), f: carActualizado},
     {n:"Meridional", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:MDL", c: cnt("MDL"), f: carActualizado},
     {n:"ATM", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:ATM", c: cnt("ATM"), f: carActualizado},
+    {n:"Mapfre", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:MAP", c: cnt("MAP"), f: carActualizado},
+    {n:"Zurich", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:ZUR", c: cnt("ZUR"), f: carActualizado},
     {n:"Otras compañías", sub:"ART y otras (Excel de Adminse)", met:"Por archivo", tab:"CAR:OTR", c: cnt("OTR"), f: carActualizado},
     {n:"Clientes", sub:"Agenda de clientes de Adminse", met:"Por archivo", tab:"Clientes", c: (datosModulo.clientes || []).length, f: datosModulo.clientesAct || ""}
   ];
@@ -1712,9 +1716,11 @@ const CAR_GRUPOS = {
   RUS: {titulo:"Río Uruguay Seguros", test: c => /rio\s*uruguay|río\s*uruguay/i.test(c)},
   MER: {titulo:"Mercantil Andina", test: c => /mercantil/i.test(c)},
   MDL: {titulo:"Meridional Seguros", test: c => /meridional/i.test(c)},
-  ATM: {titulo:"ATM Seguros", test: c => /^atm\b/i.test(c)}
+  ATM: {titulo:"ATM Seguros", test: c => /^atm\b/i.test(c)},
+  MAP: {titulo:"Mapfre", test: c => /mapfre/i.test(c)},
+  ZUR: {titulo:"Zurich", test: c => /zurich/i.test(c)}
 };
-CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !["SMO","GAL","RUS","MER","MDL","ATM"].some(k => CAR_GRUPOS[k].test(c))};
+CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !["SMO","GAL","RUS","MER","MDL","ATM","MAP","ZUR"].some(k => CAR_GRUPOS[k].test(c))};
 let carRows = [], carActualizado = "", carPage = 1;
 const CAR_PAGE_SIZE = 50;
 const carGrupo = () => CAR_GRUPOS[currentTab.replace("CAR:", "")];
