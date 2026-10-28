@@ -352,6 +352,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <h2 id="listTitle">—</h2>
           <button class="btn sm" id="btnRefrescar">Actualizar</button>
         </div>
+        <div id="credActMsg"></div>
         <div class="toolbar">
           <input type="search" id="buscador" placeholder="Buscar en esta tabla…">
           <span class="count" id="conteo"></span>
@@ -1102,7 +1103,7 @@ function selectTab(tab){
   if(tab === "SMG") loadSmg(); else if(isSmgCia) cargarTodosDocs().then(loadOtros); else if(isCar) loadCar(); else if(tab === "GALC") loadGal(); else loadTab(tab);
 }
 
-$("btnRefrescar").onclick = () => loadTab(currentTab);
+$("btnRefrescar").onclick = () => currentTab === "Vehiculos" ? actualizarCredenciales() : loadTab(currentTab);
 $("buscador").addEventListener("input", () => { currentPage = 1; renderTable(); });
 
 async function loadTab(tab){
@@ -2314,6 +2315,72 @@ async function corregirVigencias(dryRun){
 }
 $("btnVigPreview").onclick = () => corregirVigencias(true);
 $("btnVigAplicar").onclick = () => corregirVigencias(false);
+
+// --- Credenciales: "Actualizar" suma los autos nuevos de la cartera y refresca los de SMG (API) ---
+let credActRun = false;
+async function recargarVehiculos(){
+  const r = await apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"});
+  if(r.ok){ currentHeaders = r.headers || []; currentRows = (r.rows || []).slice().reverse(); }
+  return r.ok;
+}
+async function actualizarCredenciales(auto){
+  if(credActRun) return;
+  credActRun = true;
+  const btn = $("btnRefrescar"), msg = $("credActMsg"), txt = btn.textContent;
+  btn.disabled = true; btn.textContent = "Actualizando…";
+  msg.innerHTML = `<div class="loading">Consultando a SMG y buscando autos nuevos en la cartera… puede tardar unos minutos.</div>`;
+  const lineas = [];
+  try{
+    await recargarVehiculos();
+    const antes = {};
+    currentRows.forEach(r => { const p = normPat(r.Patente); if(p) antes[p] = {pol: String(r.Poliza || "").trim(), ini: String(r.Inicio || "").trim()}; });
+    const r = await apiPost({action:"admin_credenciales_sync", key:KEY});
+    if(!r.ok) throw new Error(r.error || "No se pudo actualizar.");
+    const s = r.smg || {}, c = r.cartera || {};
+    lineas.push(s.ok
+      ? `<div class="ok">SMG: ${s.vigentes} autos vigentes (actualizados ${s.actualizados} · nuevos ${s.agregados} · quitados ${s.quitados}${s.manuales ? " · cargados a mano que se conservan " + s.manuales : ""}).</div>`
+      : `<div class="err">SMG: ${esc(s.error || "no se pudo consultar.")}</div>`);
+    lineas.push(c.ok
+      ? `<div class="ok">Cartera: ${c.agregados} autos nuevos agregados a credenciales.</div>`
+      : `<div class="err">Cartera: ${esc(c.error || "no se pudo revisar.")}</div>`);
+    msg.innerHTML = lineas.join("");
+    await recargarVehiculos();
+    await cargarTodosDocs();
+    busqDatos = null;
+    renderTable();
+    // PDF de SMG: solo los vehículos nuevos o renovados (póliza o inicio distintos), hasta 25 por vez.
+    const lista = [], vistos = new Set();
+    currentRows.forEach(v => {
+      if(!esSmgRow(v)) return;
+      const pat = normPat(v.Patente), pol = String(v.Poliza || "").trim();
+      if(!pat || !pol || vistos.has(pat)) return;
+      vistos.add(pat);
+      const a = antes[pat];
+      if(!a || a.pol !== pol || a.ini !== String(v.Inicio || "").trim()) lista.push(v);
+    });
+    if(lista.length && !auto){
+      const tanda = lista.slice(0, 25);
+      let hechos = 0, fallos = 0, sig = 0;
+      const trab = async () => {
+        while(sig < tanda.length){
+          const v = tanda[sig++];
+          msg.innerHTML = lineas.join("") + `<div class="muted">Importando póliza y credencial de SMG… ${hechos} de ${tanda.length}</div>`;
+          try{ const x = await importarSmgCore(v.Patente, v.Poliza, null); if(!x.ok) fallos++; }catch(e){ fallos++; }
+          hechos++;
+        }
+      };
+      await Promise.all(Array.from({length: Math.min(3, tanda.length)}, trab));
+      lineas.push(`<div class="ok">PDF de SMG importados: ${tanda.length - fallos} de ${tanda.length}${fallos ? " (" + fallos + " con error)" : ""}${lista.length > tanda.length ? ". Quedan " + (lista.length - tanda.length) + " para la próxima vez" : ""}.</div>`);
+      msg.innerHTML = lineas.join("");
+      await cargarTodosDocs(); renderTable();
+    }
+  }catch(e){
+    msg.innerHTML = lineas.join("") + `<div class="err">${esc(e.message || "No se pudo actualizar.")}</div>`;
+  }
+  credActRun = false; btn.disabled = false; btn.textContent = txt;
+}
+// Cada hora, si estás mirando Credenciales, se recarga solo (el script de Google ya sincroniza solo cada hora).
+setInterval(() => { if(currentTab === "Vehiculos" && !credActRun && !document.hidden) loadTab("Vehiculos"); }, 3600000);
 $("btnSmgBulk").onclick = importarTodosSmg;
 $("btnSmgBulkCancel").onclick = () => { bulkCancel = true; $("btnSmgBulkCancel").disabled = true; };
 $("smgSoloFaltan").onchange = actualizarSmgBulkInfo;
