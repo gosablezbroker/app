@@ -748,6 +748,7 @@ async function cargarModulo(tab, forzar){
   const cont = {"CAR:SMO":"tdTabla", Importar:"impGrid", TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
   if((tab === "Clientes" || tab === "Importar") && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
+  if((tab === "TODAS" || tab === "CAR:SMO") && (forzar || !datosModulo.docsOk)){ await cargarTodosDocs(); datosModulo.docsOk = true; }
   if(currentTab !== tab) return;
   ({"CAR:SMO":renderTodas, Importar:renderImp, TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
@@ -917,15 +918,21 @@ function tdVigBar(c){
   return `<div class="vig ${col}"><b>${txt}</b><span class="vbar"><i style="width:${pct}%"></i></span><small>${esc(c.r.Inicio || "")} → ${esc(c.r.Fin || "")}</small></div>`;
 }
 function tdEstadoPill(c){ const t = {anuladas:"Anulada", vencidas:"Vencida", porvencer:"Por vencer", vigentes:"Vigente"}[c.g]; return `<span class="pill ${{anuladas:"k-bad", vencidas:"k-bad", porvencer:"k-warn", vigentes:"k-ok"}[c.g]}">${t}</span>`; }
+function tdPdf(r){
+  const k = polDocKey(r), pol = String(r.Poliza || "").trim();
+  return (allDocs || []).find(d => d.tipo === "Poliza" && normPat(d.patente) === k && String(d.poliza || "").trim() === pol);
+}
+function tdPdfCelda(r){ return tdPdf(r) ? `<span class="pill k-ok" title="PDF cargado">PDF ✔</span>` : `<span class="pill k-mut" title="Sin PDF: tocá para adjuntarlo">＋ PDF</span>`; }
+
 function tdFila(c, i){
   const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio), prim = num(r.Prima);
   return `<tr class="fila" data-i="${c.i}" style="cursor:pointer"><td><b>${esc(r.Poliza)}</b></td><td><b>${esc(r.Compania)}</b><br><span class="tag">${esc(r.Ramo || "—")}</span></td>` +
     `<td style="white-space:normal;min-width:200px"><b>${esc(nombreDe(r))}</b><br><span class="muted" style="padding:0">${rd}</span></td>` +
-    `<td>${prem ? `<b>${money(prem)}</b>` : ""}${prim ? `<br><small class="muted" style="padding:0">Prima ${money(prim)}</small>` : ""}</td><td style="min-width:170px">${tdVigBar(c)}</td><td>${tdEstadoPill(c)}</td></tr>`;
+    `<td>${prem ? `<b>${money(prem)}</b>` : ""}${prim ? `<br><small class="muted" style="padding:0">Prima ${money(prim)}</small>` : ""}</td><td style="min-width:170px">${tdVigBar(c)}</td><td>${tdEstadoPill(c)}</td><td>${tdPdfCelda(r)}</td></tr>`;
 }
 function tdTarjeta(c){
   const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio);
-  return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b>${tdEstadoPill(c)}</div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
+  return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b><span>${tdPdfCelda(r)} ${tdEstadoPill(c)}</span></div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
 }
 // ---- Documentos adjuntos de una póliza (PDF) ----
 const polDocKey = r => normPat(r.Patente) || ("POL" + normPat(r.Compania).slice(0, 4) + normPat(r.Poliza));
@@ -935,7 +942,7 @@ async function docsPoliza(c){
   try{ const res = await apiPost({action:"admin_doc_list", key:KEY, patente:key}); docs = res.ok ? (res.docs || []) : []; }catch(e){}
   if($("drawerDocs") !== box) return;
   const tipos = DOC_TIPOS.filter(([t]) => esAuto || t === "Poliza");
-  box.innerHTML = `<h3>Documentos</h3><div id="drawerDocMsg"></div>` + tipos.map(([tipo, label]) => {
+  box.innerHTML = `<h3>Documentos (PDF de la póliza)</h3><div id="drawerDocMsg"></div>` + tipos.map(([tipo, label]) => {
     const d = docs.find(x => x.tipo === tipo && String(x.poliza || "").trim() === pol);
     return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--bd)"><b style="flex:0 0 90px">${label}</b>
       <span style="flex:1 1 140px;font-size:.84rem">${d ? `✔ ${esc(d.archivo)}` : `<span class="muted" style="padding:0">Sin archivo</span>`}</span>
@@ -948,7 +955,7 @@ async function docsPoliza(c){
   box.querySelectorAll("[data-dd]").forEach(b => b.onclick = async () => {
     if(!confirm("¿Quitar este PDF?")) return; b.disabled = true;
     try{ const x = await apiPost({action:"admin_doc_delete", key:KEY, id:b.dataset.dd}); if(!x.ok) throw new Error(x.error); }catch(e){ msg(`<div class="err">No se pudo quitar.</div>`); b.disabled = false; return; }
-    docsPoliza(c);
+    await cargarTodosDocs(); if(currentTab === "TODAS" || currentTab === "CAR:SMO") renderTodas(); docsPoliza(c);
   });
   box.querySelectorAll("[data-du]").forEach(b => b.onclick = async () => {
     const tipo = b.dataset.du, file = (box.querySelector(`[data-df="${tipo}"]`) || {}).files?.[0];
@@ -959,7 +966,7 @@ async function docsPoliza(c){
     try{
       const x = await apiPost({action:"admin_doc_upload", key:KEY, patente:key, poliza:pol, tipo, name:file.name, data: await fileToBase64(file)});
       if(!x.ok) throw new Error(x.error || "error");
-      await docsPoliza(c); $("drawerDocMsg").innerHTML = `<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF adjuntado."}</div>`;
+      await cargarTodosDocs(); if(currentTab === "TODAS" || currentTab === "CAR:SMO") renderTodas(); await docsPoliza(c); $("drawerDocMsg").innerHTML = `<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF adjuntado."}</div>`;
     }catch(e){ msg(`<div class="err">${esc(e.message || "No se pudo subir el archivo.")}</div>`); b.disabled = false; b.textContent = "Adjuntar"; }
   });
 }
@@ -969,7 +976,7 @@ function abrirPoliza(c){
   const ficha = t.querySelector("td") ? t.querySelector("td").innerHTML : "";
   const prem = num(r.Premio);
   $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>`;
-  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs"><h3>Documentos</h3><div class="loading">Cargando…</div></div>` + ficha;
+  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs" style="border-color:var(--ac)"><h3>Documentos (PDF de la póliza)</h3><div class="loading">Cargando…</div></div>` + ficha;
   docsPoliza(c);
   $("drawer").classList.remove("hide"); $("drawerScrim").classList.remove("hide");
 }
@@ -1005,11 +1012,11 @@ function renderTodas(){
   let h;
   if(tdVista === "cia"){
     const g = {}; f.forEach(c => { (g[c.r.Compania || "—"] = g[c.r.Compania || "—"] || []).push(c); });
-    h = Object.entries(g).sort((a, b) => b[1].length - a[1].length).map(([cn, l]) => `<details class="grp" open><summary><b>${esc(cn)}</b> <span class="pill">${l.length}</span> <small class="muted" style="padding:0">${money(l.reduce((s, c) => s + num(c.r.Premio), 0))}</small></summary><div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${l.slice(0, 100).map(tdFila).join("")}</tbody></table></div>${l.length > 100 ? `<p class="muted">Se muestran 100 de ${l.length}. Usá los filtros para acotar.</p>` : ""}</details>`).join("");
+    h = Object.entries(g).sort((a, b) => b[1].length - a[1].length).map(([cn, l]) => `<details class="grp" open><summary><b>${esc(cn)}</b> <span class="pill">${l.length}</span> <small class="muted" style="padding:0">${money(l.reduce((s, c) => s + num(c.r.Premio), 0))}</small></summary><div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th><th>PDF</th></tr></thead><tbody>${l.slice(0, 100).map(tdFila).join("")}</tbody></table></div>${l.length > 100 ? `<p class="muted">Se muestran 100 de ${l.length}. Usá los filtros para acotar.</p>` : ""}</details>`).join("");
   } else {
     const pag = f.slice((tdPage - 1) * TD_PAGE, tdPage * TD_PAGE);
     h = tdVista === "tarj" ? `<div class="pcards">${pag.map(tdTarjeta).join("")}</div>` :
-      `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${pag.map(tdFila).join("")}</tbody></table></div>`;
+      `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th><th>PDF</th></tr></thead><tbody>${pag.map(tdFila).join("")}</tbody></table></div>`;
     if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="tdAnt" ${tdPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Mostrando ${(tdPage - 1) * TD_PAGE + 1}–${Math.min(f.length, tdPage * TD_PAGE)} de ${f.length}</span><button class="btn sm" id="tdSig" ${tdPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
   }
   $("tdTabla").innerHTML = h;
