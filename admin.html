@@ -307,6 +307,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <select id="tdOrden" style="max-width:200px"><option value="venc">Orden: vencimiento</option><option value="cli">Orden: cliente</option><option value="premio">Orden: premio</option><option value="inicio">Orden: inicio reciente</option></select>
           <div class="seg" id="tdVista"><button data-v="lista" class="on">Lista</button><button data-v="tarj">Tarjetas</button><button data-v="cia">Por compañía</button></div>
           <button class="btn sm" id="tdCsv">Descargar CSV</button>
+          <button class="btn pri sm" id="tdImp">Importar</button>
           <button class="btn sm" id="tdRef">Actualizar</button>
           <span class="count" id="tdConteo"></span>
         </div>
@@ -364,7 +365,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 
       <div id="viewSmgCia" class="hide">
         <div class="panelTitle">
-          <h2>SMG — pólizas</h2>
+          <h2>SMG — importación</h2><button class="btn sm" data-back="1">&larr; Volver a Pólizas</button>
           <button class="btn pri hide" id="btnSmgImp">Importar SMG</button>
         </div>
         <p class="muted" style="padding:0 0 10px">Pólizas de SMG. Para actualizarlas desde SMG usá Importaciones.</p>
@@ -373,7 +374,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 
       <div id="viewCar" class="hide">
         <div class="panelTitle">
-          <h2 id="carTitulo">Cartera</h2>
+          <h2 id="carTitulo">Cartera</h2><button class="btn sm" data-back="1">&larr; Volver a Pólizas</button>
           <button class="btn sm" id="btnCarRefrescar">Actualizar</button>
         </div>
         <div class="kpis" id="carKpi"></div>
@@ -395,7 +396,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 
       <div id="viewGalc" class="hide">
         <div class="panelTitle">
-          <h2>Galicia — cartera completa</h2>
+          <h2>Galicia — cartera completa</h2><button class="btn sm" data-back="1">&larr; Volver a Pólizas</button>
           <button class="btn sm" id="btnGalRefrescar">Actualizar</button>
         </div>
         <p class="muted" style="padding:0 0 6px" id="galResumen"></p>
@@ -710,9 +711,12 @@ document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => selectTab(btn.dataset.tab);
 });
 
+// Las pestañas por compañía de Pólizas quedan ocultas: todo se ve junto en "Todas las pólizas".
+{ const oc = document.createElement("div"); oc.id = "tabsOcultas"; oc.style.display = "none"; document.body.appendChild(oc);
+  document.querySelectorAll('.tab[data-sec="POL"]').forEach(t => { if(/^(CAR:|GALC)/.test(t.dataset.tab)) oc.appendChild(t); }); }
 // El submenú de cada sección se despliega justo debajo de ella.
 document.querySelectorAll(".sec").forEach(b => {
-  const tabs = [...document.querySelectorAll(`.tab[data-sec="${b.dataset.sec}"]`)];
+  const tabs = [...document.querySelectorAll(`#subtabs .tab[data-sec="${b.dataset.sec}"]`)];
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
@@ -974,6 +978,7 @@ function renderTodas(){
 $("tdBuscar").addEventListener("input", () => { tdPage = 1; renderTodas(); });
 ["tdCia", "tdRamo", "tdOrden"].forEach(id => $(id).addEventListener("change", () => { tdPage = 1; renderTodas(); }));
 document.querySelectorAll("#tdVista button").forEach(b => b.onclick = () => { tdVista = b.dataset.v; tdPage = 1; renderTodas(); });
+$("tdImp").onclick = () => selectTab("Importar");
 $("tdRef").onclick = () => cargarModulo("TODAS", true);
 $("tdCsv").onclick = () => {
   const l = datosModulo.tdLista || []; if(!l.length) return;
@@ -1006,6 +1011,7 @@ function renderImp(){
 }
 $("impRef").onclick = () => cargarModulo("Importar", true);
 
+document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => selectTab("TODAS"));
 function selectTab(tab){
   currentTab = tab;
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
@@ -1026,7 +1032,7 @@ function selectTab(tab){
   ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
   if(nuevas[tab]) cargarModulo(tab);
-  $("polBusq").classList.toggle("hide", sec !== "POL" || tab === "TODAS");
+  $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
   { const sb = document.querySelector(`.sec[data-sec="${sec}"] span`); $("crumbSec").textContent = sb ? sb.textContent : "Panel";
@@ -1700,7 +1706,7 @@ function renderCar(){
   const rs = Object.entries(porRamo).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k)}: ${v}`).join(" · ");
   $("carResumen").innerHTML = carRows.length
     ? `${propias.length} pólizas de ${esc(g.titulo)}${carActualizado ? " · actualizado " + esc(carActualizado) : ""}${rs ? "<br>" + rs : ""}`
-    : "Todavía no importaste esta compañía. Usá el botón Importar.";
+    : "Todavía no importaste esta compañía. Importala desde Importaciones.";
   (function(){
     const hoy = new Date(); hoy.setHours(0,0,0,0);
     let vig = 0, pv = 0, ven = 0, anu = 0;
