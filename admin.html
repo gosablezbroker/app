@@ -165,6 +165,29 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 .bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt{height:9px;background:var(--tint);border-radius:99px;overflow:hidden}.bt i{display:block;height:100%;background:var(--ac);border-radius:99px}
 .bv{font-weight:600;text-align:right}.bv small{color:var(--mut);font-weight:400;margin-left:6px}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+.chip{border:1px solid var(--bd);background:var(--card);color:var(--mut);border-radius:999px;padding:7px 14px;font:600 .82rem Poppins,sans-serif;cursor:pointer}
+.chip small{margin-left:4px;opacity:.7}.chip:hover{border-color:var(--ac);color:var(--ac)}
+.chip.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.seg{display:inline-flex;border:1px solid var(--bd);border-radius:999px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:8px 14px;font:600 .8rem Poppins,sans-serif;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--tint);color:var(--ac)}
+.tag{display:inline-block;padding:2px 9px;border:1px solid var(--bd);border-radius:999px;font-size:.72rem;color:var(--mut);background:var(--card)}
+.vig b{font-size:.78rem}.vig.k-ok b{color:#1a7a4c}.vig.k-warn b{color:#b8741a}.vig.k-bad b{color:#b3392f}
+.vig small{display:block;color:var(--mut);font-size:.72rem}
+.vbar{display:block;height:4px;border-radius:9px;background:var(--tint);margin:3px 0;overflow:hidden}.vbar i{display:block;height:100%;border-radius:9px;background:#1a7a4c}
+.vig.k-warn .vbar i{background:#d98a1e}.vig.k-bad .vbar i{background:#b3392f}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.pcard{border:1px solid var(--bd);border-radius:18px;padding:14px 16px;background:var(--card);box-shadow:var(--shadow-sm)}
+.pcTop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.pcPol{font-weight:700;margin-bottom:2px}.pcCli{font-weight:600;margin-bottom:2px}.pcPrem{font-weight:700;font-size:1.1rem;margin:6px 0}
+.grp{margin-bottom:12px}.grp summary{cursor:pointer;padding:8px 2px;font-size:.95rem}
+
+.drawerScrim{position:fixed;inset:0;background:rgba(10,20,40,.45);z-index:60}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--bg);z-index:61;overflow:auto;padding:20px;box-shadow:-12px 0 40px -12px rgba(10,20,40,.4)}
+.drawerHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
+.drawer .tblwrap{max-height:none}
 @media (max-width:860px){
   .burger{display:inline-flex;align-items:center;justify-content:center}
   .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;width:272px}
@@ -211,6 +234,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
+        <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
         <button class="tab" data-sec="POL" data-tab="GALC">Galicia</button>
         <button class="tab" data-sec="POL" data-tab="CAR:RUS">Río Uruguay</button>
@@ -238,6 +262,21 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
     <div class="content">
     <div class="card">
 
+      <div id="viewTodas" class="hide">
+        <div class="kpis" id="tdKpi"></div>
+        <div class="chips" id="tdChips"></div>
+        <div class="toolbar">
+          <input type="search" id="tdBuscar" placeholder="Buscar póliza, cliente, patente, bien, DNI / CUIT…">
+          <select id="tdCia" style="max-width:210px"><option value="">Todas las compañías</option></select>
+          <select id="tdRamo" style="max-width:210px"><option value="">Todos los ramos</option></select>
+          <select id="tdOrden" style="max-width:200px"><option value="venc">Orden: vencimiento</option><option value="cli">Orden: cliente</option><option value="premio">Orden: premio</option><option value="inicio">Orden: inicio reciente</option></select>
+          <div class="seg" id="tdVista"><button data-v="lista" class="on">Lista</button><button data-v="tarj">Tarjetas</button><button data-v="cia">Por compañía</button></div>
+          <button class="btn sm" id="tdCsv">Descargar CSV</button>
+          <button class="btn sm" id="tdRef">Actualizar</button>
+          <span class="count" id="tdConteo"></span>
+        </div>
+        <div id="tdTabla"></div>
+      </div>
       <div id="viewInicio" class="hide">
         <div class="panelTitle"><h2>Resumen de cartera</h2><button class="btn sm" id="btnIniRef">Actualizar</button></div>
         <div id="iniBody"><div class="loading">Cargando…</div></div>
@@ -519,6 +558,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
     </div>
   </div>
 
+  <div id="drawerScrim" class="drawerScrim hide"></div>
+  <aside id="drawer" class="drawer hide"><div class="drawerHead"><div id="drawerTit"></div><button class="btn sm" id="drawerCerrar">Cerrar</button></div><div id="drawerBody"></div></aside>
   <div id="modalOverlay" class="modalOverlay hide">
     <div class="modalCard">
       <div class="modalHead">
@@ -649,7 +690,7 @@ document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => selectTab(btn.dataset.tab);
 });
 
-const SEC_PRIMERA = {INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 $("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
@@ -671,11 +712,11 @@ function barras(mapa, total, max){
 }
 const datosModulo = {};
 async function cargarModulo(tab, forzar){
-  const cont = {Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
+  const cont = {TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
   if(tab === "Clientes" && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
   if(currentTab !== tab) return;
-  ({Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
+  ({TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
 function renderInicio(){
   const rows = datosModulo.rows, hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -788,6 +829,95 @@ $("cliFile").onchange = async () => {
   $("cliFile").value = "";
 };
 
+// ===== Pólizas: listado unificado al estilo Adminse =====
+let tdFiltro = "vigentes", tdVista = "lista", tdPage = 1; const TD_PAGE = 25;
+const TD_CHIPS = [["todas","Todas"],["vigentes","Vigentes"],["porvencer","Por vencer"],["vencidas","Vencidas"],["anuladas","Anuladas"]];
+function tdClasif(r){
+  const e = estadoPol(r);
+  if(e.k === "anulada") return {...e, g: "anuladas"};
+  if(e.k === "vencida") return {...e, g: "vencidas"};
+  return {...e, g: e.dias != null && e.dias <= 30 ? "porvencer" : "vigentes"};
+}
+function tdVigBar(c){
+  if(!c.d) return "";
+  const col = c.g === "vencidas" || c.g === "anuladas" ? "k-bad" : c.g === "porvencer" ? "k-warn" : "k-ok";
+  const txt = c.g === "anuladas" ? "anulada" : c.dias == null ? "vencida" : c.dias < 0 ? "vencida" : c.dias === 0 ? "vence hoy" : `vence en ${c.dias} d`;
+  const ini = parseDateFlexible(c.r.Inicio), tot = ini ? Math.max(1, (c.d - ini) / 864e5) : 365, pct = c.dias == null ? 100 : Math.min(100, Math.max(4, (1 - c.dias / tot) * 100));
+  return `<div class="vig ${col}"><b>${txt}</b><span class="vbar"><i style="width:${pct}%"></i></span><small>${esc(c.r.Inicio || "")} → ${esc(c.r.Fin || "")}</small></div>`;
+}
+function tdEstadoPill(c){ const t = {anuladas:"Anulada", vencidas:"Vencida", porvencer:"Por vencer", vigentes:"Vigente"}[c.g]; return `<span class="pill ${{anuladas:"k-bad", vencidas:"k-bad", porvencer:"k-warn", vigentes:"k-ok"}[c.g]}">${t}</span>`; }
+function tdFila(c, i){
+  const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio), prim = num(r.Prima);
+  return `<tr class="fila" data-i="${c.i}" style="cursor:pointer"><td><b>${esc(r.Poliza)}</b></td><td><b>${esc(r.Compania)}</b><br><span class="tag">${esc(r.Ramo || "—")}</span></td>` +
+    `<td style="white-space:normal;min-width:200px"><b>${esc(nombreDe(r))}</b><br><span class="muted" style="padding:0">${rd}</span></td>` +
+    `<td>${prem ? `<b>${money(prem)}</b>` : ""}${prim ? `<br><small class="muted" style="padding:0">Prima ${money(prim)}</small>` : ""}</td><td style="min-width:170px">${tdVigBar(c)}</td><td>${tdEstadoPill(c)}</td></tr>`;
+}
+function tdTarjeta(c){
+  const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio);
+  return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b>${tdEstadoPill(c)}</div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
+}
+function abrirPoliza(c){
+  const r = c.r, t = document.createElement("table"); t.innerHTML = "<tbody>" + fichaPoliza(Object.assign({}, r), 6) + "</tbody>";
+  const ficha = t.querySelector("td") ? t.querySelector("td").innerHTML : "";
+  const prem = num(r.Premio);
+  $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>`;
+  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>` + ficha;
+  $("drawer").classList.remove("hide"); $("drawerScrim").classList.remove("hide");
+}
+function cerrarPoliza(){ $("drawer").classList.add("hide"); $("drawerScrim").classList.add("hide"); }
+$("drawerCerrar").onclick = cerrarPoliza; $("drawerScrim").onclick = cerrarPoliza;
+document.addEventListener("keydown", e => { if(e.key === "Escape") cerrarPoliza(); });
+
+function renderTodas(){
+  const base = datosModulo.rows.map((r, i) => Object.assign({r, i}, tdClasif(r)));
+  const cnt = {todas: base.length, vigentes: 0, porvencer: 0, vencidas: 0, anuladas: 0};
+  base.forEach(c => { cnt[c.g]++; });
+  const prima = base.filter(c => c.g === "vigentes" || c.g === "porvencer").reduce((s, c) => s + num(c.r.Premio), 0);
+  const k = (n, t, c) => `<div class="kpi ${c || ""}"><b>${n}</b><span>${t}</span></div>`;
+  $("tdKpi").innerHTML = k(cnt.vigentes + cnt.porvencer, "Vigentes", "k-ok") + k(cnt.porvencer, "Por vencer (30 días)", "k-warn") + k(cnt.anuladas, "Anuladas", "k-mut") + (prima ? k(money(prima), "Premio total vigente") : "");
+  const vigAgr = {...cnt}; // "Vigentes" incluye por vencer, como en Adminse
+  $("tdChips").innerHTML = TD_CHIPS.map(([id, t]) => `<button class="chip ${tdFiltro === id ? "on" : ""}" data-f="${id}">${t} <small>${id === "vigentes" ? cnt.vigentes + cnt.porvencer : cnt[id]}</small></button>`).join("");
+  $("tdChips").querySelectorAll(".chip").forEach(b => b.onclick = () => { tdFiltro = b.dataset.f; tdPage = 1; renderTodas(); });
+  const llenar = (id, vals, todos) => { const el = $(id), v = el.value; el.innerHTML = `<option value="">${todos}</option>` + [...new Set(vals)].filter(Boolean).sort().map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join(""); el.value = [...el.options].some(o => o.value === v) ? v : ""; };
+  llenar("tdCia", base.map(c => c.r.Compania), "Todas las compañías"); llenar("tdRamo", base.map(c => c.r.Ramo), "Todos los ramos");
+  const q = $("tdBuscar").value.trim().toLowerCase(), cia = $("tdCia").value, ramo = $("tdRamo").value;
+  let f = base.filter(c => (tdFiltro === "todas" || (tdFiltro === "vigentes" ? c.g === "vigentes" || c.g === "porvencer" : c.g === tdFiltro)) &&
+    (!cia || c.r.Compania === cia) && (!ramo || c.r.Ramo === ramo) &&
+    (!q || BUSQ_CAMPOS.some(h => String(c.r[h] || "").toLowerCase().includes(q))));
+  const ord = $("tdOrden").value;
+  f.sort((a, b) => ord === "cli" ? nombreDe(a.r).localeCompare(nombreDe(b.r), "es") : ord === "premio" ? num(b.r.Premio) - num(a.r.Premio) :
+    ord === "inicio" ? ((parseDateFlexible(b.r.Inicio) || 0) - (parseDateFlexible(a.r.Inicio) || 0)) : ((a.d || 8e15) - (b.d || 8e15)));
+  datosModulo.tdLista = f;
+  $("tdConteo").textContent = f.length + (f.length === 1 ? " póliza" : " pólizas");
+  document.querySelectorAll("#tdVista button").forEach(b => b.classList.toggle("on", b.dataset.v === tdVista));
+  if(!f.length){ $("tdTabla").innerHTML = `<div class="muted">No hay pólizas para mostrar.</div>`; return; }
+  const paginas = Math.max(1, Math.ceil(f.length / TD_PAGE)); if(tdPage > paginas) tdPage = paginas;
+  let h;
+  if(tdVista === "cia"){
+    const g = {}; f.forEach(c => { (g[c.r.Compania || "—"] = g[c.r.Compania || "—"] || []).push(c); });
+    h = Object.entries(g).sort((a, b) => b[1].length - a[1].length).map(([cn, l]) => `<details class="grp" open><summary><b>${esc(cn)}</b> <span class="pill">${l.length}</span> <small class="muted" style="padding:0">${money(l.reduce((s, c) => s + num(c.r.Premio), 0))}</small></summary><div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${l.slice(0, 100).map(tdFila).join("")}</tbody></table></div>${l.length > 100 ? `<p class="muted">Se muestran 100 de ${l.length}. Usá los filtros para acotar.</p>` : ""}</details>`).join("");
+  } else {
+    const pag = f.slice((tdPage - 1) * TD_PAGE, tdPage * TD_PAGE);
+    h = tdVista === "tarj" ? `<div class="pcards">${pag.map(tdTarjeta).join("")}</div>` :
+      `<div class="tblwrap"><table><thead><tr><th>Póliza</th><th>Compañía / Ramo</th><th>Cliente / Bien</th><th>Premio / Prima</th><th>Vigencia</th><th>Estado</th></tr></thead><tbody>${pag.map(tdFila).join("")}</tbody></table></div>`;
+    if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="tdAnt" ${tdPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Mostrando ${(tdPage - 1) * TD_PAGE + 1}–${Math.min(f.length, tdPage * TD_PAGE)} de ${f.length}</span><button class="btn sm" id="tdSig" ${tdPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
+  }
+  $("tdTabla").innerHTML = h;
+  $("tdTabla").querySelectorAll("[data-i]").forEach(el => el.onclick = () => abrirPoliza(base[Number(el.dataset.i)]));
+  if($("tdAnt")) $("tdAnt").onclick = () => { tdPage--; renderTodas(); };
+  if($("tdSig")) $("tdSig").onclick = () => { tdPage++; renderTodas(); };
+}
+$("tdBuscar").addEventListener("input", () => { tdPage = 1; renderTodas(); });
+["tdCia", "tdRamo", "tdOrden"].forEach(id => $(id).addEventListener("change", () => { tdPage = 1; renderTodas(); }));
+document.querySelectorAll("#tdVista button").forEach(b => b.onclick = () => { tdVista = b.dataset.v; tdPage = 1; renderTodas(); });
+$("tdRef").onclick = () => cargarModulo("TODAS", true);
+$("tdCsv").onclick = () => {
+  const l = datosModulo.tdLista || []; if(!l.length) return;
+  const cols = ["Compania", "Poliza", "Ramo", "Estado", "Asegurado", "Bien", "Patente", "Premio", "Prima", "Inicio", "Fin", "Email", "Telefono", "CUIT", "DNI"];
+  const csv = [cols.join(";")].concat(l.map(c => cols.map(h => '"' + String(h === "Asegurado" ? nombreDe(c.r) : c.r[h] == null ? "" : c.r[h]).replace(/"/g, '""') + '"').join(";"))).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type: "text/csv"})); a.download = "polizas.csv"; a.click();
+};
+
 function selectTab(tab){
   currentTab = tab;
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
@@ -804,17 +934,17 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo"};
-  ["viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas"};
+  ["viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
   if(nuevas[tab]) cargarModulo(tab);
-  $("polBusq").classList.toggle("hide", sec !== "POL");
+  $("polBusq").classList.toggle("hide", sec !== "POL" || tab === "TODAS");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
   { const sb = document.querySelector(`.sec[data-sec="${sec}"] span`); $("crumbSec").textContent = sb ? sb.textContent : "Panel";
     $("crumbTab").textContent = btnTab ? btnTab.textContent : tab;
     document.body.classList.remove("menuOpen"); }
-  const titles = {"Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
+  const titles = {"TODAS":"Pólizas","Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
