@@ -166,6 +166,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 .bt{height:9px;background:var(--tint);border-radius:99px;overflow:hidden}.bt i{display:block;height:100%;background:var(--ac);border-radius:99px}
 .bv{font-weight:600;text-align:right}.bv small{color:var(--mut);font-weight:400;margin-left:6px}
 
+.cliH{margin:14px 0 8px;font-size:.98rem;display:flex;align-items:center;gap:8px}
+.cliBox .tblwrap{background:var(--card);max-height:none}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
 .chip{border:1px solid var(--bd);background:var(--card);color:var(--mut);border-radius:999px;padding:7px 14px;font:600 .82rem Poppins,sans-serif;cursor:pointer}
 .chip small{margin-left:4px;opacity:.7}.chip:hover{border-color:var(--ac);color:var(--ac)}
@@ -767,6 +769,40 @@ function renderInicio(){
 }
 const CLI_PAGE = 50; let cliPage = 1;
 const docDe = v => String(v || "").replace(/\D/g, "").replace(/^0+/, "");
+function cliPolTabla(lista, ini){
+  return `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th>Premio</th><th>Estado</th></tr></thead><tbody>` +
+    lista.map(p => { const cl = Object.assign({r: p}, tdClasif(p)), pr = num(p.Premio); return `<tr class="cpol" data-cp="${ini.indexOf(p)}" style="cursor:pointer"><td>${esc(p.Compania)}</td><td><b>${esc(p.Poliza)}</b></td><td><span class="tag">${esc(p.Ramo || "—")}</span></td><td style="white-space:normal;min-width:180px">${riesgoDe(p).resumen}</td><td style="min-width:150px">${tdVigBar(cl)}</td><td>${pr ? money(pr) : ""}</td><td>${tdEstadoPill(cl)}</td></tr>`; }).join("") + `</tbody></table></div>`;
+}
+function cliDetalle(c, idx){
+  const datos = [c.dir && "<b>Domicilio:</b> " + esc(c.dir), c.nac && "<b>Nacimiento:</b> " + esc(c.nac), c.tipo && "<b>Tipo:</b> " + esc(c.tipo), c.prod && "<b>Productor:</b> " + esc(c.prod)].filter(Boolean).map(x => `<div style="padding:2px 0">${x}</div>`).join("");
+  const ord = c.pols.slice().sort((a, b) => ((estadoPol(a).d || 8e15) - (estadoPol(b).d || 8e15)));
+  const vig = ord.filter(p => estadoPol(p).k === "vigente"), otras = ord.filter(p => estadoPol(p).k !== "vigente");
+  const premio = vig.reduce((s, p) => s + num(p.Premio), 0);
+  return `<div class="cliBox" data-ci="${idx}"><div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;align-items:flex-start"><div>${datos}</div><button class="btn sm pri" data-nw="${idx}">Abrir ficha en ventana nueva</button></div>` +
+    `<h4 class="cliH">Pólizas vigentes <span class="pill k-ok">${vig.length}</span>${premio ? ` <small class="muted" style="padding:0">Premio total ${money(premio)}</small>` : ""}</h4>` +
+    (vig.length ? cliPolTabla(vig, c.pols) : `<div class="muted" style="padding:2px 0">No tiene pólizas vigentes.</div>`) +
+    (otras.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">Vencidas y anuladas (${otras.length})</summary>${cliPolTabla(otras, c.pols)}</details>` : "") + `</div>`;
+}
+function fichaVentana(c){
+  const vig = c.pols.filter(p => estadoPol(p).k === "vigente"), otras = c.pols.filter(p => estadoPol(p).k !== "vigente");
+  const fila = p => { const e = estadoPol(p), pr = num(p.Premio); return `<tr><td>${esc(p.Compania)}</td><td><b>${esc(p.Poliza)}</b></td><td>${esc(p.Ramo)}</td><td>${riesgoDe(p).resumen}</td><td>${esc(p.Inicio)} → ${esc(p.Fin)}${e.k === "vigente" && e.dias != null ? `<br><small>vence en ${e.dias} días</small>` : ""}</td><td>${pr ? money(pr) : ""}</td><td>${esc(e.k === "vigente" ? "Vigente" : e.k === "anulada" ? "Anulada" : "Vencida")}</td></tr>`; };
+  const tabla = l => `<table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th>Premio</th><th>Estado</th></tr></thead><tbody>${l.map(fila).join("")}</tbody></table>`;
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.nom)} — Gosalbez</title><style>
+body{font-family:Poppins,Arial,sans-serif;color:#122246;margin:0;background:#f4f7fc}.w{max-width:1100px;margin:0 auto;padding:24px 18px}
+h1{margin:0 0 4px}h2{margin:26px 0 8px;font-size:1.1rem}.card{background:#fff;border:1px solid #e3e9f4;border-radius:18px;padding:16px 20px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 20px}.g small{display:block;color:#5d6b86}
+table{border-collapse:collapse;width:100%;font-size:.86rem;background:#fff}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e3e9f4;vertical-align:top}th{font-size:.7rem;text-transform:uppercase;color:#5d6b86}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:14px}button{border:0;background:#0550e6;color:#fff;border-radius:99px;padding:9px 18px;font:600 .85rem Poppins,Arial;cursor:pointer}
+@media print{.bar button{display:none}body{background:#fff}}</style></head><body><div class="w">
+<div class="bar"><div style="flex:1"><small>Gosalbez Broker de Seguros</small><h1>${esc(c.nom)}</h1></div><button onclick="window.print()">Imprimir / PDF</button></div>
+<div class="card"><div class="g">${[["Documento", c.doc], ["Teléfono", c.tel], ["Email", c.email], ["Domicilio", c.dir], ["Nacimiento", c.nac], ["Tipo", c.tipo], ["Productor", c.prod]].filter(x => x[1]).map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join("")}</div></div>
+<h2>Pólizas vigentes (${vig.length})</h2>${vig.length ? tabla(vig) : "<p>No tiene pólizas vigentes.</p>"}
+${otras.length ? `<h2>Vencidas y anuladas (${otras.length})</h2>${tabla(otras)}` : ""}</div></body></html>`;
+  const w = window.open("", "_blank");
+  if(!w){ alert("El navegador bloqueó la ventana nueva. Permití las ventanas emergentes para este sitio."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
 function renderClientes(){
   const mapa = new Map(), porDoc = new Map(), porNom = new Map();
   (datosModulo.clientes || []).forEach(c => {
@@ -796,12 +832,16 @@ function renderClientes(){
   const pag = f.slice((cliPage - 1) * CLI_PAGE, cliPage * CLI_PAGE);
   let h = `<div class="tblwrap"><table><thead><tr><th>Cliente</th><th>Documento</th><th>Contacto</th><th>Pólizas</th><th>Ramos</th><th>Próx. vencimiento</th></tr></thead><tbody>`;
   pag.forEach(c => {
-    h += `<tr class="fila" style="cursor:pointer"><td style="white-space:normal;min-width:180px"><b>${esc(c.nom)}</b></td><td>${esc(c.doc)}</td><td>${esc(c.tel)}${c.tel && c.email ? "<br>" : ""}${esc(c.email)}</td><td><span class="pill">${c.pols.length}</span></td><td style="white-space:normal;min-width:160px">${esc([...c.ramos].join(", "))}</td><td>${c.prox ? esc(formatDMY(c.prox)) : ""}</td></tr>` +
-      `<tr class="hide"><td colspan="6" style="white-space:normal;background:var(--tint)">${[c.dir && "<b>Domicilio:</b> " + esc(c.dir), c.nac && "<b>Nacimiento:</b> " + esc(c.nac), c.tipo && "<b>Tipo:</b> " + esc(c.tipo), c.prod && "<b>Productor:</b> " + esc(c.prod)].filter(Boolean).map(x => `<div style="padding:2px 0">${x}</div>`).join("")}${c.pols.length ? "" : "<div class=\"muted\" style=\"padding:2px 0\">Sin pólizas en la cartera importada.</div>"}${c.pols.map(p => `<div style="padding:3px 0">${esc(p.Compania)} · <b>${esc(p.Poliza)}</b> · ${esc(p.Ramo)} · ${esc(riesgoDe(p).resumen.replace(/<[^>]+>/g, ""))} · ${esc(p.Inicio)} → ${esc(p.Fin)} ${pillEstado(p)}</div>`).join("")}</td></tr>`;
+    const idx = pag.indexOf(c);
+    h += `<tr class="fila" style="cursor:pointer"><td style="white-space:normal;min-width:180px"><b>${esc(c.nom)}</b></td><td>${esc(c.doc)}</td><td>${esc(c.tel)}${c.tel && c.email ? "<br>" : ""}${esc(c.email)}</td><td><span class="pill k-ok">${c.pols.filter(p => estadoPol(p).k === "vigente").length}</span>${c.pols.length > c.pols.filter(p => estadoPol(p).k === "vigente").length ? ` <span class="pill k-mut" title="No vigentes">${c.pols.length - c.pols.filter(p => estadoPol(p).k === "vigente").length}</span>` : ""}</td><td style="white-space:normal;min-width:160px">${esc([...c.ramos].join(", "))}</td><td>${c.prox ? esc(formatDMY(c.prox)) : ""}</td></tr>` +
+      `<tr class="hide"><td colspan="6" style="white-space:normal;background:var(--tint)">${cliDetalle(c, idx)}</td></tr>`;
   });
   h += `</tbody></table></div>`;
   if(paginas > 1) h += `<div class="pager"><button class="btn sm" id="cliAnt" ${cliPage <= 1 ? "disabled" : ""}>&laquo; Anterior</button><span>Página ${cliPage} de ${paginas}</span><button class="btn sm" id="cliSig" ${cliPage >= paginas ? "disabled" : ""}>Siguiente &raquo;</button></div>`;
   $("cliTabla").innerHTML = h; activarFichas($("cliTabla"));
+  $("cliTabla").querySelectorAll("[data-nw]").forEach(b => b.onclick = e => { e.stopPropagation(); fichaVentana(pag[Number(b.dataset.nw)]); });
+  $("cliTabla").querySelectorAll(".cliBox").forEach(box => { const c = pag[Number(box.dataset.ci)];
+    box.querySelectorAll("tr.cpol").forEach(tr => tr.onclick = e => { e.stopPropagation(); const p = c.pols[Number(tr.dataset.cp)]; abrirPoliza(Object.assign({r: p}, tdClasif(p))); }); });
   if($("cliAnt")) $("cliAnt").onclick = () => { cliPage--; renderClientes(); };
   if($("cliSig")) $("cliSig").onclick = () => { cliPage++; renderClientes(); };
 }
@@ -890,7 +930,7 @@ const polDocKey = r => normPat(r.Patente) || ("POL" + normPat(r.Compania).slice(
 async function docsPoliza(c){
   const r = c.r, key = polDocKey(r), esAuto = !!normPat(r.Patente), pol = String(r.Poliza || "").trim();
   const box = $("drawerDocs"); let docs = [];
-  try{ const res = await apiPost({action:"admin_doc_list", key:KEY, patente:key}); docs = res.ok ? res.docs : []; }catch(e){}
+  try{ const res = await apiPost({action:"admin_doc_list", key:KEY, patente:key}); docs = res.ok ? (res.docs || []) : []; }catch(e){}
   if($("drawerDocs") !== box) return;
   const tipos = DOC_TIPOS.filter(([t]) => esAuto || t === "Poliza");
   box.innerHTML = `<h3>Documentos</h3><div id="drawerDocMsg"></div>` + tipos.map(([tipo, label]) => {
