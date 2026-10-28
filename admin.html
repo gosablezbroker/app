@@ -195,6 +195,12 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 .side .sec.on::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg) translateY(-2px)}
 .side .sec:not(.on):has(+ .subs)::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);opacity:.6}
 #subtabs{display:none}
+
+.impGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.impCard{border:1px solid var(--bd);border-radius:20px;padding:16px 18px;background:var(--card);box-shadow:var(--shadow-sm)}
+.impTop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.impNum{font-size:1.9rem;font-weight:700;margin:8px 0 2px}.impNum small{font-size:.78rem;font-weight:500;color:var(--mut);margin-left:6px}
+.chip[disabled]{opacity:.5;cursor:not-allowed}
 @media (max-width:860px){
   .burger{display:inline-flex;align-items:center;justify-content:center}
   .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;width:272px}
@@ -230,6 +236,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
         <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
         <button class="sec" data-sec="REP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Reportes</span></button>
+        <button class="sec" data-sec="IMP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg><span>Importaciones</span></button>
         <button class="sec" data-sec="CRE"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l2-6h14l2 6M3 13v5h3v-2h12v2h3v-5M3 13h18M7 16h.01M17 16h.01"/></svg><span>Credenciales automotores</span></button>
         <button class="sec" data-sec="USU"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span>Usuarios</span></button>
       </div>
@@ -238,6 +245,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="CLI" data-tab="Clientes">Clientes</button>
         <button class="tab" data-sec="REP" data-tab="Renovaciones">Renovaciones</button>
         <button class="tab" data-sec="REP" data-tab="Vigentes">Vigentes por ramo</button>
+        <button class="tab" data-sec="IMP" data-tab="Importar">Importar</button>
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
@@ -269,6 +277,12 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
     <div class="content">
     <div class="card">
 
+      <div id="viewImp" class="hide">
+        <div class="panelTitle"><h2>Importar datos</h2><button class="btn sm" id="impRef">Actualizar</button></div>
+        <p class="muted" style="padding:0 0 10px">Elegí la compañía. Cada una te lleva a su pantalla de importación.</p>
+        <div class="chips" id="impTipo"><button class="chip on">Operaciones (pólizas)</button><button class="chip" disabled title="Próximamente">Pagos pendientes</button><button class="chip" disabled title="Próximamente">Pagos realizados</button><button class="chip" disabled title="Próximamente">Comisiones</button></div>
+        <div class="impGrid" id="impGrid"><div class="loading">Cargando…</div></div>
+      </div>
       <div id="viewTodas" class="hide">
         <div class="kpis" id="tdKpi"></div>
         <div class="chips" id="tdChips"></div>
@@ -703,7 +717,7 @@ document.querySelectorAll(".sec").forEach(b => {
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
-const SEC_PRIMERA = {INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 $("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
@@ -725,11 +739,11 @@ function barras(mapa, total, max){
 }
 const datosModulo = {};
 async function cargarModulo(tab, forzar){
-  const cont = {TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
+  const cont = {Importar:"impGrid", TODAS:"tdTabla", Inicio:"iniBody", Clientes:"cliTabla", Renovaciones:"renoTabla", Vigentes:"vigBody"}[tab];
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
-  if(tab === "Clientes" && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
+  if((tab === "Clientes" || tab === "Importar") && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
   if(currentTab !== tab) return;
-  ({TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
+  ({Importar:renderImp, TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
 function renderInicio(){
   const rows = datosModulo.rows, hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -931,6 +945,25 @@ $("tdCsv").onclick = () => {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type: "text/csv"})); a.download = "polizas.csv"; a.click();
 };
 
+// ===== Importaciones: una tarjeta por compañía =====
+function renderImp(){
+  const rows = datosModulo.rows || [];
+  const cnt = k => rows.filter(r => CAR_GRUPOS[k].test(String(r.Compania || ""))).length;
+  const items = [
+    {n:"SMG", sub:"Autos y otros ramos", met:"Automática (web service)", tab:"CAR:SMO", c: rows.filter(r => /^smg$/i.test(String(r.Compania || "").trim())).length, f: ""},
+    {n:"Galicia Seguros", sub:"Archivo .zip de Galicia", met:"Por archivo", tab:"GALC", c: cnt("GAL"), f: datosModulo.galAct},
+    {n:"Río Uruguay", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:RUS", c: cnt("RUS"), f: carActualizado},
+    {n:"Mercantil Andina", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:MER", c: cnt("MER"), f: carActualizado},
+    {n:"Meridional", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:MDL", c: cnt("MDL"), f: carActualizado},
+    {n:"ATM", sub:"Excel de Adminse", met:"Por archivo", tab:"CAR:ATM", c: cnt("ATM"), f: carActualizado},
+    {n:"Otras compañías", sub:"ART y otras (Excel de Adminse)", met:"Por archivo", tab:"CAR:OTR", c: cnt("OTR"), f: carActualizado},
+    {n:"Clientes", sub:"Agenda de clientes de Adminse", met:"Por archivo", tab:"Clientes", c: (datosModulo.clientes || []).length, f: datosModulo.clientesAct || ""}
+  ];
+  $("impGrid").innerHTML = items.map((it, i) => `<div class="impCard"><div class="impTop"><b>${esc(it.n)}</b><span class="pill ${it.met.startsWith("Auto") ? "k-ok" : ""}">${esc(it.met)}</span></div><div class="muted" style="padding:0">${esc(it.sub)}</div><div class="impNum">${it.c}<small>${it.n === "Clientes" ? "clientes" : "pólizas"}</small></div><div class="muted" style="padding:0 0 10px">${it.f ? "Última importación: " + esc(it.f) : (it.c ? "" : "Sin importar todavía")}</div><button class="btn pri sm" data-i="${i}">Importar</button></div>`).join("");
+  $("impGrid").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => selectTab(items[Number(b.dataset.i)].tab));
+}
+$("impRef").onclick = () => cargarModulo("Importar", true);
+
 function selectTab(tab){
   currentTab = tab;
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
@@ -947,8 +980,8 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas"};
-  ["viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", Importar:"viewImp"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
   if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.toggle("hide", sec !== "POL" || tab === "TODAS");
@@ -957,7 +990,7 @@ function selectTab(tab){
   { const sb = document.querySelector(`.sec[data-sec="${sec}"] span`); $("crumbSec").textContent = sb ? sb.textContent : "Panel";
     $("crumbTab").textContent = btnTab ? btnTab.textContent : tab;
     document.body.classList.remove("menuOpen"); }
-  const titles = {"TODAS":"Pólizas","Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
+  const titles = {"Importar":"Importar datos","TODAS":"Pólizas","Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
@@ -2047,7 +2080,8 @@ async function cargarBusqueda(forzar){
       apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"}).catch(() => ({})),
       apiPost({action:"admin_smg_otros_list", key:KEY}).catch(() => ({}))
     ]);
-    if(adm.ok) carRows = adm.rows || [];
+    if(adm.ok){ carRows = adm.rows || []; carActualizado = adm.actualizado || ""; }
+    datosModulo.galAct = gal.ok ? (gal.actualizado || "") : "";
     const galR = gal.ok ? (gal.rows || []) : [];
     const rows = [], vistos = new Set();
     const push = r => { const k = [r.Compania, r.Poliza, r.Patente].map(x => String(x || "").trim().toUpperCase().replace(/^0+/, "")).join("|"); if(vistos.has(k)) return; vistos.add(k); rows.push(r); };
