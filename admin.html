@@ -188,6 +188,13 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--bg);z-index:61;overflow:auto;padding:20px;box-shadow:-12px 0 40px -12px rgba(10,20,40,.4)}
 .drawerHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
 .drawer .tblwrap{max-height:none}
+
+.side .subs{display:flex;flex-direction:column;gap:2px;margin:3px 0 8px 22px;padding-left:12px;border-left:1px solid rgba(255,255,255,.14)}
+.side .subs:not(:has(.tab:not(.hide))){display:none}
+.side .tab.solo{display:none !important}
+.side .sec.on::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg) translateY(-2px)}
+.side .sec:not(.on):has(+ .subs)::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);opacity:.6}
+#subtabs{display:none}
 @media (max-width:860px){
   .burger{display:inline-flex;align-items:center;justify-content:center}
   .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .22s ease;width:272px}
@@ -690,6 +697,12 @@ document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => selectTab(btn.dataset.tab);
 });
 
+// El submenú de cada sección se despliega justo debajo de ella.
+document.querySelectorAll(".sec").forEach(b => {
+  const tabs = [...document.querySelectorAll(`.tab[data-sec="${b.dataset.sec}"]`)];
+  if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
+  const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
+});
 const SEC_PRIMERA = {INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 $("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
@@ -923,7 +936,7 @@ function selectTab(tab){
   const btnTab = document.querySelector(`.tab[data-tab="${tab}"]`), sec = btnTab ? btnTab.dataset.sec : "SIN";
   document.querySelectorAll(".sec").forEach(b => b.classList.toggle("on", b.dataset.sec === sec));
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("hide", b.dataset.sec !== sec));
-  $("subtabs").classList.toggle("hide", sec === "USU" || sec === "INI" || sec === "CLI");
+  
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab===tab));
   const isSmgCia = tab === "CAR:SMO";
   $("polBar").classList.toggle("hide", sec !== "POL");
