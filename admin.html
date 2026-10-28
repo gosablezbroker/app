@@ -649,7 +649,7 @@ document.querySelectorAll(".tab").forEach(btn => {
   btn.onclick = () => selectTab(btn.dataset.tab);
 });
 
-const SEC_PRIMERA = {SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"CAR:SMO", CRE:"Vehiculos", USU:"Usuarios"};
 $("viewSmgCia").appendChild($("smgOtros")); $("smgOtros").style.marginTop = "0";
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
