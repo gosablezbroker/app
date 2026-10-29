@@ -751,7 +751,7 @@ async function cargarModulo(tab, forzar){
   if(!datosModulo.rows || forzar){ $(cont).innerHTML = `<div class="loading">Cargando…</div>`; try{ datosModulo.rows = await cargarBusqueda(forzar); }catch(e){ $(cont).innerHTML = `<div class="err">No se pudo cargar la cartera.</div>`; return; } }
   if((tab === "Clientes" || tab === "Importar") && (!datosModulo.clientes || forzar)){ try{ const r = await apiPost({action:"admin_clientes_list", key:KEY}); datosModulo.clientes = r.ok ? (r.rows || []) : []; datosModulo.clientesAct = r.ok ? (r.actualizado || "") : ""; }catch(e){ datosModulo.clientes = []; } }
   if((tab === "TODAS" || tab === "CAR:SMO") && (forzar || !datosModulo.docsOk)){ await cargarTodosDocs(); datosModulo.docsOk = true; }
-  if((tab === "TODAS" || tab === "CAR:SMO") && (forzar || !datosModulo.cuotas)){ try{ const q = await apiPost({action:"admin_cuotas_list", key:KEY}); datosModulo.cuotas = cuotasAgrupar(q.ok ? (q.rows || []) : []); }catch(e){ datosModulo.cuotas = {}; } try{ const mv = await apiPost({action:"admin_movimientos_list", key:KEY}); datosModulo.movs = cuotasAgrupar(mv.ok ? (mv.rows || []) : []); Object.values(datosModulo.movs).forEach(l => l.sort((a, b) => (Number(a.Endoso) || 0) - (Number(b.Endoso) || 0))); }catch(e){ datosModulo.movs = {}; } }
+  if((tab === "TODAS" || tab === "CAR:SMO") && (forzar || !datosModulo.cuotas)){ try{ const q = await apiPost({action:"admin_cuotas_list", key:KEY}); datosModulo.cuotas = cuotasAgrupar(q.ok ? (q.rows || []) : []); }catch(e){ datosModulo.cuotas = {}; } try{ const mv = await apiPost({action:"admin_movimientos_list", key:KEY}); datosModulo.movs = cuotasAgrupar(mv.ok ? (mv.rows || []) : []); Object.values(datosModulo.movs).forEach(l => l.sort((a, b) => (Number(a.Endoso) || 0) - (Number(b.Endoso) || 0))); }catch(e){ datosModulo.movs = {}; } aplicarAnuladas(); }
   if(currentTab !== tab) return;
   ({"CAR:SMO":renderTodas, Importar:renderImp, TODAS:renderTodas, Inicio:renderInicio, Clientes:renderClientes, Renovaciones:renderReno, Vigentes:renderVig})[tab]();
 }
@@ -946,6 +946,19 @@ function cuotaEstado(q){
   if(/anul/i.test(e)) return {k:"anulada", t:"Anulada"};
   if(d && d < hoy) return {k:"vencida", t:e || "Vencida"};
   return {k:"pendiente", t:e || "Pendiente"};
+}
+// Marca como anuladas las pólizas que la compañía informa anuladas y agrega las que no estaban en la lista.
+function aplicarAnuladas(){
+  if(!datosModulo.rows) return;
+  datosModulo.rows = datosModulo.rows.filter(r => !r._mov);
+  const idx = {}; datosModulo.rows.forEach(r => { idx[cuotaKey(r.Compania, r.Poliza)] = r; });
+  Object.entries(datosModulo.movs || {}).forEach(([k, l]) => {
+    const u = l[l.length - 1];
+    if(!/anulad/i.test(String(u.Estado || ""))) return;
+    const r = idx[k];
+    if(r){ r.Estado = "anulada"; return; }
+    datosModulo.rows.push({_mov: true, Compania: "SMG", Ramo: "Automotores", Poliza: u.Poliza, Asegurado: u.Cliente, Patente: u.Patente, Estado: "anulada", Inicio: u.Desde, Fin: u.Hasta, Premio: u.Premio, Productor: ""});
+  });
 }
 function movsHtml(r){
   const l = ((datosModulo.movs || {})[cuotaKey(r.Compania, r.Poliza)]) || [];
