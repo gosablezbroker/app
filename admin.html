@@ -308,6 +308,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <input type="search" id="tdBuscar" placeholder="Buscar póliza, cliente, patente, bien, DNI / CUIT…">
           <select id="tdCia" style="max-width:210px"><option value="">Todas las compañías</option></select>
           <select id="tdRamo" style="max-width:210px"><option value="">Todos los ramos</option></select>
+          <select id="tdProd" style="max-width:230px"><option value="">Todos los productores</option></select>
           <select id="tdOrden" style="max-width:200px"><option value="venc">Orden: vencimiento</option><option value="cli">Orden: cliente</option><option value="premio">Orden: premio</option><option value="inicio">Orden: inicio reciente</option></select>
           <div class="seg" id="tdVista"><button data-v="lista" class="on">Lista</button><button data-v="tarj">Tarjetas</button><button data-v="cia">Por compañía</button></div>
           <button class="btn sm" id="tdCsv">Descargar CSV</button>
@@ -925,15 +926,16 @@ function tdPdf(r){
 }
 function tdPdfCelda(r){ return tdPdf(r) ? `<span class="pill k-ok" title="PDF cargado">PDF ✔</span>` : `<span class="pill k-mut" title="Sin PDF: tocá para adjuntarlo">＋ PDF</span>`; }
 
+const prodDe = r => String(r.Productor || "").replace(/\s+/g, " ").trim();
 function tdFila(c, i){
   const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio), prim = num(r.Prima);
-  return `<tr class="fila" data-i="${c.i}" style="cursor:pointer"><td><b>${esc(r.Poliza)}</b></td><td><b>${esc(r.Compania)}</b><br><span class="tag">${esc(r.Ramo || "—")}</span></td>` +
+  return `<tr class="fila" data-i="${c.i}" style="cursor:pointer"><td><b>${esc(r.Poliza)}</b></td><td><b>${esc(r.Compania)}</b><br><span class="tag">${esc(r.Ramo || "—")}</span>${prodDe(r) ? `<br><small class="muted" style="padding:0" title="Productor">${esc(prodDe(r))}</small>` : ""}</td>` +
     `<td style="white-space:normal;min-width:200px"><b>${esc(nombreDe(r))}</b><br><span class="muted" style="padding:0">${rd}</span></td>` +
     `<td>${prem ? `<b>${money(prem)}</b>` : ""}${prim ? `<br><small class="muted" style="padding:0">Prima ${money(prim)}</small>` : ""}</td><td style="min-width:170px">${tdVigBar(c)}</td><td>${tdEstadoPill(c)}</td><td>${tdPdfCelda(r)}</td></tr>`;
 }
 function tdTarjeta(c){
   const r = c.r, rd = riesgoDe(r).resumen, prem = num(r.Premio);
-  return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b><span>${tdPdfCelda(r)} ${tdEstadoPill(c)}</span></div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
+  return `<div class="pcard" data-i="${c.i}" style="cursor:pointer"><div class="pcTop"><b>${esc(r.Compania)}</b><span>${tdPdfCelda(r)} ${tdEstadoPill(c)}</span></div><div class="pcPol">${esc(r.Poliza)} <span class="tag">${esc(r.Ramo || "—")}</span></div><div class="pcCli">${esc(nombreDe(r))}</div><div class="muted" style="padding:0">${rd}</div>${prodDe(r) ? `<div class="muted" style="padding:2px 0 0"><small>Productor: ${esc(prodDe(r))}</small></div>` : ""}${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div>`;
 }
 // ---- Documentos adjuntos de una póliza (PDF) ----
 const polDocKey = r => normPat(r.Patente) || ("POL" + normPat(r.Compania).slice(0, 4) + normPat(r.Poliza));
@@ -976,7 +978,7 @@ function abrirPoliza(c){
   const r = c.r, t = document.createElement("table"); t.innerHTML = "<tbody>" + fichaPoliza(Object.assign({}, r), 6) + "</tbody>";
   const ficha = t.querySelector("td") ? t.querySelector("td").innerHTML : "";
   const prem = num(r.Premio);
-  $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>`;
+  $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>${prodDe(r) ? `<div class="muted" style="padding:4px 0 0">Productor: <b>${esc(prodDe(r))}</b></div>` : ""}`;
   $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs" style="border-color:var(--ac)"><h3>Documentos (PDF de la póliza)</h3><div class="loading">Cargando…</div></div>` + ficha;
   docsPoliza(c);
   $("drawer").classList.remove("hide"); $("drawerScrim").classList.remove("hide");
@@ -997,10 +999,10 @@ function renderTodas(){
   $("tdChips").innerHTML = TD_CHIPS.map(([id, t]) => `<button class="chip ${tdFiltro === id ? "on" : ""}" data-f="${id}">${t} <small>${id === "vigentes" ? cnt.vigentes + cnt.porvencer : cnt[id]}</small></button>`).join("");
   $("tdChips").querySelectorAll(".chip").forEach(b => b.onclick = () => { tdFiltro = b.dataset.f; tdPage = 1; renderTodas(); });
   const llenar = (id, vals, todos) => { const el = $(id), v = el.value; el.innerHTML = `<option value="">${todos}</option>` + [...new Set(vals)].filter(Boolean).sort().map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join(""); el.value = [...el.options].some(o => o.value === v) ? v : ""; };
-  llenar("tdCia", base.map(c => c.r.Compania), "Todas las compañías"); if(currentTab === "CAR:SMO") $("tdCia").value = [...$("tdCia").options].map(o => o.value).find(v => /^smg$/i.test(v)) || ""; llenar("tdRamo", base.map(c => c.r.Ramo), "Todos los ramos");
-  const q = $("tdBuscar").value.trim().toLowerCase(), cia = $("tdCia").value, ramo = $("tdRamo").value;
+  llenar("tdCia", base.map(c => c.r.Compania), "Todas las compañías"); if(currentTab === "CAR:SMO") $("tdCia").value = [...$("tdCia").options].map(o => o.value).find(v => /^smg$/i.test(v)) || ""; llenar("tdRamo", base.map(c => c.r.Ramo), "Todos los ramos"); llenar("tdProd", base.map(c => prodDe(c.r) || "Sin productor"), "Todos los productores");
+  const q = $("tdBuscar").value.trim().toLowerCase(), cia = $("tdCia").value, ramo = $("tdRamo").value, prodSel = $("tdProd").value;
   let f = base.filter(c => (tdFiltro === "todas" || (tdFiltro === "vigentes" ? c.g === "vigentes" || c.g === "porvencer" : c.g === tdFiltro)) &&
-    (!cia || c.r.Compania === cia) && (!ramo || c.r.Ramo === ramo) &&
+    (!cia || c.r.Compania === cia) && (!ramo || c.r.Ramo === ramo) && (!prodSel || (prodDe(c.r) || "Sin productor") === prodSel) &&
     (!q || BUSQ_CAMPOS.some(h => String(c.r[h] || "").toLowerCase().includes(q))));
   const ord = $("tdOrden").value;
   f.sort((a, b) => ord === "cli" ? nombreDe(a.r).localeCompare(nombreDe(b.r), "es") : ord === "premio" ? num(b.r.Premio) - num(a.r.Premio) :
@@ -1026,13 +1028,13 @@ function renderTodas(){
   if($("tdSig")) $("tdSig").onclick = () => { tdPage++; renderTodas(); };
 }
 $("tdBuscar").addEventListener("input", () => { tdPage = 1; renderTodas(); });
-["tdCia", "tdRamo", "tdOrden"].forEach(id => $(id).addEventListener("change", () => { tdPage = 1; renderTodas(); }));
+["tdCia", "tdRamo", "tdProd", "tdOrden"].forEach(id => $(id).addEventListener("change", () => { tdPage = 1; renderTodas(); }));
 document.querySelectorAll("#tdVista button").forEach(b => b.onclick = () => { tdVista = b.dataset.v; tdPage = 1; renderTodas(); });
 $("tdImp").onclick = () => selectTab("Importar");
 $("tdRef").onclick = () => cargarModulo("TODAS", true);
 $("tdCsv").onclick = () => {
   const l = datosModulo.tdLista || []; if(!l.length) return;
-  const cols = ["Compania", "Poliza", "Ramo", "Estado", "Asegurado", "Bien", "Patente", "Premio", "Prima", "Inicio", "Fin", "Email", "Telefono", "CUIT", "DNI"];
+  const cols = ["Compania", "Poliza", "Ramo", "Estado", "Asegurado", "Bien", "Patente", "Premio", "Prima", "Inicio", "Fin", "Email", "Telefono", "CUIT", "DNI", "Productor"];
   const csv = [cols.join(";")].concat(l.map(c => cols.map(h => '"' + String(h === "Asegurado" ? nombreDe(c.r) : c.r[h] == null ? "" : c.r[h]).replace(/"/g, '""') + '"').join(";"))).join("\r\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type: "text/csv"})); a.download = "polizas.csv"; a.click();
 };
