@@ -264,6 +264,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="CRE" data-tab="Vehiculos">Vehículos y credenciales</button>
         <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
         <button class="tab" data-sec="USU" data-tab="Usuarios">Usuarios registrados</button>
+        <button class="tab" data-sec="USU" data-tab="Portales">Accesos a portales</button>
       </div>
       </nav>
       <div class="sideFoot">Broker de Seguros</div>
@@ -342,6 +343,11 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <span class="count" id="renoConteo"></span>
         </div>
         <div id="renoTabla"></div>
+      </div>
+      <div id="viewPortales" class="hide">
+        <div class="panelTitle"><h2>Accesos a portales de las compañías</h2><button class="btn sm" id="btnPortRef">Actualizar</button></div>
+        <p class="muted" style="padding:0 0 10px">Cargá acá el usuario y la clave de cada portal. Se guardan solo en tu script de Google (no en la planilla ni en este navegador) y el panel nunca los vuelve a mostrar. Se usan para sincronizar datos y bajar PDF de las pólizas.</p>
+        <div id="portBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewVigRamo" class="hide">
         <div class="panelTitle"><h2>Vigentes por ramo y compañía</h2><button class="btn sm" id="btnVigRef">Actualizar</button></div>
@@ -1009,6 +1015,25 @@ async function docsPoliza(c){
       <button class="btn sm pri" data-du="${tipo}">${d ? "Reemplazar" : "Adjuntar"}</button>
       ${d ? `<button class="btn sm" data-dv="${esc(d.id)}">Ver</button><button class="btn sm" data-dd="${esc(d.id)}">Quitar</button>` : ""}</div>`;
   }).join("");
+  const esSmgP = esSmgRow(r) && esAuto, portalId = esSmgP ? "SMG_WEB" : /galicia/i.test(r.Compania) ? "GALICIA" : /meridional/i.test(r.Compania) ? "MERIDIONAL" : /mapfre|zurich/i.test(r.Compania) ? "ABSANET" : "";
+  box.insertAdjacentHTML("beforeend", `<div style="padding:10px 0 0;border-top:1px solid var(--bd)"><button class="btn sm pri" id="btnPedirPdf">Pedir PDF a la compañía</button> <span class="muted" style="padding:0"><small>${esSmgP ? "Lo busca en SMG por API y lo guarda en la póliza." : "Esta compañía no tiene API: abre su portal para que lo descargues y lo adjuntes arriba."}</small></span></div>`);
+  $("btnPedirPdf").onclick = async () => {
+    const b = $("btnPedirPdf");
+    if(esSmgP){
+      if(!(await asegurarAcceso("SMG_WEB", "Para pedir el PDF a SMG se necesita tu acceso a su oficina virtual."))) return;
+      b.disabled = true; b.textContent = "Pidiendo a SMG…";
+      try{
+        const x = await importarSmgCore(r.Patente, r.Poliza, t => { $("drawerDocMsg").innerHTML = `<div class="muted">${esc(t)}</div>`; });
+        $("drawerDocMsg").innerHTML = x.ok ? `<div class="ok">Listo: se guardó ${esc(x.hechos.join(" y "))} en la póliza.</div>` + (x.avisos.length ? `<div class="err">${x.avisos.map(esc).join("<br>")}</div>` : "") : `<div class="err">${esc(x.error || "SMG no entregó el PDF.")}</div>`;
+        await cargarTodosDocs(); if(currentTab === "TODAS" || currentTab === "CAR:SMO") renderTodas(); await docsPoliza(c);
+      }catch(e){ $("drawerDocMsg").innerHTML = `<div class="err">No se pudo conectar con el script.</div>`; }
+      b.disabled = false; b.textContent = "Pedir PDF a la compañía";
+      return;
+    }
+    const l = portalesDatos || await cargarPortales(), p = (l || []).find(x => x.id === portalId);
+    $("drawerDocMsg").innerHTML = `<div class="muted">${p && p.url ? `Abrí <a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.nombre)}</a>, descargá el PDF de la póliza ${esc(r.Poliza)} y adjuntalo con el botón de arriba.` : "Descargá el PDF desde el portal de la compañía y adjuntalo con el botón de arriba."}</div>`;
+    if(p && p.url) window.open(p.url, "_blank", "noopener");
+  };
   const msg = h => { $("drawerDocMsg").innerHTML = h; };
   box.querySelectorAll("[data-dv]").forEach(b => b.onclick = () => verDoc(b.dataset.dv, "drawerDocMsg"));
   box.querySelectorAll("[data-dd]").forEach(b => b.onclick = async () => {
@@ -1138,10 +1163,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1153,7 +1178,7 @@ function selectTab(tab){
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -2447,6 +2472,50 @@ async function actualizarCredenciales(auto){
 }
 // Cada hora, si estás mirando Credenciales, se recarga solo (el script de Google ya sincroniza solo cada hora).
 setInterval(() => { if(currentTab === "Vehiculos" && !credActRun && !document.hidden) loadTab("Vehiculos"); }, 3600000);
+
+// --- Accesos a portales: usuario y clave de cada compañía (se guardan solo en el script de Google) ---
+let portalesDatos = null;
+async function cargarPortales(){
+  try{ const r = await apiPost({action:"admin_portales_estado", key:KEY}); portalesDatos = r.ok ? (r.portales || []) : null; if(!r.ok) portalesError = r.error || ""; }catch(e){ portalesDatos = null; }
+  return portalesDatos;
+}
+let portalesError = "";
+async function renderPortales(){
+  $("portBody").innerHTML = `<div class="loading">Cargando…</div>`;
+  const l = await cargarPortales();
+  if(!l){ $("portBody").innerHTML = `<div class="err">${esc(portalesError || "No se pudo leer el estado de los accesos. Actualizá el script de Google con la versión nueva.")}</div>`; return; }
+  $("portBody").innerHTML = `<div class="tblwrap"><table><thead><tr><th>Portal</th><th>Estado</th><th></th></tr></thead><tbody>` + l.map(p => `<tr data-pid="${esc(p.id)}"><td><b>${esc(p.nombre)}</b>${p.url ? `<br><a href="${esc(p.url)}" target="_blank" rel="noopener"><small>${esc(p.url)}</small></a>` : ""}</td>` +
+    `<td>${p.configurado ? `<span class="pill k-ok">Configurado</span> <small class="muted" style="padding:0">usuario ${esc(p.usuario)}</small>` : `<span class="pill k-warn">Falta cargar</span>`}</td>` +
+    `<td style="white-space:nowrap"><button class="btn sm pri" data-pc="${esc(p.id)}">${p.configurado ? "Cambiar" : "Cargar acceso"}</button>${p.configurado ? ` <button class="btn sm" data-pq="${esc(p.id)}">Quitar</button>` : ""}</td></tr>`).join("") + `</tbody></table></div><div id="portForm"></div><div id="portMsg"></div>`;
+  $("portBody").querySelectorAll("[data-pc]").forEach(b => b.onclick = () => formPortal(b.dataset.pc));
+  $("portBody").querySelectorAll("[data-pq]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Quitar el acceso guardado de este portal?")) return;
+    try{ const r = await apiPost({action:"admin_portal_borrar", key:KEY, id:b.dataset.pq}); $("portMsg").innerHTML = r.ok ? `<div class="ok">Acceso quitado.</div>` : `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`; }catch(e){ $("portMsg").innerHTML = `<div class="err">No se pudo conectar.</div>`; }
+    renderPortales();
+  });
+}
+function formPortal(id, aviso){
+  const p = (portalesDatos || []).find(x => x.id === id); if(!p) return;
+  $("portForm").innerHTML = `<div class="panelBox" style="margin-top:14px"><h3>${esc(p.nombre)}</h3>${aviso ? `<div class="muted" style="padding:0 0 8px">${esc(aviso)}</div>` : ""}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="portUser" type="text" placeholder="Usuario" autocomplete="off" style="max-width:240px"><input id="portPass" type="password" placeholder="Clave" autocomplete="new-password" style="max-width:240px"><button class="btn pri" id="portGuardar">Guardar acceso</button><button class="btn" id="portCancel">Cancelar</button></div><p class="muted" style="padding:8px 0 0"><small>Se guarda cifrado en la configuración de tu script de Google. Desde acá no se puede volver a ver.</small></p></div>`;
+  $("portCancel").onclick = () => { $("portForm").innerHTML = ""; };
+  $("portGuardar").onclick = async () => {
+    const usuario = $("portUser").value.trim(), clave = $("portPass").value;
+    if(!usuario || !clave){ $("portMsg").innerHTML = `<div class="err">Completá usuario y clave.</div>`; return; }
+    $("portGuardar").disabled = true;
+    try{ const r = await apiPost({action:"admin_portal_set", key:KEY, id, usuario, clave}); $("portMsg").innerHTML = r.ok ? `<div class="ok">Acceso guardado.</div>` : `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`; }catch(e){ $("portMsg").innerHTML = `<div class="err">No se pudo conectar con el script.</div>`; }
+    $("portPass").value = ""; if($("portForm")) $("portForm").innerHTML = ""; renderPortales();
+  };
+}
+// Si falta el acceso a un portal, lleva a la pantalla para cargarlo.
+async function asegurarAcceso(id, motivo){
+  const l = portalesDatos || await cargarPortales();
+  const p = (l || []).find(x => x.id === id);
+  if(p && p.configurado) return true;
+  if(!confirm((motivo ? motivo + "\n\n" : "") + "Falta cargar el usuario y la clave de " + (p ? p.nombre : id) + ". ¿Querés cargarlos ahora?")) return false;
+  cerrarPoliza(); selectTab("Portales"); setTimeout(() => formPortal(id, motivo || ""), 600);
+  return false;
+}
+$("btnPortRef").onclick = renderPortales;
 $("btnSmgBulk").onclick = importarTodosSmg;
 $("btnSmgBulkCancel").onclick = () => { bulkCancel = true; $("btnSmgBulkCancel").disabled = true; };
 $("smgSoloFaltan").onchange = actualizarSmgBulkInfo;
