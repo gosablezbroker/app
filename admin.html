@@ -941,6 +941,7 @@ function cuotasAgrupar(rows){
 function cuotaEstado(q){
   const e = String(q.Estado || "");
   if(/pag|cobr|abon|acredit/i.test(e)) return {k:"paga", t:"Pagada"};
+  if(/programad/i.test(e)) return {k:"programada", t:"Programada"};
   const d = parseDateFlexible(q.Vencimiento), hoy = new Date(); hoy.setHours(0,0,0,0);
   if(/anul/i.test(e)) return {k:"anulada", t:"Anulada"};
   if(d && d < hoy) return {k:"vencida", t:e || "Vencida"};
@@ -949,6 +950,7 @@ function cuotaEstado(q){
 function cuotasDe(r){ return ((datosModulo.cuotas || {})[cuotaKey(r.Compania, r.Poliza)]) || []; }
 function cuotasResumen(r){
   const l = cuotasDe(r); if(!l.length) return "";
+  if(l.every(q => cuotaEstado(q).k === "programada")) return `${l.length} cuotas (plan)`;
   const pagas = l.filter(q => cuotaEstado(q).k === "paga").length, venc = l.filter(q => cuotaEstado(q).k === "vencida").length;
   return `Cuotas ${pagas}/${l.length}` + (venc ? ` · <b style="color:var(--bad,#c0392b)">${venc} vencida${venc > 1 ? "s" : ""}</b>` : "");
 }
@@ -957,8 +959,8 @@ function planPagoHtml(r){
   if(!l.length) return `<div class="panelBox"><h3>Plan de pago</h3><div class="muted" style="padding:0">Todavía no hay cuotas cargadas para esta póliza.</div></div>`;
   const tot = l.reduce((s, q) => s + num(q.Importe), 0), pagado = l.filter(q => cuotaEstado(q).k === "paga").reduce((s, q) => s + num(q.Importe), 0);
   const medio = [...new Set(l.map(q => q.Medio).filter(Boolean))].join(" / ");
-  const pill = q => { const e = cuotaEstado(q); return `<span class="pill ${e.k === "paga" ? "k-ok" : e.k === "vencida" ? "k-bad" : e.k === "anulada" ? "k-mut" : "k-warn"}">${esc(e.t)}</span>`; };
-  return `<div class="panelBox"><h3>Plan de pago</h3><div class="muted" style="padding:0 0 6px">${l.length} cuota${l.length > 1 ? "s" : ""}${medio ? " · " + esc(medio) : ""}${tot ? " · total " + money(tot) : ""}${pagado ? " · pagado " + money(pagado) : ""}</div>` +
+  const pill = q => { const e = cuotaEstado(q); return `<span class="pill ${e.k === "paga" ? "k-ok" : e.k === "vencida" ? "k-bad" : e.k === "anulada" || e.k === "programada" ? "k-mut" : "k-warn"}">${esc(e.t)}</span>`; };
+  return `<div class="panelBox"><h3>Plan de pago</h3><div class="muted" style="padding:0 0 6px">${l.length} cuota${l.length > 1 ? "s" : ""}${medio ? " · " + esc(medio) : ""}${tot ? " · total " + money(tot) : ""}${pagado ? " · pagado " + money(pagado) : ""}</div>${l.every(q => cuotaEstado(q).k === "programada") ? `<div class="muted" style="padding:0 0 6px"><small>Cronograma según el plan de la compañía: no informa cuáles cuotas están pagas.</small></div>` : ""}` +
     `<div class="tblwrap"><table><thead><tr><th>Cuota</th><th>Vencimiento</th><th>Importe</th><th>Estado</th></tr></thead><tbody>${l.map(q => `<tr><td>${esc(q.Cuota)}</td><td>${esc(q.Vencimiento)}</td><td>${num(q.Importe) ? money(num(q.Importe)) : ""}</td><td>${pill(q)}</td></tr>`).join("")}</tbody></table></div>` +
     `<div class="muted" style="padding:6px 0 0"><small>${esc([...new Set(l.map(q => q.Fuente).filter(Boolean))].join(", "))}${l[0].Actualizado ? " · actualizado " + esc(l[0].Actualizado) : ""}</small></div></div>`;
 }
