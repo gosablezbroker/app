@@ -413,7 +413,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         </div>
         <div class="toolbar">
           <input type="search" id="galBuscar" placeholder="Buscar póliza, cliente, patente, marca o modelo…">
-          <select id="galRamo" style="max-width:200px"><option value="">Autos y otros</option><option value="Autos">Solo autos</option><option value="Otros ramos">Solo otros ramos</option></select>
+          <select id="galRamo" style="max-width:200px"><option value="">Autos y otros</option><option value="Automotores">Solo autos</option><option value="Otros ramos">Solo otros ramos</option></select>
           <select id="galAdm" style="max-width:200px"><option value="">En Adminse: todas</option><option value="si">Están en Adminse</option><option value="no">No están en Adminse</option></select>
           <select id="galEstado" style="max-width:200px"><option value="vigente">Solo vigentes</option><option value="vencida">Solo vencidas</option><option value="">Todas</option></select>
           <span class="count" id="galConteo"></span>
@@ -1729,6 +1729,14 @@ const CAR_GRUPOS = {
   ZUR: {titulo:"Zurich", test: c => /zurich/i.test(c)}
 };
 CAR_GRUPOS.OTR = {titulo:"Otras compañías", test: c => !["SMO","GAL","RUS","MER","MDL","ATM","MAP","ZUR"].some(k => CAR_GRUPOS[k].test(c))};
+// Unifica nombres de ramo equivalentes (Auto/Autos/Automotor → Automotores; Moto/Motocicleta → Motovehículos).
+function ramoCanon(v){
+  const t = String(v == null ? "" : v).trim(), n = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if(/^auto(s|motor|motores|movil|moviles)?$/.test(n)) return "Automotores";
+  if(/^moto(s|cicleta|cicletas|vehiculo|vehiculos)?$/.test(n)) return "Motovehículos";
+  return t === "" ? v : t;
+}
+function canonRamos(rows){ (rows || []).forEach(r => { if(r && r.Ramo != null) r.Ramo = ramoCanon(r.Ramo); }); return rows || []; }
 let carRows = [], carActualizado = "", carPage = 1;
 const CAR_PAGE_SIZE = 50;
 const carGrupo = () => CAR_GRUPOS[currentTab.replace("CAR:", "")];
@@ -1739,7 +1747,7 @@ async function loadCar(){
   try{
     const res = await apiPost({action:"admin_cartera_list", key:KEY});
     if(!res.ok){ $("carTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
-    carRows = res.rows || []; carActualizado = res.actualizado || ""; carPage = 1;
+    carRows = canonRamos(res.rows); carActualizado = res.actualizado || ""; carPage = 1;
     renderCar();
   }catch(e){ $("carTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`; }
 }
@@ -1831,7 +1839,7 @@ async function carImportarArchivo(file, grupo, sinConfirmar){
     const g = CAR_GRUPOS[grupo];
     if(!carRows.length){
       const res = await apiPost({action:"admin_cartera_list", key:KEY});
-      if(res.ok) carRows = res.rows || [];
+      if(res.ok) carRows = canonRamos(res.rows);
     }
     previas = carRows.filter(r => !g.test(String(r.Compania || "")));
     rows = parsed.rows.filter(r => g.test(String(r.Compania || "")));
@@ -1916,7 +1924,7 @@ function galArmar(P, C, D, Q, hoy){
     const lista = conPat.length ? conPat : [items[0] || {}];
     lista.forEach((it, i) => {
       out.push(Object.assign({}, base, {
-        Ramo: conPat.length ? "Autos" : "Otros ramos",
+        Ramo: conPat.length ? "Automotores" : "Otros ramos",
         Patente: (it.Patente || "").toUpperCase(), Marca: it.Marca || "", Modelo: it.Modelo || "", Anio: it.Anio || "",
         Motor: it.NroMotor || "", Chasis: it.NroChasis || "", Cobertura: it.CodCobertura || "",
         Suma: num(it.SumaAsegurada) !== "" ? num(it.SumaAsegurada) : (i ? "" : num(r.SumaAsegurada)),
@@ -1932,8 +1940,8 @@ async function loadGal(){
   try{
     const res = await apiPost({action:"admin_cartera_list", key:KEY, hoja:"galicia"});
     if(!res.ok){ $("galTabla").innerHTML = `<div class="err">${esc(res.error || "No se pudo cargar.")}</div>`; return; }
-    galRows = res.rows || []; galActualizado = res.actualizado || ""; galPage = 1;
-    if(!carRows.length){ try{ const a = await apiPost({action:"admin_cartera_list", key:KEY}); if(a.ok) carRows = a.rows || []; }catch(e){} }
+    galRows = canonRamos(res.rows); galActualizado = res.actualizado || ""; galPage = 1;
+    if(!carRows.length){ try{ const a = await apiPost({action:"admin_cartera_list", key:KEY}); if(a.ok) carRows = canonRamos(a.rows); }catch(e){} }
     renderGal();
   }catch(e){ $("galTabla").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`; }
 }
@@ -2182,9 +2190,9 @@ async function cargarBusqueda(forzar){
       apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"}).catch(() => ({})),
       apiPost({action:"admin_smg_otros_list", key:KEY}).catch(() => ({}))
     ]);
-    if(adm.ok){ carRows = adm.rows || []; carActualizado = adm.actualizado || ""; }
+    if(adm.ok){ carRows = canonRamos(adm.rows); carActualizado = adm.actualizado || ""; }
     datosModulo.galAct = gal.ok ? (gal.actualizado || "") : "";
-    const galR = gal.ok ? (gal.rows || []) : [];
+    const galR = gal.ok ? canonRamos(gal.rows) : [];
     const rows = [], vistos = new Set();
     const push = r => { const k = [r.Compania, r.Poliza, r.Patente].map(x => String(x || "").trim().toUpperCase().replace(/^0+/, "")).join("|"); if(vistos.has(k)) return; vistos.add(k); rows.push(r); };
     galR.forEach(r => push(Object.assign({Compania:"Galicia Seguros"}, r)));
@@ -2192,8 +2200,8 @@ async function cargarBusqueda(forzar){
     const admPorGal = {}; admR.filter(a => /galicia/i.test(a.Compania || "")).forEach(a => { admPorGal[String(a.Poliza).replace(/^0+/, "")] = a; });
     rows.forEach(r => { const a = admPorGal[String(r.Poliza).replace(/^0+/, "")]; if(a && !r.Patente) Object.assign(r, {Ramo: a.Ramo || r.Ramo, Bien: a.Bien || "", Asegurado: a.Asegurado || "", Tomador: a.Tomador || "", DNI: a.DNI || "", Productor: a.Productor || "", Renovacion: a.Renovacion || "", IdRef: a.IdRef || ""}); });
     admR.forEach(r => { if(galR.length && /galicia/i.test(r.Compania || "")) return; push(r); });
-    (veh.ok ? (veh.rows || []) : []).forEach(r => push(Object.assign({}, r, {Ramo: "Automotor", Compania: r.Compania || "SMG"})));
-    (otr.ok ? (otr.rows || []) : []).forEach(o => push({Compania:"SMG", Ramo: o.Ramo || (otr.ramos || {})[o.CodRamo] || "", Poliza: o.Poliza, Asegurado: o.Cliente, Inicio: o.Inicio, Fin: o.Fin}));
+    (veh.ok ? (veh.rows || []) : []).forEach(r => push(Object.assign({}, r, {Ramo: "Automotores", Compania: r.Compania || "SMG"})));
+    (otr.ok ? (otr.rows || []) : []).forEach(o => push({Compania:"SMG", Ramo: ramoCanon(o.Ramo || (otr.ramos || {})[o.CodRamo] || ""), Poliza: o.Poliza, Asegurado: o.Cliente, Inicio: o.Inicio, Fin: o.Fin}));
     busqDatos = {t: Date.now(), rows};
     return rows;
   })();
