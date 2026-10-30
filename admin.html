@@ -147,6 +147,12 @@ th{background:#f4f7fc;font-size:.68rem;color:#5d6b86}
 td{font-size:.84rem}
 tr:hover td{background:var(--tint)}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.74rem;font-weight:600;background:#eaf1ff;color:#0550e6}
+.tl{list-style:none;margin:6px 0 0;padding:0 0 0 14px;border-left:2px solid #dfe6f3}
+.tlItem{position:relative;padding:0 0 12px 14px}
+.tlDot{position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;background:#9aa7c0;border:2px solid #fff}
+.tlItem.k-ok .tlDot{background:#1a7a4c}.tlItem.k-warn .tlDot{background:#b8741a}.tlItem.k-bad .tlDot{background:#b3392f}
+.tlHead{font-size:.88rem}.tlBody{font-size:.82rem;color:var(--mut);margin-top:2px}
+.tlViene{background:#eef3ff;border-radius:10px;padding:8px 10px;font-size:.85rem;margin:4px 0 8px}
 .pill.k-ok{background:#e4f5ec;color:#1a7a4c}.pill.k-warn{background:#fdf0dc;color:#9a5f0f}.pill.k-bad{background:#fbe6e3;color:#b3392f}.pill.k-mut{background:#eceff5;color:#5d6b86}
 .panelTitle h2{font-size:1.15rem;font-weight:700}
 input[type=file]{padding:8px 10px;font-size:.82rem}
@@ -966,10 +972,39 @@ function aplicarAnuladas(){
     datosModulo.rows.push({_mov: true, Compania: "SMG", Ramo: "Automotores", Poliza: u.Poliza, Asegurado: u.Cliente, Patente: u.Patente, Estado: "anulada", Inicio: u.Desde, Fin: u.Hasta, Premio: u.Premio, Productor: ""});
   });
 }
+// Tipo de movimiento -> clase de color
+function movClase(t, inicial){
+  const x = String(t || "");
+  if(inicial) return "k-ok";
+  if(/anul|baja|cancel|rescis/i.test(x)) return "k-bad";
+  if(/renov/i.test(x)) return "k-ok";
+  if(/endoso|modific|cambio|aument|reduc|ampli/i.test(x)) return "k-warn";
+  return "k-mut";
+}
+// Línea de tiempo de la póliza: póliza inicial primero y debajo cada endoso, baja, refacturación o renovación.
 function movsHtml(r){
-  const l = ((datosModulo.movs || {})[cuotaKey(r.Compania, r.Poliza)]) || [];
-  if(!l.length) return "";
-  return `<div class="panelBox"><h3>Refacturaciones, endosos y renovaciones</h3><div class="tblwrap"><table><thead><tr><th>Endoso</th><th>Tipo</th><th>Emisión</th><th>Vigencia</th><th>Premio</th><th>Cuotas</th></tr></thead><tbody>${l.map(m => `<tr><td>${esc(m.Endoso)}</td><td>${esc(m.Tipo || "")}${m.Renueva ? `<br><small class="muted" style="padding:0">Renueva a ${esc(m.Renueva)}</small>` : ""}</td><td>${esc(m.Emision)}</td><td>${esc(m.Desde)} → ${esc(m.Hasta)}</td><td>${num(m.Premio) ? money(num(m.Premio)) : ""}</td><td>${esc(m.Cuotas)}</td></tr>`).join("")}</tbody></table></div><div class="muted" style="padding:6px 0 0"><small>${esc([...new Set(l.map(m => m.Fuente).filter(Boolean))].join(", "))}${l[0].Actualizado ? " · actualizado " + esc(l[0].Actualizado) : ""}</small></div></div>`;
+  const key = cuotaKey(r.Compania, r.Poliza), movs = datosModulo.movs || {};
+  let l = (movs[key] || []).slice();
+  const nro = normPat(r.Poliza).replace(/^0+/, "");
+  // De qué póliza viene esta (si es una renovación de otra)
+  let viene = null;
+  Object.keys(movs).forEach(k => { if(k === key) return; movs[k].forEach(m => { if(m.Renueva && normPat(m.Renueva).replace(/^0+/, "") === nro && !viene) viene = m; }); });
+  if(!l.length && !viene) return "";
+  const nEnd = m => Number(m.Endoso) || 0;
+  l.sort((a, b) => nEnd(a) - nEnd(b) || (parseDateFlexible(a.Emision) || 0) - (parseDateFlexible(b.Emision) || 0));
+  // La inicial es el endoso 0 (o el primero). Si la compañía no la trajo, se muestra la de la cartera.
+  if(!l.length || nEnd(l[0]) !== 0) l.unshift({Endoso: "0", Tipo: "Póliza inicial", Emision: "", Desde: r.Inicio || "", Hasta: r.Fin || "", Premio: "", Cuotas: "", _sint: true});
+  const filas = l.map((m, i) => {
+    const ini = i === 0;
+    const tipo = ini ? "Póliza inicial" : (m.Tipo || (nEnd(m) ? "Endoso" : "Refacturación"));
+    const cls = movClase(tipo, ini);
+    const anul = /anul|baja/i.test(String(m.Estado || "") + " " + tipo);
+    return `<li class="tlItem ${cls}"><span class="tlDot"></span><div class="tlHead"><span class="pill ${cls}">${esc(tipo)}</span> <b>Endoso ${esc(m.Endoso === "" ? "0" : m.Endoso)}</b>${ini ? ` <small class="muted" style="padding:0">· de la póliza N° ${esc(r.Poliza)}</small>` : ` <small class="muted" style="padding:0">· sobre la póliza N° ${esc(r.Poliza)}</small>`}</div>`
+      + `<div class="tlBody">${m.Emision ? "Emisión " + esc(m.Emision) + " · " : ""}${m.Desde || m.Hasta ? "Vigencia " + esc(m.Desde) + " → " + esc(m.Hasta) : ""}${num(m.Premio) ? " · " + money(num(m.Premio)) : ""}${m.Cuotas ? " · " + esc(m.Cuotas) + " cuotas" : ""}${m._sint ? ` <small class="muted" style="padding:0">(según la cartera)</small>` : ""}${m.Renueva ? `<br><small class="muted" style="padding:0">Renueva a la póliza N° ${esc(m.Renueva)}</small>` : ""}${anul && !/anul/i.test(tipo) ? ` <span class="pill k-bad">Anulada</span>` : ""}</div></li>`;
+  }).join("");
+  const vh = viene ? `<div class="tlViene">↩ Esta póliza viene de la <b>póliza N° ${esc(viene.Poliza)}</b>${viene.Hasta ? " (vencía " + esc(viene.Hasta) + ")" : ""}.</div>` : "";
+  const fuente = [...new Set(l.map(m => m.Fuente).filter(Boolean))].join(", ");
+  return `<div class="panelBox"><h3>Historia de la póliza</h3>${vh}<ul class="tl">${filas}</ul><div class="muted" style="padding:6px 0 0"><small>${esc(fuente)}${l.find(m => m.Actualizado) ? " · actualizado " + esc(l.find(m => m.Actualizado).Actualizado) : ""}</small></div></div>`;
 }
 function cuotasDe(r){ return ((datosModulo.cuotas || {})[cuotaKey(r.Compania, r.Poliza)]) || []; }
 function cuotasResumen(r){
@@ -2018,6 +2053,28 @@ function galArmar(P, C, D, Q, hoy){
   });
   return out;
 }
+// Historia de cada póliza de Galicia: una fila por endoso (incluida la póliza inicial), para saber de dónde viene cada uno.
+function galMovs(P, rows, hoy){
+  const dmy = v => { const m = String(v || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? v.slice(0, m[0].length) : ""; };
+  const vig = {}; rows.forEach(r => { if(r.Estado === "vigente" && !vig[r.Poliza]) vig[r.Poliza] = r; });
+  const kf = (r, re) => Object.keys(r).find(k => re.test(k));
+  const porPol = {}; P.forEach(r => { if(r.NroPoliza && vig[r.NroPoliza]) (porPol[r.NroPoliza] = porPol[r.NroPoliza] || []).push(r); });
+  const out = [], vistos = new Set();
+  Object.keys(porPol).forEach(k => {
+    porPol[k].forEach(r => {
+      const e = String(parseInt(r.NroEndoso || "0", 10) || 0), id = k + "|" + e;
+      if(vistos.has(id)) return; vistos.add(id);
+      const kt = kf(r, /tipo.*(endoso|oper|mov)|desc.*endoso|motivo|operaci|movimiento/i), ke = kf(r, /emisi|fechaalta|fecha_?alta/i);
+      let tipo = kt ? String(r[kt] || "").trim() : "";
+      if(!tipo) tipo = e === "0" ? "Póliza inicial" : "Endoso";
+      const v = vig[k];
+      out.push({Compania: "Galicia Seguros", Poliza: k, Endoso: e, Tipo: tipo, Emision: ke ? dmy(r[ke]) : "", Desde: dmy(r.FechaVigenciaDesde), Hasta: dmy(r.FechaVigenciaHasta),
+        Premio: String(r.Premio || "").trim(), Cuotas: String(r.CantidadCuotas || "").trim(), Renueva: "", Cliente: v.Cliente || "", Patente: v.Patente || "",
+        Estado: /anul|baja/i.test(tipo) ? "Anulada" : "Vigente", Fuente: "Galicia"});
+    });
+  });
+  return out;
+}
 async function loadGal(){
   $("galTabla").innerHTML = `<div class="loading">Cargando…</div>`;
   try{
@@ -2073,7 +2130,12 @@ async function galImportarArchivo(file, sinConfirmar){
     if(!sinConfirmar && !confirm(`El archivo trae ${pols} pólizas (${vig} vigentes) en ${rows.length} filas. Se reemplaza la cartera de Galicia anterior. ¿Seguimos?`)) return {ok:false, cancelado:true};
     const r = await apiPost({action:"admin_cartera_import", key:KEY, hoja:"galicia", rows});
     if(!r.ok) return {ok:false, error:r.error || "No se pudo guardar."};
-    return {ok:true, texto:`Galicia: guardadas ${r.guardadas} filas (${pols} pólizas, ${vig} vigentes).`};
+    let extra = "";
+    try{
+      const mv = galMovs(P, rows, hoy);
+      if(mv.length){ const m = await apiPost({action:"admin_movimientos_import", key:KEY, rows:mv}); extra = m.ok ? ` Historia: ${m.movimientos} movimientos (póliza inicial, endosos y bajas) de ${m.polizas} pólizas.` : " (No se pudo guardar la historia de endosos: " + esc(m.error || "error") + ")"; }
+    }catch(e){ extra = " (No se pudo guardar la historia de endosos.)"; }
+    return {ok:true, texto:`Galicia: guardadas ${r.guardadas} filas (${pols} pólizas, ${vig} vigentes).${extra}`};
   }catch(err){
     return {ok:false, error:"No pude leer el archivo. Tiene que ser el .zip de cartera que se descarga de Galicia."};
   }
