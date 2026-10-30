@@ -153,6 +153,7 @@ tr:hover td{background:var(--tint)}
 .tlItem.k-ok .tlDot{background:#1a7a4c}.tlItem.k-warn .tlDot{background:#b8741a}.tlItem.k-bad .tlDot{background:#b3392f}
 .tlHead{font-size:.88rem}.tlBody{font-size:.82rem;color:var(--mut);margin-top:2px}
 .tlViene{background:#eef3ff;border-radius:10px;padding:8px 10px;font-size:.85rem;margin:4px 0 8px}
+.aRow{display:flex;gap:10px;flex-wrap:wrap}.aF{display:flex;flex-direction:column;gap:3px;flex:1 1 180px;font-size:.78rem;color:var(--mut)}.aF input,.aF select{font:inherit;font-size:.92rem;color:var(--tx,#122246);padding:8px 10px;border:1px solid var(--bd,#dfe6f3);border-radius:10px;background:#fff}
 .pill.k-ok{background:#e4f5ec;color:#1a7a4c}.pill.k-warn{background:#fdf0dc;color:#9a5f0f}.pill.k-bad{background:#fbe6e3;color:#b3392f}.pill.k-mut{background:#eceff5;color:#5d6b86}
 .panelTitle h2{font-size:1.15rem;font-weight:700}
 input[type=file]{padding:8px 10px;font-size:.82rem}
@@ -258,6 +259,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
+        <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
         <button class="tab" data-sec="POL" data-tab="GALC">Galicia</button>
         <button class="tab" data-sec="POL" data-tab="CAR:RUS">Río Uruguay</button>
@@ -320,6 +322,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <div class="seg" id="tdVista"><button data-v="lista" class="on">Lista</button><button data-v="tarj">Tarjetas</button><button data-v="cia">Por compañía</button></div>
           <button class="btn sm" id="tdCsv">Descargar CSV</button>
           <button class="btn pri sm" id="tdImp">Importar</button>
+          <button class="btn pri sm" id="tdAlta">+ Póliza / endoso</button>
           <button class="btn sm" id="tdRef">Actualizar</button>
           <span class="count" id="tdConteo"></span>
         </div>
@@ -349,6 +352,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           <span class="count" id="renoConteo"></span>
         </div>
         <div id="renoTabla"></div>
+      </div>
+      <div id="viewAlta" class="hide">
+        <div class="panelTitle"><h2 id="altaTitulo">Agregar póliza o endoso</h2></div>
+        <div id="altaBody"></div>
       </div>
       <div id="viewPortales" class="hide">
         <div class="panelTitle"><h2>Accesos a portales de las compañías</h2><button class="btn sm" id="btnPortRef">Actualizar</button></div>
@@ -1095,8 +1102,10 @@ function abrirPoliza(c){
   const ficha = t.querySelector("td") ? t.querySelector("td").innerHTML : "";
   const prem = num(r.Premio);
   $("drawerTit").innerHTML = `<div class="muted" style="padding:0">${esc(r.Compania)} · <span class="tag">${esc(r.Ramo || "—")}</span></div><h3 style="margin:2px 0 4px">Póliza ${esc(r.Poliza)}</h3><div>${tdEstadoPill(c)}</div>${prodDe(r) ? `<div class="muted" style="padding:4px 0 0">Productor: <b>${esc(prodDe(r))}</b></div>` : ""}`;
-  $("drawerBody").innerHTML = `<div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs" style="border-color:var(--ac)"><h3>Documentos (PDF de la póliza)</h3><div class="loading">Cargando…</div></div>` + planPagoHtml(r) + movsHtml(r) + ficha;
+  $("drawerBody").innerHTML = `<div class="panelBox" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm pri" id="btnEditPol">Editar póliza</button><button class="btn sm" id="btnEndPol">Agregar endoso</button></div><div class="panelBox"><div class="muted" style="padding:0">Cliente</div><b style="font-size:1.05rem">${esc(nombreDe(r))}</b><div class="muted" style="padding:4px 0 0">${riesgoDe(r).resumen}</div>${prem ? `<div class="pcPrem">${money(prem)}</div>` : ""}${tdVigBar(c)}</div><div class="panelBox" id="drawerDocs" style="border-color:var(--ac)"><h3>Documentos (PDF de la póliza)</h3><div class="loading">Cargando…</div></div>` + planPagoHtml(r) + movsHtml(r) + ficha;
   docsPoliza(c);
+  $("btnEditPol").onclick = () => { cerrarPoliza(); altaAbrir("poliza", r); };
+  $("btnEndPol").onclick = () => { cerrarPoliza(); altaAbrir("endoso", r); };
   $("drawer").classList.remove("hide"); $("drawerScrim").classList.remove("hide");
 }
 function cerrarPoliza(){ $("drawer").classList.add("hide"); $("drawerScrim").classList.add("hide"); }
@@ -1198,10 +1207,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(tab === "Portales") renderPortales(); else if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1213,7 +1222,7 @@ function selectTab(tab){
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -1959,8 +1968,10 @@ async function carImportarArchivo(file, grupo, sinConfirmar){
       const res = await apiPost({action:"admin_cartera_list", key:KEY});
       if(res.ok) carRows = canonRamos(res.rows);
     }
-    previas = carRows.filter(r => !g.test(String(r.Compania || "")));
     rows = parsed.rows.filter(r => g.test(String(r.Compania || "")));
+    const nuevasK = new Set(rows.map(r => cuotaKey(r.Compania, r.Poliza)));
+    // Las pólizas cargadas a mano se conservan (salvo que el Excel ya las traiga)
+    previas = carRows.filter(r => !g.test(String(r.Compania || "")) || (r.Origen === "Manual" && !nuevasK.has(cuotaKey(r.Compania, r.Poliza))));
     if(!rows.length) return {ok:false, error:"El Excel no trae pólizas de " + g.titulo + "."};
   }
   if(!rows.length) return {ok:false, error:"El archivo no tiene pólizas de otras compañías."};
@@ -1985,6 +1996,141 @@ $("carFile").onchange = async () => {
   msg.innerHTML = r.ok ? `<div class="ok">${r.texto}</div>` : `<div class="err">${esc(r.error)}</div>`;
   if(r.ok) await loadCar();
 };
+
+
+// ===== Alta / edición manual de pólizas y endosos =====
+let altaEstado = null; // {modo:"poliza"|"endoso", r:fila existente o null}
+const ALTA_MEDIOS = ["Tarjeta de crédito VISA", "Tarjeta de crédito Mastercard", "Tarjeta de crédito Cabal", "Tarjeta de crédito American Express", "Débito automático (CBU)", "Débito en caja de ahorro", "Efectivo", "Transferencia bancaria", "Cupón de pago / Pago Fácil", "Mercado Pago", "Descuento de haberes", "Otro"];
+const ALTA_TIPOS = ["Endoso", "Anulación / baja", "Refacturación", "Renovación", "Modificación de datos", "Cambio de vehículo", "Aumento de suma asegurada"];
+function altaAbrir(modo, r){ altaEstado = {modo, r: r || null}; selectTab("Alta"); }
+$("tdAlta").onclick = () => altaAbrir("poliza", null);
+const aV = id => { const e = $(id); return e ? e.value.trim() : ""; };
+function altaCampo(id, label, val, o){
+  o = o || {};
+  const list = o.list ? ` list="${id}_l"` : "";
+  const dl = o.list ? `<datalist id="${id}_l">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : "";
+  return `<label class="aF" style="${o.ancho ? "flex:" + o.ancho : ""}"><span>${esc(label)}</span><input id="${id}" value="${esc(val == null ? "" : val)}" placeholder="${esc(o.ph || "")}"${list}${o.tipo ? ` type="${o.tipo}"` : ""}>${dl}</label>`;
+}
+function altaCuotasTabla(l){
+  return `<div class="tblwrap"><table><thead><tr><th>Cuota</th><th>Vencimiento</th><th>Importe</th><th>Estado</th><th></th></tr></thead><tbody id="aqBody">${l.map((q, i) => `<tr><td><input class="aq" data-c="Cuota" value="${esc(q.Cuota)}" style="width:60px"></td><td><input class="aq" data-c="Vencimiento" value="${esc(q.Vencimiento)}" placeholder="dd/mm/aaaa" style="width:120px"></td><td><input class="aq" data-c="Importe" value="${esc(q.Importe)}" style="width:120px"></td><td><select class="aq" data-c="Estado">${["Pendiente","Pagada","Programada","Vencida","Anulada"].map(e => `<option${String(q.Estado || "Pendiente").toLowerCase().startsWith(e.toLowerCase().slice(0,4)) ? " selected" : ""}>${e}</option>`).join("")}</select></td><td><button class="btn sm" data-aqx="${i}">Quitar</button></td></tr>`).join("")}</tbody></table></div>`;
+}
+function altaLeerCuotas(){
+  const out = [];
+  document.querySelectorAll("#aqBody tr").forEach(tr => { const o = {}; tr.querySelectorAll(".aq").forEach(i => o[i.dataset.c] = i.value.trim()); if(o.Vencimiento || o.Importe) out.push(o); });
+  return out;
+}
+function altaGenerarCuotas(){
+  const n = parseInt(aV("a_ncuo"), 10) || 0, imp = aV("a_icuo"), d0 = parseDateFlexible(aV("a_venc1"));
+  if(!n){ $("altaMsg").innerHTML = `<div class="err">Poné cuántas cuotas son.</div>`; return; }
+  const l = [];
+  for(let i = 0; i < n; i++){ let f = ""; if(d0){ const d = new Date(d0.getFullYear(), d0.getMonth() + i, d0.getDate()); if(d.getDate() !== d0.getDate()) d.setDate(0); f = formatDMY(d); } l.push({Cuota: String(i + 1), Vencimiento: f, Importe: imp, Estado: "Pendiente"}); }
+  $("altaCuotas").innerHTML = altaCuotasTabla(l); altaCuotasEventos(); $("altaMsg").innerHTML = "";
+}
+function altaCuotasEventos(){
+  document.querySelectorAll("[data-aqx]").forEach(b => b.onclick = () => { const l = altaLeerCuotas(); l.splice(Number(b.dataset.aqx), 1); $("altaCuotas").innerHTML = altaCuotasTabla(l); altaCuotasEventos(); });
+}
+function renderAlta(){
+  if(!datosModulo.rows){ $("altaBody").innerHTML = `<div class="loading">Cargando…</div>`; cargarModulo("TODAS").then(() => { if(currentTab === "Alta") renderAlta(); }); return; }
+  const st = altaEstado || {modo: "poliza", r: null}, r = st.r || {}, ed = st.modo === "poliza" && !!st.r, end = st.modo === "endoso";
+  const rows = datosModulo.rows.filter(x => !x._mov);
+  const cias = [...new Set(["SMG", "Galicia Seguros", "Mercantil Andina", "Río Uruguay", "Meridional", "ATM", "Mapfre", "Zurich", ...rows.map(x => x.Compania).filter(Boolean)])];
+  const prods = [...new Set(rows.map(x => prodDe(x)).filter(Boolean))].sort();
+  const ramos = [...new Set(["Automotores", "Motovehículos", "Combinado Familiar", "Integral de comercio", "Incendio", "Responsabilidad Civil", "Accidentes Personales", "Vida", "Caución", "ART", "Técnico", ...rows.map(x => x.Ramo).filter(Boolean)])];
+  const cuo = ed || end ? cuotasDe(r) : [];
+  const medio0 = (cuo[0] && cuo[0].Medio) || "";
+  const polList = rows.slice(0, 4000).map(x => `${x.Compania} · ${x.Poliza} · ${nombreDe(x)}${x.Patente ? " · " + x.Patente : ""}`);
+  const hoy = formatDMY(new Date());
+  $("altaTitulo").textContent = end ? "Agregar endoso" : ed ? "Editar póliza" : "Agregar póliza";
+  const modoSel = `<div class="seg" id="altaModo"><button data-m="poliza" class="${end ? "" : "on"}">Póliza</button><button data-m="endoso" class="${end ? "on" : ""}">Endoso / baja / renovación</button></div>`;
+  let h = `<div style="padding:0 0 12px">${modoSel}</div><div id="altaMsg"></div>`;
+  if(end){
+    h += `<div class="panelBox"><h3>Póliza a la que corresponde</h3>
+      <div class="aRow">${altaCampo("a_pbusca", "Buscá la póliza (número, asegurado o patente)", st.r ? `${r.Compania} · ${r.Poliza} · ${nombreDe(r)}${r.Patente ? " · " + r.Patente : ""}` : "", {list: polList, ancho: "1 1 100%", ph: "Escribí y elegí de la lista"})}</div>
+      <div id="altaPInfo" class="muted" style="padding:4px 0 0"></div></div>
+      <div class="panelBox"><h3>Datos del endoso</h3><div class="aRow">
+      ${altaCampo("a_end", "N° de endoso", "", {ancho: "0 0 120px"})}
+      <label class="aF"><span>Tipo</span><select id="a_tipo">${ALTA_TIPOS.map(t => `<option>${t}</option>`).join("")}</select></label>
+      ${altaCampo("a_emi", "Fecha de emisión", hoy)}${altaCampo("a_desde", "Vigencia desde", hoy)}${altaCampo("a_hasta", "Vigencia hasta", r.Fin || "")}
+      ${altaCampo("a_premio", "Premio del endoso", "")}${altaCampo("a_cuotas", "Cuotas", "", {ancho: "0 0 100px"})}</div>
+      <label class="aF" style="margin-top:8px"><span>Observaciones</span><input id="a_obs" placeholder="Qué cambió (opcional)"></label>
+      <label style="display:flex;gap:8px;align-items:center;padding:10px 0 0"><input type="checkbox" id="a_aplicar" checked> Aplicar a la póliza (actualiza premio y vigencia; si es una baja la marca como anulada)</label></div>`;
+  } else {
+    h += `<div class="panelBox"><h3>Póliza</h3><div class="aRow">
+      ${altaCampo("a_cia", "Compañía", r.Compania || "", {list: cias})}${altaCampo("a_ramo", "Ramo", r.Ramo || "", {list: ramos})}${altaCampo("a_pol", "N° de póliza", r.Poliza || "")}
+      <label class="aF"><span>Estado</span><select id="a_estado">${["vigente", "renovacion", "renovada_vigente", "anulada", "vencida"].map(e => `<option${String(r.Estado || "vigente") === e ? " selected" : ""}>${e}</option>`).join("")}</select></label>
+      ${altaCampo("a_ini", "Vigencia desde", r.Inicio || "", {ph: "dd/mm/aaaa"})}${altaCampo("a_fin", "Vigencia hasta", r.Fin || "", {ph: "dd/mm/aaaa"})}
+      ${altaCampo("a_prod", "Productor", prodDe(r) || "", {list: prods})}
+      <label class="aF"><span>Renovación</span><select id="a_ren">${["", "Automatica", "Manual"].map(e => `<option${String(r.Renovacion || "") === e ? " selected" : ""}>${e}</option>`).join("")}</select></label></div></div>
+      <div class="panelBox"><h3>Cliente y bien asegurado</h3><div class="aRow">
+      ${altaCampo("a_aseg", "Asegurado", r.Asegurado || "")}${altaCampo("a_tom", "Tomador", r.Tomador || "")}${altaCampo("a_dni", "DNI", r.DNI || "")}${altaCampo("a_cuit", "CUIT", r.CUIT || "")}
+      ${altaCampo("a_mail", "Email", r.Email || "")}${altaCampo("a_tel", "Teléfono", r.Telefono || "")}
+      ${altaCampo("a_bien", "Bien asegurado", r.Bien || "", {ancho: "2 1 320px"})}${altaCampo("a_pat", "Patente", r.Patente || "")}</div></div>
+      <div class="panelBox"><h3>Importes</h3><div class="aRow">
+      ${altaCampo("a_suma", "Suma asegurada", r.Suma || "")}${altaCampo("a_prima", "Prima", r.Prima || "")}${altaCampo("a_premio", "Premio", r.Premio || "")}</div></div>`;
+  }
+  h += `<div class="panelBox" style="border-color:var(--ac)"><h3>Plan de pagos y medio de pago</h3>
+    <div class="aRow">${altaCampo("a_medio", "Medio de pago", medio0, {list: ALTA_MEDIOS, ph: "Ej: Tarjeta de crédito VISA - terminada en 1234", ancho: "2 1 320px"})}
+    ${altaCampo("a_ncuo", "Cantidad de cuotas", cuo.length ? String(cuo.length) : "", {ancho: "0 0 140px"})}${altaCampo("a_icuo", "Importe por cuota", "")}${altaCampo("a_venc1", "Primer vencimiento", "", {ph: "dd/mm/aaaa"})}
+    <div class="aF" style="flex:0 0 auto;justify-content:flex-end"><button class="btn sm" id="a_gen">Generar cuotas</button></div></div>
+    <div id="altaCuotas" style="padding-top:8px">${altaCuotasTabla(cuo.map(q => ({Cuota: q.Cuota, Vencimiento: q.Vencimiento, Importe: q.Importe, Estado: q.Estado})))}</div>
+    <div style="padding:6px 0 0"><button class="btn sm" id="a_addq">Agregar cuota</button> <span class="muted" style="padding:0"><small>Si dejás el plan vacío, no se toca el plan de pago que ya existe.</small></span></div></div>
+    <div style="padding:12px 0"><button class="btn pri" id="a_save">${end ? "Guardar endoso" : ed ? "Guardar cambios" : "Guardar póliza"}</button> <button class="btn" id="a_cancel">Cancelar</button></div>`;
+  $("altaBody").innerHTML = h;
+  $("altaModo").querySelectorAll("button").forEach(b => b.onclick = () => { altaEstado = {modo: b.dataset.m, r: st.r}; renderAlta(); });
+  $("a_gen").onclick = altaGenerarCuotas;
+  $("a_addq").onclick = () => { const l = altaLeerCuotas(); l.push({Cuota: String(l.length + 1), Vencimiento: "", Importe: aV("a_icuo"), Estado: "Pendiente"}); $("altaCuotas").innerHTML = altaCuotasTabla(l); altaCuotasEventos(); };
+  $("a_cancel").onclick = () => { altaEstado = null; selectTab("TODAS"); };
+  altaCuotasEventos();
+  let sel = st.r;
+  if(end){
+    const info = () => { $("altaPInfo").textContent = sel ? `Seleccionada: ${sel.Compania} · póliza ${sel.Poliza} · ${nombreDe(sel)}` : ""; };
+    $("a_pbusca").addEventListener("input", () => { const v = aV("a_pbusca"); const i = polList.indexOf(v); sel = i >= 0 ? rows[i] : null; if(sel && !aV("a_hasta")) $("a_hasta").value = sel.Fin || ""; info(); });
+    info();
+  }
+  $("a_save").onclick = () => altaGuardar(end ? "endoso" : "poliza", end ? sel : st.r);
+}
+async function altaGuardar(modo, base){
+  const msg = h => { $("altaMsg").innerHTML = h; window.scrollTo(0, 0); };
+  const btn = $("a_save"); const cuotas = altaLeerCuotas();
+  try{
+    const body = {action: "admin_poliza_guardar", key: KEY};
+    let cia, pol;
+    if(modo === "poliza"){
+      cia = aV("a_cia"); pol = aV("a_pol");
+      if(!cia || !pol) return msg(`<div class="err">Falta la compañía o el número de póliza.</div>`);
+      body.poliza = {Compania: cia, Ramo: aV("a_ramo"), Poliza: pol, Estado: aV("a_estado"), Tomador: aV("a_tom"), Asegurado: aV("a_aseg"), Bien: aV("a_bien"), Patente: normPat(aV("a_pat")),
+        Suma: aV("a_suma"), Prima: aV("a_prima"), Premio: aV("a_premio"), Inicio: aV("a_ini"), Fin: aV("a_fin"), Email: aV("a_mail"), Telefono: aV("a_tel"), CUIT: aV("a_cuit"), DNI: aV("a_dni"),
+        Productor: aV("a_prod"), Renovacion: aV("a_ren"), IdRef: (base && base.IdRef) || ""};
+      if(base) body.original = {Compania: base.Compania, Poliza: base.Poliza};
+      if(!base) body.mov = {Compania: cia, Poliza: pol, Endoso: "0", Tipo: "Póliza inicial", Emision: aV("a_ini"), Desde: aV("a_ini"), Hasta: aV("a_fin"), Premio: aV("a_premio"), Cuotas: String(cuotas.length || ""), Cliente: aV("a_aseg") || aV("a_tom"), Patente: normPat(aV("a_pat")), Estado: "Vigente"};
+    } else {
+      if(!base) return msg(`<div class="err">Elegí la póliza del endoso de la lista que aparece al escribir.</div>`);
+      cia = base.Compania; pol = base.Poliza;
+      const tipo = aV("a_tipo"), baja = /anul|baja/i.test(tipo), nEnd = aV("a_end");
+      if(nEnd === "") return msg(`<div class="err">Falta el número de endoso.</div>`);
+      body.mov = {Compania: cia, Poliza: pol, Endoso: nEnd, Tipo: aV("a_obs") ? `${tipo} — ${aV("a_obs")}` : tipo, Emision: aV("a_emi"), Desde: aV("a_desde"), Hasta: aV("a_hasta"), Premio: aV("a_premio"), Cuotas: aV("a_cuotas") || String(cuotas.length || ""),
+        Cliente: nombreDe(base), Patente: base.Patente || "", Estado: baja ? "Anulada" : "Vigente"};
+      if($("a_aplicar").checked){
+        const p = Object.assign({}, base); delete p._mov; delete p.Origen;
+        if(aV("a_premio")) p.Premio = aV("a_premio"); if(aV("a_hasta")) p.Fin = aV("a_hasta"); if(baja) p.Estado = "anulada";
+        body.poliza = p; body.original = {Compania: base.Compania, Poliza: base.Poliza};
+      }
+    }
+    if(cuotas.length){
+      const medio = aV("a_medio");
+      body.cuotas = cuotas.map((q, i) => ({Compania: cia, Poliza: pol, Cuota: q.Cuota || String(i + 1), Vencimiento: q.Vencimiento, Importe: q.Importe, Estado: q.Estado || "Pendiente", Medio: medio, Fuente: "Manual"}));
+    }
+    btn.disabled = true; btn.textContent = "Guardando…";
+    const r = await apiPost(body);
+    btn.disabled = false; btn.textContent = modo === "endoso" ? "Guardar endoso" : "Guardar póliza";
+    if(!r.ok) return msg(`<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`);
+    busqDatos = null; datosModulo.rows = null; datosModulo.cuotas = null;
+    altaEstado = null;
+    selectTab("TODAS");
+    setTimeout(() => { const m = $("tdConteo"); if(m) m.title = "Guardado"; }, 0);
+    alert(modo === "endoso" ? "Endoso guardado y vinculado a la póliza " + pol + "." : "Póliza " + pol + " guardada.");
+  }catch(e){ btn.disabled = false; btn.textContent = "Guardar"; msg(`<div class="err">Se cortó la conexión. Probá de nuevo.</div>`); }
+}
 
 // ---- Galicia: cartera completa (archivo .zip de Galicia) ----
 const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
@@ -2344,7 +2490,7 @@ async function cargarBusqueda(forzar){
     const admR = adm.ok ? (adm.rows || []) : [];
     const admPorGal = {}; admR.filter(a => /galicia/i.test(a.Compania || "")).forEach(a => { admPorGal[String(a.Poliza).replace(/^0+/, "")] = a; });
     rows.forEach(r => { const a = admPorGal[String(r.Poliza).replace(/^0+/, "")]; if(a && !r.Patente) Object.assign(r, {Ramo: a.Ramo || r.Ramo, Bien: a.Bien || "", Asegurado: a.Asegurado || "", Tomador: a.Tomador || "", DNI: a.DNI || "", Productor: a.Productor || "", Renovacion: a.Renovacion || "", IdRef: a.IdRef || ""}); });
-    admR.forEach(r => { if(galR.length && /galicia/i.test(r.Compania || "")) return; push(r); });
+    admR.forEach(r => { if(galR.length && /galicia/i.test(r.Compania || "") && r.Origen !== "Manual") return; push(r); });
     (veh.ok ? (veh.rows || []) : []).forEach(r => push(Object.assign({}, r, {Ramo: "Automotores", Compania: r.Compania || "SMG"})));
     (otr.ok ? (otr.rows || []) : []).forEach(o => push({Compania:"SMG", Ramo: ramoCanon(o.Ramo || (otr.ramos || {})[o.CodRamo] || ""), Poliza: o.Poliza, Asegurado: o.Cliente, Inicio: o.Inicio, Fin: o.Fin}));
     busqDatos = {t: Date.now(), rows};
