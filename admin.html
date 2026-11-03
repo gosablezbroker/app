@@ -259,6 +259,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="SIN" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
+        <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Mis siniestros (estado)</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
@@ -690,7 +691,7 @@ $("btnSalir").onclick = () => {
 };
 
 // ---- Backup completo (Excel con las 4 hojas) ----
-const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Cotizacion Hogar", "Vehiculos", "Usuarios"];
+const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Cotizacion Hogar", "Mis siniestros", "Vehiculos", "Usuarios"];
 $("btnBackup").onclick = async () => {
   const btn = $("btnBackup");
   const originalText = btn.textContent;
@@ -1223,6 +1224,7 @@ function selectTab(tab){
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
     "Cotizacion Hogar":"Cotizaciones — Hogar",
+    "Mis siniestros":"Siniestros — estado para el cliente",
     "Vehiculos":"Vehículos y pólizas",
     "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso"
   };
@@ -1241,6 +1243,11 @@ async function loadTab(tab){
   try{
     const res = await apiGet({action:"admin_list", key:KEY, sheet:tab});
     if(!res.ok){
+      if(tab === "Mis siniestros" && /No se encontr/i.test(res.error||"")){
+        currentHeaders = []; currentRows = [];
+        $("listArea").innerHTML = `<div class="muted">Todavía no hay denuncias registradas. Aparecen acá cuando un cliente envía un siniestro desde la app.</div>`;
+        return;
+      }
       if(tab === "Usuarios" && /No se encontr/i.test(res.error||"")){
         currentHeaders = []; currentRows = [];
         $("listArea").innerHTML = `<div class="muted">Todavía no se registró ningún usuario. Los clientes aparecen acá a medida que ingresan a la app.</div>`;
@@ -1288,6 +1295,7 @@ function renderTable(){
     (totalPages > 1 ? ` · mostrando ${start+1}–${start+rows.length}` : "");
 
   const isVeh = currentTab === "Vehiculos";
+  const isSin = currentTab === "Mis siniestros";
   let html = `<div class="tblwrap"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   if(isUsr) html += `<th>Acceso</th>`;
@@ -1297,6 +1305,11 @@ function renderTable(){
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
     headers.forEach(h => {
       const bloq = isUsr && h === "Estado" && String(row[h]).trim().toLowerCase() === "bloqueado";
+      if(isSin && h === "Estado"){
+        const cur = String(row[h] || "Recibido");
+        html += `<td><select data-sin-t="${esc(row.Tramite)}">${["Recibido","En gestión","Cerrado"].map(e => `<option${e === cur ? " selected" : ""}>${e}</option>`).join("")}</select></td>`;
+        return;
+      }
       html += `<td title="${esc(row[h])}"${bloq ? ' style="color:var(--danger);font-weight:700"' : ""}>${esc(row[h])}</td>`;
     });
     if(isVeh){
@@ -1323,6 +1336,7 @@ function renderTable(){
     html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
   }
   else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
+  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> de cada denuncia (Recibido / En gestión / Cerrado): el cliente lo ve en “Mis siniestros” de la app.</p><div id="sinMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
   if(isVeh) actualizarSmgBulkInfo();
@@ -1355,6 +1369,24 @@ function renderTable(){
     });
   }
 
+  if(isSin){
+    $("listArea").querySelectorAll("select[data-sin-t]").forEach(sel => {
+      sel.onclick = ev => ev.stopPropagation();
+      sel.onchange = async () => {
+        sel.disabled = true;
+        try{
+          const res = await apiPost({ action:"admin_siniestro_estado", key:KEY, tramite:sel.dataset.sinT, estado:sel.value });
+          const fila = currentRows.find(r => String(r.Tramite) === sel.dataset.sinT);
+          if(res.ok){ if(fila) fila.Estado = sel.value; $("sinMsg").innerHTML = `<div class="ok">${esc(sel.dataset.sinT)}: ahora está “${esc(sel.value)}”.</div>`; }
+          else $("sinMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo cambiar el estado.")}</div>`;
+        }catch(err){
+          $("sinMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+        }
+        sel.disabled = false;
+      };
+    });
+  }
+
   if(isVeh){
     $("listArea").querySelectorAll("a[data-ver-doc]").forEach(a => {
       a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); verDoc(a.dataset.verDoc, "smgMsg"); };
@@ -1383,7 +1415,8 @@ const TAB_TITLES = {
   "Automotor": "Siniestro — Automotor",
   "Hogar-Comercio": "Siniestro — Hogar / Comercio",
   "Otras consultas": "Otras consultas",
-  "Cotizacion Hogar": "Cotización — Hogar"
+  "Cotizacion Hogar": "Cotización — Hogar",
+  "Mis siniestros": "Siniestro — seguimiento"
 };
 function openDetail(tab, headers, row){
   const title = TAB_TITLES[tab] || tab;
