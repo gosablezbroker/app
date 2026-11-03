@@ -1260,6 +1260,7 @@ async function loadTab(tab){
     currentRows = (res.rows || []).slice().reverse(); // más recientes primero
     currentPage = 1;
     if(tab === "Vehiculos") await cargarTodosDocs();
+    if(tab === "Mis siniestros") await cargarSinDocs();
     renderTable();
   }catch(err){
     $("listArea").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
@@ -1300,6 +1301,7 @@ function renderTable(){
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   if(isUsr) html += `<th>Acceso</th>`;
   if(isVeh) html += `<th>PDF</th><th>SMG</th>`;
+  if(isSin) html += `<th>Documentos</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
@@ -1316,6 +1318,10 @@ function renderTable(){
       const esSmg = /smg|swiss/i.test(String(row.Compania||""));
       html += `<td>${linksDocs(row.Patente, row.Poliza)}</td>`;
       html += `<td>${esSmg ? `<button class="btn sm" data-smg-pat="${esc(row.Patente)}" data-smg-pol="${esc(row.Poliza)}">Importar póliza y credencial</button>` : ""}</td>`;
+    }
+    if(isSin){
+      const n = sinDocs.filter(d => String(d.tramite) === String(row.Tramite)).length;
+      html += `<td><button class="btn sm" data-sin-docs="${esc(row.Tramite)}">Documentos${n ? " (" + n + ")" : ""}</button></td>`;
     }
     if(isUsr){
       const esBloq = String(row.Estado||"").trim().toLowerCase() === "bloqueado";
@@ -1370,6 +1376,9 @@ function renderTable(){
   }
 
   if(isSin){
+    $("listArea").querySelectorAll("button[data-sin-docs]").forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); abrirSinDocs(b.dataset.sinDocs); };
+    });
     $("listArea").querySelectorAll("select[data-sin-t]").forEach(sel => {
       sel.onclick = ev => ev.stopPropagation();
       sel.onchange = async () => {
@@ -1408,6 +1417,56 @@ function renderTable(){
       }
     };
   });
+}
+
+// ---- Siniestros: documentación (copia de denuncia, certificado, carta de franquicia, nota de pago) ----
+const SIN_DOC_TIPOS = ["Copia de denuncia","Certificado de cobertura","Carta de Franquicia","Nota de pago siniestro"];
+let sinDocs = [];
+async function cargarSinDocs(){
+  try{ const r = await apiPost({action:"admin_siniestro_docs", key:KEY}); sinDocs = r.ok ? (r.docs || []) : []; }catch(e){ sinDocs = []; }
+}
+function abrirSinDocs(tramite){
+  $("modalTitle").textContent = "Documentación — " + tramite;
+  $("printSub").textContent = "Documentación del siniestro " + tramite;
+  const pintar = () => {
+    const docs = sinDocs.filter(d => String(d.tramite) === String(tramite));
+    $("modalBody").innerHTML = `<p class="muted">El cliente ve estos archivos en “Mis siniestros” de la app (PDF, JPG o PNG, hasta 8 MB).</p><div id="sdMsg"></div>` +
+      SIN_DOC_TIPOS.map((tp, i) => {
+        const lst = docs.filter(d => d.tipo === tp);
+        return `<div class="detailRow"><div class="lbl">${esc(tp)}</div><div class="val">
+          ${lst.map(d => `<div style="margin-bottom:6px"><a href="#" data-sd-ver="${esc(d.id)}">${esc(d.archivo)}</a> <button class="btn sm" data-sd-del="${esc(d.id)}">Quitar</button></div>`).join("") || '<span class="muted">Sin cargar</span>'}
+          <input type="file" id="sdF${i}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="max-width:100%"> <button class="btn sm" data-sd-up="${i}">Subir</button></div></div>`;
+      }).join("");
+    $("modalBody").querySelectorAll("[data-sd-ver]").forEach(a => a.onclick = async ev => {
+      ev.preventDefault();
+      try{
+        const g = await apiPost({action:"admin_siniestro_doc_get", key:KEY, id:a.dataset.sdVer});
+        if(!g.ok) throw new Error(g.error);
+        const url = URL.createObjectURL(new Blob([b64ToBytes(g.data)], {type:g.type || "application/pdf"}));
+        window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 120000);
+      }catch(e){ $("sdMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo abrir el archivo.")}</div>`; }
+    });
+    $("modalBody").querySelectorAll("[data-sd-del]").forEach(b => b.onclick = async () => {
+      if(!confirm("¿Quitar este archivo? El cliente deja de verlo.")) return;
+      const r = await apiPost({action:"admin_siniestro_doc_borrar", key:KEY, id:b.dataset.sdDel});
+      if(r.ok){ sinDocs = sinDocs.filter(d => d.id !== b.dataset.sdDel); pintar(); renderTable(); }
+      else $("sdMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
+    });
+    $("modalBody").querySelectorAll("[data-sd-up]").forEach(b => b.onclick = async () => {
+      const i = Number(b.dataset.sdUp), f = $("sdF" + i).files[0];
+      if(!f){ $("sdMsg").innerHTML = `<div class="err">Elegí un archivo primero.</div>`; return; }
+      if(f.size > 8*1024*1024){ $("sdMsg").innerHTML = `<div class="err">El archivo pesa más de 8 MB.</div>`; return; }
+      b.disabled = true; b.textContent = "Subiendo…";
+      try{
+        const r = await apiPost({action:"admin_siniestro_doc_subir", key:KEY, tramite, tipo:SIN_DOC_TIPOS[i], name:f.name, type:f.type, data: await fileToBase64(f)});
+        if(!r.ok) throw new Error(r.error);
+        await cargarSinDocs(); pintar(); renderTable();
+        $("sdMsg").innerHTML = `<div class="ok">Archivo subido.</div>`;
+      }catch(e){ $("sdMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo subir el archivo.")}</div>`; b.disabled = false; b.textContent = "Subir"; }
+    });
+  };
+  pintar();
+  $("modalOverlay").classList.remove("hide");
 }
 
 // ---- Ver siniestro/consulta en detalle + descargar PDF ----

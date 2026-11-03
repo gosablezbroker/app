@@ -802,11 +802,32 @@ async function cargarMisSiniestros(box){
     box.innerHTML=j.items.map(it=>`<div class="minCard" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(it.tramite)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${col[it.estado]||"#667"};border-radius:99px;padding:3px 10px">${escH(it.estado||"Recibido")}</span></div>
       <div style="color:var(--mut);font-size:.9rem;margin-top:6px">${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""}<br>Fecha: ${escH(it.fecha)}</div>
-      ${it.pdf?`<div class="btns" style="margin-top:10px"><button type="button" class="btn" data-pdf="${escH(it.tramite)}">Descargar PDF</button></div>`:""}</div>`).join("")+'<p id="minErr" style="display:none;color:#d64545;font-size:.9rem"></p>';
+      <div class="btns" style="margin-top:10px">${it.pdf?`<button type="button" class="btn" data-pdf="${escH(it.tramite)}">Descargar PDF</button>`:""}${(it.docs||[]).map(d=>`<button type="button" class="btn" data-sdoc="${escH(d.id)}">${escH(d.tipo)}</button>`).join("")}</div></div>`).join("")+'<p id="minErr" style="display:none;color:#d64545;font-size:.9rem"></p>';
     box.querySelectorAll("[data-pdf]").forEach(b=>b.onclick=()=>descargarSiniestroPdf(b));
+    box.querySelectorAll("[data-sdoc]").forEach(b=>b.onclick=()=>descargarSiniestroDoc(b));
   }catch(e){
     box.innerHTML='<p style="color:#d64545">No pudimos cargar tus siniestros. Probá de nuevo en unos minutos.</p>';
   }
+}
+async function descargarSiniestroDoc(btn){
+  const err=document.getElementById("minErr"),txt=btn.textContent;
+  err.style.display="none";btn.disabled=true;btn.textContent="Descargando…";
+  try{
+    const idToken=await getAuthToken();
+    const r=await fetch(CFG.sheetsUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"siniestro_doc_get",id:btn.dataset.sdoc,idToken})});
+    const j=await r.json();
+    if(j&&(j.blocked||j.authRequired)){authFailed(j);return}
+    if(!j.ok)throw new Error(j.error||"");
+    const bin=atob(j.data),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([bytes],{type:j.type||"application/pdf"}));
+    a.download=j.name||"documento";
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+  }catch(e){
+    err.textContent="No pudimos descargar el archivo. Probá de nuevo en unos minutos.";err.style.display="";
+  }finally{btn.disabled=false;btn.textContent=txt}
 }
 async function descargarSiniestroPdf(btn){
   const err=document.getElementById("minErr"),txt=btn.textContent;
