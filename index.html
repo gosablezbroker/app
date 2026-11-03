@@ -685,7 +685,14 @@ function show(id,fixed){
         if(files.length)parts.push(`Archivos adjuntos: ${files.map(f=>f.name).join(", ")}`);
         const clientMail=$("panel").querySelector('[data-k="mail"]').value.trim();
         const rcpt="GZ-"+new Date().getFullYear()+"-"+Math.floor(100000+Math.random()*900000);
-        const subject=`${s.t} — Nº de trámite ${rcpt}`;
+        const gv=k=>{const el=$("panel").querySelector(`[data-k="${k}"]`);return el?el.value.trim():""};
+        const fdmy=v=>{const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:v};
+        let subject=`${s.t} — Nº de trámite ${rcpt}`;
+        if(s.id==="auto"||s.id==="hog"){
+          // Asunto de las denuncias: tipo, nombre y apellido, patente, nº de trámite y fecha del siniestro.
+          const nom=s.id==="auto"?gv("tit"):gv("n"),pat=s.id==="auto"?gv("pat").toUpperCase():"",fec=fdmy(gv("fecha"));
+          subject=[s.id==="auto"?"Siniestro automotor":"Siniestro hogar/comercio",nom||"(sin nombre)",pat&&`Patente ${pat}`,`Nº de trámite ${rcpt}`,fec&&`Fecha del siniestro ${fec}`].filter(Boolean).join(" — ");
+        }
         const bodyText=`Nº de trámite: ${rcpt}\n\n${parts.join("\n")}`;
         const mailto=`mailto:${CFG.mail}?cc=${encodeURIComponent(clientMail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
         if(CFG.sheetsUrl&&s.sheetName&&s.cols){
