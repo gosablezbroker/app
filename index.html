@@ -675,7 +675,10 @@ function show(id,fixed){
     const pat=$("panel").querySelector('[data-k="pat"]');
     if(pat){
       const st=document.createElement("p");st.style.cssText="font-size:.85rem;margin:6px 0 0;color:var(--mut)";
-      st.textContent="Escribí la patente y completamos tus datos automáticamente si ya los tenemos.";
+      st.textContent="Escribí la patente y tocá “Buscar”: si ya tenemos tus datos, los completamos solos.";
+      const row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:stretch";
+      pat.parentNode.insertBefore(row,pat);row.appendChild(pat);pat.style.flex="1";pat.style.minWidth="0";
+      const bb=document.createElement("button");bb.type="button";bb.className="btn wa";bb.textContent="Buscar";bb.style.whiteSpace="nowrap";row.appendChild(bb);
       pat.closest(".fw").appendChild(st);
       pat.style.textTransform="uppercase";
       let ult="";
@@ -684,7 +687,7 @@ function show(id,fixed){
         el.dispatchEvent(new Event("input",{bubbles:true}));return true};
       const buscar=async()=>{
         const v=pat.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
-        if(v.length<6||v===ult)return;ult=v;
+        if(v.length<6){st.style.color="#d64545";st.textContent="Escribí la patente completa y tocá “Buscar”.";return}ult=v;
         st.style.color="var(--mut)";st.textContent="Buscando tus datos…";
         try{
           const j=await lookupCred(CFG.credUrl,v);
@@ -698,7 +701,8 @@ function show(id,fixed){
           st.style.color="var(--mut)";st.textContent="No encontramos esa patente en el sistema. Continuá completando los datos a mano.";
         }
       };
-      pat.addEventListener("blur",buscar);pat.addEventListener("change",buscar);
+      bb.onclick=buscar;
+      pat.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();buscar()}});
     }
   }
   if(s.notify){
