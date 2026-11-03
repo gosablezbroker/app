@@ -261,6 +261,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
         <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Mis siniestros (estado)</button>
         <button class="tab" data-sec="SIN" data-tab="Reclamos terceros">Reclamos a terceros</button>
+        <button class="tab" data-sec="SIN" data-tab="Inspecciones">Inspecciones</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
@@ -692,7 +693,7 @@ $("btnSalir").onclick = () => {
 };
 
 // ---- Backup completo (Excel con las 4 hojas) ----
-const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Cotizacion Hogar", "Mis siniestros", "Reclamos terceros", "Vehiculos", "Usuarios"];
+const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Cotizacion Hogar", "Mis siniestros", "Reclamos terceros", "Inspecciones", "Vehiculos", "Usuarios"];
 $("btnBackup").onclick = async () => {
   const btn = $("btnBackup");
   const originalText = btn.textContent;
@@ -1227,6 +1228,7 @@ function selectTab(tab){
     "Cotizacion Hogar":"Cotizaciones — Hogar",
     "Mis siniestros":"Siniestros — estado para el cliente",
     "Reclamos terceros":"Reclamos a la compañía del tercero",
+    "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
     "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso"
   };
@@ -1245,7 +1247,7 @@ async function loadTab(tab){
   try{
     const res = await apiGet({action:"admin_list", key:KEY, sheet:tab});
     if(!res.ok){
-      if((tab === "Mis siniestros" || tab === "Reclamos terceros") && /No se encontr/i.test(res.error||"")){
+      if((tab === "Mis siniestros" || tab === "Reclamos terceros" || tab === "Inspecciones") && /No se encontr/i.test(res.error||"")){
         currentHeaders = []; currentRows = [];
         $("listArea").innerHTML = `<div class="muted">Todavía no hay denuncias registradas. Aparecen acá cuando un cliente envía un siniestro desde la app.</div>`;
         return;
@@ -1311,8 +1313,10 @@ function renderTable(){
     headers.forEach(h => {
       const bloq = isUsr && h === "Estado" && String(row[h]).trim().toLowerCase() === "bloqueado";
       if(isSin && h === "Estado"){
-        const cur = String(row[h] || "Recibido");
-        html += `<td><select data-sin-t="${esc(row.Tramite)}">${["Recibido","En gestión","Cerrado"].map(e => `<option${e === cur ? " selected" : ""}>${e}</option>`).join("")}</select></td>`;
+        const cur = String(row[h] || (isRec ? "Iniciado" : "Recibido"));
+        const lst = isRec ? ["Iniciado","Aceptado","Pagos","Finalizado"] : ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
+        if(!lst.includes(cur)) lst.unshift(cur);
+        html += `<td><select data-sin-t="${esc(row.Tramite)}">${lst.map(e => `<option${e === cur ? " selected" : ""}>${e}</option>`).join("")}</select></td>`;
         return;
       }
       html += `<td title="${esc(row[h])}"${bloq ? ' style="color:var(--danger);font-weight:700"' : ""}>${esc(row[h])}</td>`;
@@ -1345,7 +1349,7 @@ function renderTable(){
     html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
   }
   else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
-  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> (Recibido / En gestión / Cerrado): el cliente lo ve en “Mis siniestros” de la app.${isRec ? " Con “Documentos” ves lo que cargó el cliente para el reclamo." : ""}</p><div id="sinMsg"></div>` + html;
+  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> (${isRec ? "Iniciado / Aceptado / Pagos / Finalizado" : "Recibido / Inspección pendiente / Inspeccionado / Reparación pendiente / Finalizado"}): el cliente lo ve en “Mis siniestros” de la app.${isRec ? " Con “Documentos” ves lo que cargó el cliente para el reclamo." : ""}</p><div id="sinMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
   if(isVeh) actualizarSmgBulkInfo();
@@ -1423,7 +1427,7 @@ function renderTable(){
 }
 
 // ---- Siniestros: documentación (copia de denuncia, certificado, carta de franquicia, nota de pago) ----
-const SIN_DOC_TIPOS = ["Copia de denuncia","Certificado de cobertura","Carta de Franquicia","Nota de pago siniestro"];
+const SIN_DOC_TIPOS = ["Denuncia compañía","Certificado de cobertura","Carta de Franquicia","Nota de pago siniestro"];
 let sinDocs = [];
 async function cargarSinDocs(){
   try{ const r = await apiPost({action:"admin_siniestro_docs", key:KEY}); sinDocs = r.ok ? (r.docs || []) : []; }catch(e){ sinDocs = []; }
@@ -1495,7 +1499,8 @@ const TAB_TITLES = {
   "Otras consultas": "Otras consultas",
   "Cotizacion Hogar": "Cotización — Hogar",
   "Mis siniestros": "Siniestro — seguimiento",
-  "Reclamos terceros": "Reclamo a tercero"
+  "Reclamos terceros": "Reclamo a tercero",
+  "Inspecciones": "Inspección"
 };
 function openDetail(tab, headers, row){
   const title = TAB_TITLES[tab] || tab;
