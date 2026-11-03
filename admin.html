@@ -258,6 +258,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
         <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
+        <button class="tab" data-sec="SIN" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
@@ -689,7 +690,7 @@ $("btnSalir").onclick = () => {
 };
 
 // ---- Backup completo (Excel con las 4 hojas) ----
-const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Vehiculos", "Usuarios"];
+const BACKUP_SHEETS = ["Automotor", "Hogar-Comercio", "Otras consultas", "Cotizacion Hogar", "Vehiculos", "Usuarios"];
 $("btnBackup").onclick = async () => {
   const btn = $("btnBackup");
   const originalText = btn.textContent;
@@ -1221,6 +1222,7 @@ function selectTab(tab){
     "Automotor":"Siniestros — Automotor",
     "Hogar-Comercio":"Siniestros — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
+    "Cotizacion Hogar":"Cotizaciones — Hogar",
     "Vehiculos":"Vehículos y pólizas",
     "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso"
   };
@@ -1380,7 +1382,8 @@ function renderTable(){
 const TAB_TITLES = {
   "Automotor": "Siniestro — Automotor",
   "Hogar-Comercio": "Siniestro — Hogar / Comercio",
-  "Otras consultas": "Otras consultas"
+  "Otras consultas": "Otras consultas",
+  "Cotizacion Hogar": "Cotización — Hogar"
 };
 function openDetail(tab, headers, row){
   const title = TAB_TITLES[tab] || tab;
