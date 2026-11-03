@@ -802,12 +802,70 @@ async function cargarMisSiniestros(box){
     box.innerHTML=j.items.map(it=>`<div class="minCard" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(it.tramite)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${col[it.estado]||"#667"};border-radius:99px;padding:3px 10px">${escH(it.estado||"Recibido")}</span></div>
       <div style="color:var(--mut);font-size:.9rem;margin-top:6px">${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""}<br>Fecha: ${escH(it.fecha)}</div>
-      <div class="btns" style="margin-top:10px">${it.pdf?`<button type="button" class="btn" data-pdf="${escH(it.tramite)}">Descargar PDF</button>`:""}${(it.docs||[]).map(d=>`<button type="button" class="btn" data-sdoc="${escH(d.id)}">${escH(d.tipo)}</button>`).join("")}</div></div>`).join("")+'<p id="minErr" style="display:none;color:#d64545;font-size:.9rem"></p>';
+      <div class="btns" style="margin-top:10px">${it.pdf?`<button type="button" class="btn" data-pdf="${escH(it.tramite)}">Descargar PDF</button>`:""}${(it.docs||[]).map(d=>`<button type="button" class="btn" data-sdoc="${escH(d.id)}">${escH(d.tipo)}</button>`).join("")}</div>
+      ${it.tipo==="Siniestro automotor"?(it.reclamo?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:.9rem">Reclamo a la compañía del tercero: <b style="color:${col[it.reclamo.estado]||"#667"}">${escH(it.reclamo.estado)}</b> <span style="color:var(--mut)">(iniciado el ${escH(it.reclamo.fecha)})</span></div>`:`<div class="btns" style="margin-top:10px"><button type="button" class="btn wa" data-rec="${escH(it.tramite)}">Iniciar reclamo a la compañía del tercero</button></div>`):""}</div>`).join("")+'<p id="minErr" style="display:none;color:#d64545;font-size:.9rem"></p>';
     box.querySelectorAll("[data-pdf]").forEach(b=>b.onclick=()=>descargarSiniestroPdf(b));
     box.querySelectorAll("[data-sdoc]").forEach(b=>b.onclick=()=>descargarSiniestroDoc(b));
+    box.querySelectorAll("[data-rec]").forEach(b=>b.onclick=()=>formReclamoTercero(b.dataset.rec));
   }catch(e){
     box.innerHTML='<p style="color:#d64545">No pudimos cargar tus siniestros. Probá de nuevo en unos minutos.</p>';
   }
+}
+// Reclamo a la compañía del tercero: pide la documentación y la manda a Gosalbez.
+const REC_DOCS=["Título","DNI del titular","Cédula verde","Registro de conductor"];
+const REC_MAX_FOTOS=12;
+function archivoB64(file){
+  return new Promise((ok,fail)=>{
+    const done=blob=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=()=>fail(r.error);r.readAsDataURL(blob)};
+    if(!/^image\//.test(file.type)){done(file);return}
+    // Las fotos se achican (máx. 1600 px) para que el envío sea rápido desde el celular.
+    const img=new Image(),u=URL.createObjectURL(file);
+    img.onload=()=>{
+      const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");
+      c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+      c.toBlob(b=>b?done(b):done(file),"image/jpeg",.82);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(u);done(file)};
+    img.src=u;
+  });
+}
+function formReclamoTercero(tramite){
+  navBack=()=>show("mis");
+  const campo=(id,l)=>`<div class="fw"><label>${l} *</label><input class="filein" data-rs="${id}" type="file" accept="image/*,.pdf"></div>`;
+  $("panel").innerHTML=`<div class="panel"><h2>${ICO.auto} Reclamo a la compañía del tercero</h2>
+    <p style="color:var(--mut);font-size:.9rem">Siniestro <b>${escH(tramite)}</b>. Cargá la documentación (podés sacarle foto): la recibimos nosotros y gestionamos el reclamo. Todo es obligatorio.</p>
+    ${REC_DOCS.map(d=>`<h3 style="margin-top:14px">${d}</h3>${campo(d+" (frente)","Frente")}${campo(d+" (dorso)","Dorso")}`).join("")}
+    <h3 style="margin-top:14px">Fotos de los daños</h3>
+    <div class="fw"><label>Fotos de los daños y de todos los ángulos del auto dañado *</label><input class="filein" id="recFotos" type="file" multiple accept="image/*"><p style="color:var(--mut);font-size:.78rem;margin:5px 0 0">Hasta ${REC_MAX_FOTOS} fotos.</p></div>
+    <p id="recErr" style="display:none;color:#d64545;font-size:.9rem"></p>
+    <div class="btns" style="margin-top:14px"><button type="button" class="btn wa" id="recSend">Enviar reclamo</button></div></div>`;
+  $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+  const err=$("recErr"),show_=m=>{err.textContent=m;err.style.display=m?"":"none"};
+  $("recSend").onclick=async()=>{
+    show_("");
+    const slots=[...$("panel").querySelectorAll("[data-rs]")],fotos=[...$("recFotos").files];
+    const falta=slots.find(i=>!i.files[0]);
+    if(falta){show_("Falta cargar: "+falta.dataset.rs);return}
+    if(!fotos.length){show_("Cargá al menos una foto de los daños.");return}
+    if(fotos.length>REC_MAX_FOTOS){show_("Máximo "+REC_MAX_FOTOS+" fotos.");return}
+    const btn=$("recSend");btn.disabled=true;btn.textContent="Enviando… no cierres la pantalla";
+    try{
+      const files=[];
+      for(const i of slots){const f=i.files[0];files.push({slot:i.dataset.rs,name:f.name,type:/^image\//.test(f.type)?"image/jpeg":f.type,data:await archivoB64(f)})}
+      for(const f of fotos)files.push({slot:"Fotos de los daños",name:f.name,type:"image/jpeg",data:await archivoB64(f)});
+      const idToken=await getAuthToken();
+      const r=await fetch(CFG.sheetsUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"reclamo_tercero_iniciar",tramite,files,idToken})});
+      const j=await r.json();
+      if(j&&(j.blocked||j.authRequired)){authFailed(j);return}
+      if(!j.ok)throw new Error(j.error||"");
+      $("panel").innerHTML=`<div class="panel"><div style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">${ICO.check}Recibimos tu documentación. Vamos a iniciar el reclamo a la compañía del tercero y te avisamos cómo avanza. Podés ver el estado en “Mis siniestros”.</div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="recVolver">Volver a Mis siniestros</button></div></div>`;
+      $("recVolver").onclick=()=>show("mis");
+    }catch(e){
+      show_("No pudimos enviar el reclamo"+(e&&e.message?": "+e.message:"")+". Probá de nuevo o escribinos por WhatsApp.");
+      btn.disabled=false;btn.textContent="Enviar reclamo";
+    }
+  };
 }
 async function descargarSiniestroDoc(btn){
   const err=document.getElementById("minErr"),txt=btn.textContent;
