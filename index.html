@@ -384,16 +384,21 @@ const S=[
  tip:"No descartes los bienes dañados hasta que te lo indiquemos.",
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area"),F("adj","Adjuntá fotos o documentos (opcional)","file")]},
 {id:"cotihogar",i:ICO.hog,t:"Cotizá el seguro para tu Hogar",d:"Cubrí los daños de los electrodomésticos, incendio, robo y cristales.",
- steps:["Completá tus datos y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite.","Te contactamos a la brevedad con tu cotización."],
- notify:true,sheetName:"Cotizacion Hogar",
+ steps:["Completá tus datos y los de tu vivienda, y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite.","Tocá “Enviar mis datos por WhatsApp” para que los recibamos al instante y te contactamos con tu cotización."],
+ notify:true,waDatos:true,sheetName:"Cotizacion Hogar",
  constants:{tipo:"Cotización Hogar"},
- cols:["tipo","tit","mail","cel","loc","viv","cub","desc"],
+ cols:["tipo","tit","mail","cel","dni","loc","dir","viv","m2","rel","cub","valor","desc"],
  f:[F("tit","Nombre y apellido *",null,null,null,true),
    F("mail","Mail *","email",null,null,true),
    F("cel","Celular *","tel",null,null,true),
+   F("dni","DNI / CUIT (opcional)"),
    F("loc","Localidad (opcional)"),
+   F("dir","Dirección de la vivienda (opcional)"),
    F("viv","Tipo de vivienda (opcional)","select",["Sin especificar","Casa","Departamento","PH","Otro"]),
+   F("m2","Metros cuadrados cubiertos (opcional)"),
+   F("rel","¿Sos propietario o inquilino? (opcional)","select",["Sin especificar","Propietario","Inquilino"]),
    F("cub","¿Qué querés cubrir?","select",["Todo: electrodomésticos, incendio, robo y cristales","Solo incendio","Solo electrodomésticos","Solo robo","Solo cristales","Otra combinación (la detallo abajo)"]),
+   F("valor","Valor aproximado de electrodomésticos y contenido (opcional)"),
    F("desc","Comentarios (opcional)","area")]},
 {id:"otras",i:ICO.otras,t:"Otras consultas",d:"Cotizaciones, cambios en tu póliza, pagos y más.",
  steps:["Contanos qué necesitás.","Completá tus datos y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite y te contactamos a la brevedad."],
@@ -705,7 +710,7 @@ function show(id,fixed){
         }
         // Éxito: se reemplaza todo el panel (formulario incluido) por únicamente el mensaje
         // de confirmación y un botón para volver al menú principal.
-        $("panel").innerHTML=`<div class="panel"><div id="rcpt" style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">${ICO.check}Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros)${files.length?" con los archivos adjuntos":""}. Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent('Hola, te escribo por mi trámite. Nº de trámite: '+rcpt)}">Enviar por WhatsApp</a></div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="backBtn">Volver al menú</button></div></div>`;
+        $("panel").innerHTML=`<div class="panel"><div id="rcpt" style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">${ICO.check}Gracias por contactarte con Gosalbez Broker. En las próximas horas nos contactaremos para ayudarte.<br>Tu número de trámite es: <b>${rcpt}</b><br><span style="color:var(--mut);font-weight:normal">Te enviamos un email de confirmación a ${clientMail||"tu correo"} (con copia a nosotros)${files.length?" con los archivos adjuntos":""}. Si no te llega en unos minutos, revisá spam o usá estos botones:</span><div class="btns" style="margin-top:10px"><a class="btn" href="${mailto}">Reenviar por email</a><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/${CFG.wa}?text=${encodeURIComponent(s.waDatos?('Hola, quiero cotizar el seguro de mi Hogar.\n\n'+bodyText):('Hola, te escribo por mi trámite. Nº de trámite: '+rcpt))}">${s.waDatos?'Enviar mis datos por WhatsApp':'Enviar por WhatsApp'}</a></div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="backBtn">Volver al menú</button></div></div>`;
         $("backBtn").onclick=backToMenu;
         $("panel").scrollIntoView({behavior:"smooth",block:"start"});
       }catch(err){
