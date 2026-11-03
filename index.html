@@ -352,14 +352,14 @@ const S=[
  cols:["mail","cel","tipo","cond","tit","veh","pat","cia","lugar","fecha","hora","desc","danios","ter_ndni","ter_cont","ter_cia","ter_veh","ter_pat","ter_danios","les","ter_tit","ter_pol"],
  list:["DNI y licencia de conducir","Patente y datos de tu póliza","Fotos de los daños y del lugar","Datos del otro vehículo: patente, conductor, DNI y aseguradora","Fecha, hora y lugar del hecho","Denuncia policial, si hubo robo o lesionados"],
  tip:"Denunciá lo antes posible: cada póliza tiene plazos. No firmes ni reconozcas responsabilidad ante terceros.",
- f:[F("mail","Tu email *","email",null,null,true),
+ f:[F("pat","Patente / Dominio del asegurado *"),
+   F("mail","Tu email *","email",null,null,true),
    F("cel","Tu celular *","tel",null,null,true),
    F("tipo","Tipo de siniestro","select",["Choque","Robo","Daños a Cristales, Cerradura, Granizo u otros"]),
    F("_h1","Tus datos y los del titular de póliza","heading"),
    F("cond","Conductor del vehículo (Nombre, Apellido, DNI)"),
    F("tit","Titular de póliza (Nombre / Apellido / Razón social) *"),
    F("veh","Vehículo (Marca / Modelo / Año) *"),
-   F("pat","Patente / Dominio *"),
    F("cia","Compañía del asegurado","select",CIAS),
    F("lugar","Lugar del siniestro (indicá calles, altura y localidad) *"),
    F("fecha","Fecha del siniestro *","date"),
@@ -669,6 +669,38 @@ function show(id,fixed){
     return ok&&filesOk;
   }
   document.querySelectorAll("[data-k]").forEach(el=>{el.oninput=upd;el.onchange=upd});upd();
+  if(s.id==="auto"){
+    // Con la patente del asegurado buscamos los datos que ya tenemos y precargamos el formulario.
+    // Si no la encontramos, se sigue con la carga manual.
+    const pat=$("panel").querySelector('[data-k="pat"]');
+    if(pat){
+      const st=document.createElement("p");st.style.cssText="font-size:.85rem;margin:6px 0 0;color:var(--mut)";
+      st.textContent="Escribí la patente y completamos tus datos automáticamente si ya los tenemos.";
+      pat.closest(".fw").appendChild(st);
+      pat.style.textTransform="uppercase";
+      let ult="";
+      const poner=(k,v)=>{const el=$("panel").querySelector(`[data-k="${k}"]`);if(!el||!v||(el.tagName!=="SELECT"&&el.value.trim()))return false;
+        if(el.tagName==="SELECT"){const o=[...el.options].find(o=>o.value.toUpperCase()===String(v).toUpperCase()||o.value.toUpperCase().includes(String(v).toUpperCase()));if(!o)return false;el.value=o.value}else el.value=v;
+        el.dispatchEvent(new Event("input",{bubbles:true}));return true};
+      const buscar=async()=>{
+        const v=pat.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+        if(v.length<6||v===ult)return;ult=v;
+        st.style.color="var(--mut)";st.textContent="Buscando tus datos…";
+        try{
+          const j=await lookupCred(CFG.credUrl,v);
+          if(!j||!j.ok)throw 0;
+          const d=j.data;
+          poner("tit",d.asegurado);
+          poner("veh",[d.marca,d.modelo,d.anio].filter(Boolean).join(" "));
+          poner("cia",d.compania);
+          st.style.color="var(--wa)";st.textContent="Listo: completamos tus datos. Revisalos y corregí lo que haga falta.";
+        }catch(e){
+          st.style.color="var(--mut)";st.textContent="No encontramos esa patente en el sistema. Continuá completando los datos a mano.";
+        }
+      };
+      pat.addEventListener("blur",buscar);pat.addEventListener("change",buscar);
+    }
+  }
   if(s.notify){
     $("bs").onclick=async()=>{
       if(!checkReq())return;
