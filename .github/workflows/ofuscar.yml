@@ -1,0 +1,32 @@
+name: Publicar versión protegida (ofuscada)
+
+# Se ejecuta a mano: Actions → "Publicar versión protegida" → Run workflow.
+# Arma el sitio con el código ofuscado y lo sube a la rama "publicar".
+# Nada cambia en la web hasta que en Settings → Pages elijas la rama "publicar".
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar ofuscador
+        run: npm install --no-save javascript-obfuscator@4.1.1
+      - name: Armar versión protegida
+        run: node scripts/build.mjs
+      - name: Subir a la rama publicar
+        run: |
+          cd dist
+          git init -q -b publicar
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Versión protegida de ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" publicar
