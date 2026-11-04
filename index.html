@@ -826,7 +826,7 @@ async function descargarDoc(url,btn){
 }
 // "Mis siniestros": lista las denuncias del cliente (según el email de su sesión) y baja el PDF de cada una.
 const escH=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const EST_COL={"Recibido":"#0b6bff","Inspección pendiente":"#c77700","Inspeccionado":"#0b6bff","Reparación pendiente":"#c77700","Finalizado":"#1a9b5b","En gestión":"#c77700","Cerrado":"#1a9b5b","Iniciado":"#0b6bff","Aceptado":"#0b6bff","Pagos":"#c77700"};
+const EST_COL={"Recibido":"#0b6bff","Inspección pendiente":"#c77700","Inspeccionado":"#0b6bff","Reparación pendiente":"#c77700","Finalizado":"#1a9b5b","En gestión":"#c77700","Cerrado":"#1a9b5b","Iniciado":"#0b6bff","Aceptado":"#0b6bff","Pagos":"#c77700","Sin iniciar":"#667"};
 const badge=e=>`<span style="font-size:.8rem;font-weight:700;color:#fff;background:${EST_COL[e]||"#667"};border-radius:99px;padding:3px 10px;white-space:nowrap">${escH(e)}</span>`;
 let MIS=[];
 async function misFetch(action,extra){
@@ -842,7 +842,7 @@ async function cargarMisSiniestros(box){
     if(!j.ok)throw new Error(j.error||"");
     MIS=j.items||[];
     if(!MIS.length){box.innerHTML='<p style="color:var(--mut)">Todavía no tenés denuncias registradas. Cuando hagas una, aparece acá con su número de trámite.</p>';return}
-    box.innerHTML=MIS.map((it,i)=>`<button type="button" class="opt" data-mis="${i}" style="width:100%;text-align:left;margin-bottom:10px"><div><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(it.tramite)}</b>${badge(it.estado||"Recibido")}</div><span>${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""}<br>Fecha: ${escH(it.fecha)}</span></div><span class="arrow"><em>Ver</em> →</span></button>`).join("");
+    box.innerHTML=MIS.map((it,i)=>`<button type="button" class="opt" data-mis="${i}" style="width:100%;text-align:left;margin-bottom:10px"><div><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(it.tramite)}</b>${badge(it.estado||"Recibido")}</div><span>${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""}<br>Fecha: ${escH(it.fecha)}${it.reclamo?`<br>Reclamo a tercero: <b>${escH(it.reclamo.estado)}</b>`:""}</span></div><span class="arrow"><em>Ver</em> →</span></button>`).join("");
     box.querySelectorAll("[data-mis]").forEach(b=>b.onclick=()=>detalleSiniestro(Number(b.dataset.mis)));
   }catch(e){
     if(String(e&&e.message)==="auth")return;
@@ -877,7 +877,7 @@ async function detalleSiniestro(i,recargar){
   }
   let rec="";
   if(esAuto){
-    rec=card("Reclamo en la compañía del tercero",it.reclamo?`<p style="margin:0">Estado: ${badge(it.reclamo.estado)} <span style="color:var(--mut);font-size:.85rem">· iniciado el ${escH(it.reclamo.fecha)}</span></p>`:`<p style="color:var(--mut);font-size:.9rem;margin:0 0 10px">Cargá la documentación y gestionamos el reclamo a la compañía del otro vehículo.</p><div class="btns"><button type="button" class="btn wa" data-rec="${escH(it.tramite)}">Iniciar reclamo</button></div>`);
+    rec=card("Reclamo en la compañía del tercero",it.reclamo?`<p style="margin:0">Estado: ${badge(it.reclamo.estado)} <span style="color:var(--mut);font-size:.85rem">· iniciado el ${escH(it.reclamo.fecha)}</span></p>`:`<p style="margin:0 0 6px">Estado: ${badge("Sin iniciar")}</p><p style="color:var(--mut);font-size:.9rem;margin:0 0 10px">Cargá la documentación y gestionamos el reclamo a la compañía del otro vehículo.</p><div class="btns"><button type="button" class="btn wa" data-rec="${escH(it.tramite)}">Iniciar reclamo</button></div>`);
   }
   $("panel").innerHTML=`<div class="panel"><h2>${ICO.check} Siniestro ${escH(it.tramite)}</h2>
     <p style="color:var(--mut);font-size:.9rem;margin:4px 0">${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""} · ${escH(it.fecha)}</p>
@@ -953,7 +953,7 @@ function formReclamoTercero(tramite,idx){
       const j=await r.json();
       if(j&&(j.blocked||j.authRequired)){authFailed(j);return}
       if(!j.ok)throw new Error(j.error||"");
-      $("panel").innerHTML=`<div class="panel"><div style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">${ICO.check}Recibimos tu documentación. Vamos a iniciar el reclamo a la compañía del tercero y te avisamos cómo avanza. Podés ver el estado dentro del siniestro, en “Mis siniestros”.</div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="recVolver">Volver al siniestro</button></div></div>`;
+      $("panel").innerHTML=`<div class="panel"><div style="background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:14px 16px;font-size:.95rem">${ICO.check}Recibimos tu documentación y te mandamos una copia por mail. Vamos a iniciar el reclamo a la compañía del tercero y te avisamos cómo avanza. Podés ver el estado dentro del siniestro, en “Mis siniestros”.</div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="recVolver">Volver al siniestro</button></div></div>`;
       $("recVolver").onclick=()=>detalleSiniestro(idx,true);
     }catch(e){
       show_("No pudimos enviar el reclamo"+(e&&e.message?": "+e.message:"")+". Probá de nuevo o escribinos por WhatsApp.");
