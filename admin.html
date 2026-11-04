@@ -242,6 +242,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div class="secs" id="secs">
         <button class="sec" data-sec="INI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button>
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
+        <button class="sec" data-sec="CON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.8h15v10.2H9.3l-3.8 3.1v-3.1H4.5zM7.8 9.8h8.4M7.8 12.9h5.2"/></svg><span>Consultas y cotizaciones</span></button>
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
         <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
         <button class="sec" data-sec="REP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Reportes</span></button>
@@ -257,8 +258,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="IMP" data-tab="Importar">Importar</button>
         <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
-        <button class="tab" data-sec="SIN" data-tab="Otras consultas">Otras consultas</button>
-        <button class="tab" data-sec="SIN" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
+        <button class="tab" data-sec="CON" data-tab="Otras consultas">Otras consultas</button>
+        <button class="tab" data-sec="CON" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
         <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Mis siniestros (estado)</button>
         <button class="tab" data-sec="SIN" data-tab="Reclamos terceros">Reclamos a terceros</button>
         <button class="tab" data-sec="SIN" data-tab="Inspecciones">Inspecciones</button>
@@ -749,7 +750,7 @@ document.querySelectorAll(".sec").forEach(b => {
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
-const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
 // ===== Módulos tipo Adminse calculados con la cartera ya importada =====
