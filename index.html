@@ -1,7 +1,9 @@
 <!DOCTYPE html>
+<!-- © Gosalbez Broker de Seguros. Todos los derechos reservados. Prohibida su copia o reproducción. -->
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta name="copyright" content="Gosalbez Broker de Seguros. Todos los derechos reservados.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gosalbez Broker de Seguros</title>
 <meta name="description" content="Autogestión de Gosalbez Broker de Seguros: descargá tu credencial automotor, denunciá siniestros y hacé tus consultas desde el celular.">
@@ -430,7 +432,7 @@ const S=[
  link:"https://mi.argentina.gob.ar/",linkLabel:"Ir a Mi Argentina",imgLink:"assets/logos/mi-argentina.png"}
 ];
 const $=id=>document.getElementById(id);
-$("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>';
+$("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>'+'<br><span style="font-size:.75rem;color:var(--mut)">© '+new Date().getFullYear()+' Gosalbez Broker de Seguros. Todos los derechos reservados. Queda prohibida la copia o reproducción de esta aplicación.</span>';
 $("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div><span class="arrow"><em>Ingresar</em> →</span></button>`).join("");
 const WAHOLA="https://wa.me/"+CFG.wa+"?text="+encodeURIComponent("Hola, necesito ayuda con mi seguro.");
 $("waFab").href=WAHOLA;$("topWa").href=WAHOLA;
