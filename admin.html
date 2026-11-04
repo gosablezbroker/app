@@ -2168,6 +2168,7 @@ async function renderCliPol(){
       cp.usuarios = u.ok ? (u.rows || []).filter(r => r.Email) : [];
       cp.asignadas = a.ok ? (a.rows || []) : [];
       if(!datosModulo.rows) datosModulo.rows = await cargarBusqueda(false);
+      await cargarTodosDocs();
     }catch(e){ box.innerHTML = `<div class="err">No se pudo cargar. Probá de nuevo.</div>`; return; }
   }
   pintarCliPol();
@@ -2179,8 +2180,13 @@ function pintarCliPol(msg){
     <div id="cpMsg">${msg || ""}</div><div id="cpResto"></div>`;
   $("cpUser").onchange = () => { cp.email = $("cpUser").value; cp.res = []; pintarCliPol(); };
   if(!cp.email) return;
-  const fila = x => `<tr><td>${esc(x.Compania)}</td><td><b>${esc(x.Poliza)}</b></td><td>${esc(x.Ramo)}</td><td style="white-space:normal">${esc(x.Bien)}</td><td>${esc(x.Inicio)} → ${esc(x.Fin)}</td><td><button class="btn sm" data-cp-del="${esc(x.Compania)}|${esc(x.Poliza)}">Quitar</button></td></tr>`;
-  $("cpResto").innerHTML = `<h3 style="margin:16px 0 6px">Pólizas asignadas (${mias.length})</h3>` + (mias.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th></th></tr></thead><tbody>${mias.map(fila).join("")}</tbody></table></div>` : `<p class="muted">Todavía no tiene pólizas asignadas.</p>`) +
+  const docCelda = x => [["Poliza","Póliza"],["Credencial","Credencial"]].map(([tp, nom], k) => {
+    const d = (allDocs || []).find(z => z.tipo === tp && normPat(z.patente) === normPat(x.DocKey) && String(z.poliza || "").trim() === String(x.Poliza).trim());
+    const id = "cpf" + normPat(x.Poliza) + k;
+    return `<div style="margin-bottom:4px;white-space:nowrap">${nom}: ${d ? `<a href="#" data-cp-ver="${esc(d.id)}">ver ✔</a>` : `<span class="muted" style="padding:0">sin PDF</span>`} <label class="btn sm" style="cursor:pointer;margin-left:4px">${d ? "Reemplazar" : "Subir PDF"}<input type="file" accept="application/pdf,.pdf" hidden data-cp-up="${esc(tp)}" data-cp-k="${esc(x.DocKey)}" data-cp-p="${esc(x.Poliza)}"></label></div>`;
+  }).join("");
+  const fila = x => `<tr><td>${esc(x.Compania)}</td><td><b>${esc(x.Poliza)}</b></td><td>${esc(x.Ramo)}</td><td style="white-space:normal">${esc(x.Bien)}</td><td>${esc(x.Inicio)} → ${esc(x.Fin)}</td><td>${docCelda(x)}</td><td><button class="btn sm" data-cp-del="${esc(x.Compania)}|${esc(x.Poliza)}">Quitar</button></td></tr>`;
+  $("cpResto").innerHTML = `<h3 style="margin:16px 0 6px">Pólizas asignadas (${mias.length})</h3>` + (mias.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th>PDF</th><th></th></tr></thead><tbody>${mias.map(fila).join("")}</tbody></table></div>` : `<p class="muted">Todavía no tiene pólizas asignadas.</p>`) +
     `<h3 style="margin:18px 0 6px">Agregar desde la cartera</h3>
      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="cpQ" type="text" placeholder="Póliza, patente, nombre o DNI" style="flex:1;min-width:220px"><button class="btn sm pri" id="cpBuscar">Buscar</button></div><div id="cpRes"></div>
      <h3 style="margin:18px 0 6px">O cargar una póliza a mano</h3>
@@ -2192,6 +2198,17 @@ function pintarCliPol(msg){
     if(!confirm("¿Quitar esta póliza del cliente? Deja de verla en la app.")) return;
     const r = await apiPost({action:"admin_cliente_poliza_borrar", key:KEY, email:cp.email, compania:cia, poliza:pol});
     if(r.ok){ cp.asignadas = r.rows; pintarCliPol(`<div class="ok">Póliza quitada.</div>`); } else $("cpMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
+  });
+  $("cpResto").querySelectorAll("[data-cp-ver]").forEach(a => a.onclick = ev => { ev.preventDefault(); verDoc(a.dataset.cpVer, "cpMsg"); });
+  $("cpResto").querySelectorAll("input[data-cp-up]").forEach(inp => inp.onchange = async () => {
+    const f = inp.files[0]; if(!f) return;
+    if(f.size > MAX_DOC_MB * 1024 * 1024){ $("cpMsg").innerHTML = `<div class="err">El PDF pesa más de ${MAX_DOC_MB} MB.</div>`; return; }
+    $("cpMsg").innerHTML = `<div class="loading">Subiendo PDF…</div>`;
+    try{
+      const x = await apiPost({action:"admin_doc_upload", key:KEY, patente:inp.dataset.cpK, poliza:inp.dataset.cpP, tipo:inp.dataset.cpUp, name:f.name, data: await fileToBase64(f)});
+      if(!x.ok) throw new Error(x.error);
+      await cargarTodosDocs(); pintarCliPol(`<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF cargado."} El cliente ya lo ve en la app.</div>`);
+    }catch(e){ $("cpMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo subir el PDF.")}</div>`; }
   });
   const asignar = async (poliza, btn) => {
     if(btn) btn.disabled = true;
