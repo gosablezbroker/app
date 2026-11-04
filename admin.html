@@ -243,6 +243,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="sec" data-sec="INI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button>
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
         <button class="sec" data-sec="CON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.8h15v10.2H9.3l-3.8 3.1v-3.1H4.5zM7.8 9.8h8.4M7.8 12.9h5.2"/></svg><span>Consultas y cotizaciones</span></button>
+        <button class="sec" data-sec="CPO"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4"/></svg><span>Mis pólizas (clientes)</span></button>
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
         <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
         <button class="sec" data-sec="REP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Reportes</span></button>
@@ -263,6 +264,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Mis siniestros (estado)</button>
         <button class="tab" data-sec="SIN" data-tab="Reclamos terceros">Reclamos a terceros</button>
         <button class="tab" data-sec="SIN" data-tab="Inspecciones">Inspecciones</button>
+        <button class="tab" data-sec="CPO" data-tab="CliPol">Pólizas de clientes</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
@@ -361,6 +363,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       <div id="viewAlta" class="hide">
         <div class="panelTitle"><h2 id="altaTitulo">Agregar póliza o endoso</h2></div>
         <div id="altaBody"></div>
+      </div>
+      <div id="viewCliPol" class="hide">
+        <div class="panelTitle"><h2>Pólizas de clientes registrados</h2></div>
+        <div id="cpBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewPortales" class="hide">
         <div class="panelTitle"><h2>Accesos a portales de las compañías</h2><button class="btn sm" id="btnPortRef">Actualizar</button></div>
@@ -750,7 +756,7 @@ document.querySelectorAll(".sec").forEach(b => {
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
-const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", CPO:"CliPol", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
 // ===== Módulos tipo Adminse calculados con la cartera ya importada =====
@@ -1212,10 +1218,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1231,7 +1237,7 @@ function selectTab(tab){
     "Reclamos terceros":"Reclamos a la compañía del tercero",
     "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -2150,6 +2156,72 @@ function altaGenerarCuotas(){
 function altaCuotasEventos(){
   document.querySelectorAll("[data-aqx]").forEach(b => b.onclick = () => { const l = altaLeerCuotas(); l.splice(Number(b.dataset.aqx), 1); $("altaCuotas").innerHTML = altaCuotasTabla(l); altaCuotasEventos(); });
 }
+// ---- Pólizas de clientes registrados (lo que ve el cliente en "Mis pólizas") ----
+const cp = {usuarios:null, asignadas:[], email:"", res:[]};
+const txtPlano = h => { const d = document.createElement("div"); d.innerHTML = h; return d.textContent.trim(); };
+async function renderCliPol(){
+  const box = $("cpBody");
+  if(!cp.usuarios){
+    box.innerHTML = `<div class="loading">Cargando…</div>`;
+    try{
+      const [u, a] = await Promise.all([apiGet({action:"admin_list", key:KEY, sheet:"Usuarios"}), apiPost({action:"admin_cliente_polizas_list", key:KEY})]);
+      cp.usuarios = u.ok ? (u.rows || []).filter(r => r.Email) : [];
+      cp.asignadas = a.ok ? (a.rows || []) : [];
+      if(!datosModulo.rows) datosModulo.rows = await cargarBusqueda(false);
+    }catch(e){ box.innerHTML = `<div class="err">No se pudo cargar. Probá de nuevo.</div>`; return; }
+  }
+  pintarCliPol();
+}
+function pintarCliPol(msg){
+  const box = $("cpBody"), mias = cp.asignadas.filter(x => String(x.Email).toLowerCase() === cp.email);
+  box.innerHTML = `<p class="muted" style="padding:0 0 10px">Elegí un cliente registrado en la app y asignale sus pólizas: las ve en “Mis pólizas” (con los PDF que tengan cargados).</p>
+    <div class="fw" style="max-width:520px"><label>Cliente registrado</label><select id="cpUser"><option value="">Elegí un cliente…</option>${cp.usuarios.map(u => `<option value="${esc(String(u.Email).toLowerCase())}"${String(u.Email).toLowerCase() === cp.email ? " selected" : ""}>${esc(u.Nombre || "(sin nombre)")} — ${esc(u.Email)}</option>`).join("")}</select></div>
+    <div id="cpMsg">${msg || ""}</div><div id="cpResto"></div>`;
+  $("cpUser").onchange = () => { cp.email = $("cpUser").value; cp.res = []; pintarCliPol(); };
+  if(!cp.email) return;
+  const fila = x => `<tr><td>${esc(x.Compania)}</td><td><b>${esc(x.Poliza)}</b></td><td>${esc(x.Ramo)}</td><td style="white-space:normal">${esc(x.Bien)}</td><td>${esc(x.Inicio)} → ${esc(x.Fin)}</td><td><button class="btn sm" data-cp-del="${esc(x.Compania)}|${esc(x.Poliza)}">Quitar</button></td></tr>`;
+  $("cpResto").innerHTML = `<h3 style="margin:16px 0 6px">Pólizas asignadas (${mias.length})</h3>` + (mias.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th></th></tr></thead><tbody>${mias.map(fila).join("")}</tbody></table></div>` : `<p class="muted">Todavía no tiene pólizas asignadas.</p>`) +
+    `<h3 style="margin:18px 0 6px">Agregar desde la cartera</h3>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="cpQ" type="text" placeholder="Póliza, patente, nombre o DNI" style="flex:1;min-width:220px"><button class="btn sm pri" id="cpBuscar">Buscar</button></div><div id="cpRes"></div>
+     <h3 style="margin:18px 0 6px">O cargar una póliza a mano</h3>
+     <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">
+       <input id="mCia" placeholder="Compañía"><input id="mRamo" placeholder="Ramo (Automotor, Hogar…)"><input id="mPol" placeholder="Nº de póliza *"><input id="mBien" placeholder="Bien / patente"><input id="mIni" placeholder="Inicio dd/mm/aaaa"><input id="mFin" placeholder="Fin dd/mm/aaaa">
+     </div><div style="margin-top:8px"><button class="btn sm pri" id="cpManual">Asignar póliza</button></div>`;
+  $("cpResto").querySelectorAll("[data-cp-del]").forEach(b => b.onclick = async () => {
+    const [cia, pol] = b.dataset.cpDel.split("|");
+    if(!confirm("¿Quitar esta póliza del cliente? Deja de verla en la app.")) return;
+    const r = await apiPost({action:"admin_cliente_poliza_borrar", key:KEY, email:cp.email, compania:cia, poliza:pol});
+    if(r.ok){ cp.asignadas = r.rows; pintarCliPol(`<div class="ok">Póliza quitada.</div>`); } else $("cpMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
+  });
+  const asignar = async (poliza, btn) => {
+    if(btn) btn.disabled = true;
+    try{
+      const r = await apiPost({action:"admin_cliente_poliza_guardar", key:KEY, email:cp.email, poliza});
+      if(!r.ok) throw new Error(r.error);
+      cp.asignadas = r.rows; pintarCliPol(`<div class="ok">Póliza asignada.</div>`);
+    }catch(e){ $("cpMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo asignar.")}</div>`; if(btn) btn.disabled = false; }
+  };
+  const buscar = () => {
+    const q = $("cpQ").value.trim().toLowerCase();
+    if(q.length < 3){ $("cpRes").innerHTML = `<p class="muted">Escribí al menos 3 letras o números.</p>`; return; }
+    cp.res = (datosModulo.rows || []).filter(r => BUSQ_CAMPOS.some(h => String(r[h] || "").toLowerCase().includes(q))).slice(0, 15);
+    $("cpRes").innerHTML = cp.res.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Cliente / Bien</th><th>Vigencia</th><th></th></tr></thead><tbody>${cp.res.map((r, i) => `<tr><td>${esc(r.Compania)}</td><td><b>${esc(r.Poliza)}</b></td><td>${esc(r.Ramo)}</td><td style="white-space:normal">${esc(nombreDe(r))}<br>${riesgoDe(r).resumen}</td><td>${esc(r.Inicio)} → ${esc(r.Fin)}</td><td><button class="btn sm pri" data-cp-add="${i}">Asignar</button></td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">No se encontró nada en la cartera.</p>`;
+    $("cpRes").querySelectorAll("[data-cp-add]").forEach(b => b.onclick = () => {
+      const r = cp.res[Number(b.dataset.cpAdd)];
+      asignar({Compania:r.Compania, Poliza:r.Poliza, Ramo:r.Ramo, Bien:txtPlano(riesgoDe(r).resumen) || nombreDe(r), DocKey:polDocKey(r), Inicio:r.Inicio, Fin:r.Fin, Estado:r.Estado || ""}, b);
+    });
+  };
+  $("cpBuscar").onclick = buscar;
+  $("cpQ").onkeydown = e => { if(e.key === "Enter") buscar(); };
+  $("cpManual").onclick = () => {
+    const pol = $("mPol").value.trim();
+    if(!pol){ $("cpMsg").innerHTML = `<div class="err">Falta el número de póliza.</div>`; return; }
+    const r = {Compania:$("mCia").value.trim(), Poliza:pol, Ramo:$("mRamo").value.trim(), Bien:$("mBien").value.trim(), Inicio:$("mIni").value.trim(), Fin:$("mFin").value.trim()};
+    r.DocKey = polDocKey(r.Bien && /^[A-Za-z]{2,3}\s?\d{3}\s?[A-Za-z]{0,3}$/.test(r.Bien) ? {Patente:r.Bien, Compania:r.Compania, Poliza:pol} : r);
+    asignar(r, $("cpManual"));
+  };
+}
+
 function renderAlta(){
   if(!datosModulo.rows){ $("altaBody").innerHTML = `<div class="loading">Cargando…</div>`; cargarModulo("TODAS").then(() => { if(currentTab === "Alta") renderAlta(); }); return; }
   const st = altaEstado || {modo: "poliza", r: null}, r = st.r || {}, ed = st.modo === "poliza" && !!st.r, end = st.modo === "endoso";

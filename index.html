@@ -383,6 +383,7 @@ const S=[
  list:["DNI y datos de tu póliza","Dirección del inmueble o comercio","Fotos o videos de los daños","Lista de bienes afectados con valor aproximado","Facturas o comprobantes, si los tenés","Denuncia policial, en caso de robo","Presupuesto de reparación, si ya lo tenés"],
  tip:"No descartes los bienes dañados hasta que te lo indiquemos.",
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area"),F("adj","Adjuntá fotos o documentos (opcional)","file")]},
+{id:"mispol",i:ICO.cred,t:"Mis pólizas",d:"Consultá tus pólizas, su vigencia y descargá los PDF.",mypol:true},
 {id:"mis",i:ICO.check,t:"Mis siniestros",d:"Mirá el estado de tus denuncias y bajá el PDF de cada una.",mine:true},
 {id:"cotihogar",i:ICO.hog,t:"Cotizá el seguro para tu Hogar",d:"Cubrí los daños de los electrodomésticos, incendio, robo y cristales.",
  steps:["Completá tus datos y los de tu vivienda, y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite.","Tocá “Enviar mis datos por WhatsApp” para que los recibamos al instante y te contactamos con tu cotización."],
@@ -469,6 +470,12 @@ function show(id,fixed){
     $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
     <div class="grid" style="margin-top:10px">${s.companies.map(c=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px"><b>${c.n}</b><div class="btns" style="margin-top:8px"><a class="btn wa" href="tel:${c.tel.replace(/[^+\d]/g,"")}">📞 ${c.tel}</a><a class="btn" href="${c.web}" target="_blank" rel="noopener">Sitio web</a></div></div>`).join("")}</div></div>`;
     $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+  if(s.mypol){
+    $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2><div id="polList">Cargando…</div></div>`;
+    $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    cargarMisPolizas($("polList"));
     return;
   }
   if(s.mine){
@@ -823,6 +830,29 @@ async function descargarDoc(url,btn){
   }catch(e){
     err.textContent="No pudimos descargar el archivo. Probá de nuevo en unos minutos.";err.style.display="";
   }finally{btn.disabled=false;btn.textContent=txt}
+}
+// "Mis pólizas": pólizas que Gosalbez le asignó al cliente, con sus PDF.
+async function cargarMisPolizas(box){
+  try{
+    const idToken=await getAuthToken();
+    const r=await fetch(CFG.sheetsUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"mis_polizas",idToken})});
+    const j=await r.json();
+    if(j&&(j.blocked||j.authRequired)){authFailed(j);return}
+    if(!j.ok)throw new Error(j.error||"");
+    if(!j.items.length){box.innerHTML='<p style="color:var(--mut)">Todavía no tenés pólizas cargadas en la app. Escribinos por WhatsApp y te las habilitamos.</p>';return}
+    const pd=v=>{const m=String(v||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)||String(v||"").match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;return m[1].length===4?new Date(+m[1],+m[2]-1,+m[3]):new Date(+m[3],+m[2]-1,+m[1])};
+    const hoy=new Date();hoy.setHours(0,0,0,0);
+    box.innerHTML=j.items.map(it=>{
+      const fin=pd(it.fin),anul=/anul|baja|cancel/i.test(it.estado||"");
+      const est=anul?["Anulada","#d64545"]:(fin&&fin<hoy)?["Vencida","#d64545"]:["Vigente","#1a9b5b"];
+      return `<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(it.compania)} · ${escH(it.poliza)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${est[1]};border-radius:99px;padding:3px 10px">${est[0]}</span></div>
+        <div style="color:var(--mut);font-size:.9rem;margin-top:6px">${escH(it.ramo)}${it.bien?"<br>"+escH(it.bien):""}<br>Vigencia: ${escH(it.inicio||"-")} al ${escH(it.fin||"-")}</div>
+        ${it.docs.length?`<div class="btns" style="margin-top:10px">${it.docs.map(d=>`<button type="button" class="btn" data-pdoc="${escH(d.id)}" data-pk="${escH(it.dockey)}">${d.tipo==="Poliza"?"Descargar póliza (PDF)":"Descargar credencial (PDF)"}</button>`).join("")}</div>`:""}</div>`}).join("")+'<p id="docErr" style="display:none;color:#d64545;font-size:.9rem"></p>';
+    box.querySelectorAll("[data-pdoc]").forEach(b=>{b.dataset.doc=b.dataset.pdoc;b.dataset.pat=b.dataset.pk;b.onclick=()=>descargarDoc(CFG.sheetsUrl,b)});
+  }catch(e){
+    box.innerHTML='<p style="color:#d64545">No pudimos cargar tus pólizas. Probá de nuevo en unos minutos.</p>';
+  }
 }
 // "Mis siniestros": lista las denuncias del cliente (según el email de su sesión) y baja el PDF de cada una.
 const escH=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
