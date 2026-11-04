@@ -2179,11 +2179,14 @@ function pintarCliPol(msg){
     <div class="fw" style="max-width:520px"><label>Cliente registrado</label><select id="cpUser"><option value="">Elegí un cliente…</option>${cp.usuarios.map(u => `<option value="${esc(String(u.Email).toLowerCase())}"${String(u.Email).toLowerCase() === cp.email ? " selected" : ""}>${esc(u.Nombre || "(sin nombre)")} — ${esc(u.Email)}</option>`).join("")}</select></div>
     <div id="cpMsg">${msg || ""}</div><div id="cpResto"></div>`;
   $("cpUser").onchange = () => { cp.email = $("cpUser").value; cp.res = []; pintarCliPol(); };
+  // Los avisos (éxito o error) aparecen arriba: se los lleva a la vista para que no pasen inadvertidos.
+  new MutationObserver(() => $("cpMsg").scrollIntoView({block:"center", behavior:"smooth"})).observe($("cpMsg"), {childList:true});
+  if(msg) $("cpMsg").scrollIntoView({block:"center", behavior:"smooth"});
   if(!cp.email) return;
   const docCelda = x => [["Poliza","Póliza"],["Credencial","Credencial"]].map(([tp, nom], k) => {
     const d = (allDocs || []).find(z => z.tipo === tp && normPat(z.patente) === normPat(x.DocKey) && String(z.poliza || "").trim() === String(x.Poliza).trim());
     const id = "cpf" + normPat(x.Poliza) + k;
-    return `<div style="margin-bottom:4px;white-space:nowrap">${nom}: ${d ? `<a href="#" data-cp-ver="${esc(d.id)}">ver ✔</a>` : `<span class="muted" style="padding:0">sin PDF</span>`} <label class="btn sm" style="cursor:pointer;margin-left:4px">${d ? "Reemplazar" : "Subir PDF"}<input type="file" accept="application/pdf,.pdf" hidden data-cp-up="${esc(tp)}" data-cp-k="${esc(x.DocKey)}" data-cp-p="${esc(x.Poliza)}"></label></div>`;
+    return `<div style="margin-bottom:4px;white-space:nowrap">${nom}: ${d ? `<a href="#" data-cp-ver="${esc(d.id)}">ver ✔</a>` : `<span class="muted" style="padding:0">sin PDF</span>`} <button type="button" class="btn sm" style="margin-left:4px" data-cp-pick="${esc(tp)}|${esc(x.Poliza)}">${d ? "Reemplazar" : "Subir PDF"}</button><input type="file" accept="application/pdf,.pdf" style="display:none" data-cp-up="${esc(tp)}" data-cp-k="${esc(x.DocKey)}" data-cp-p="${esc(x.Poliza)}"></div>`;
   }).join("");
   const fila = x => `<tr><td>${esc(x.Compania)}</td><td><b>${esc(x.Poliza)}</b></td><td>${esc(x.Ramo)}</td><td style="white-space:normal">${esc(x.Bien)}</td><td>${esc(x.Inicio)} → ${esc(x.Fin)}</td><td>${docCelda(x)}</td><td><button class="btn sm" data-cp-del="${esc(x.Compania)}|${esc(x.Poliza)}">Quitar</button></td></tr>`;
   $("cpResto").innerHTML = `<h3 style="margin:16px 0 6px">Pólizas asignadas (${mias.length})</h3>` + (mias.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien / riesgo</th><th>Vigencia</th><th>PDF</th><th></th></tr></thead><tbody>${mias.map(fila).join("")}</tbody></table></div>` : `<p class="muted">Todavía no tiene pólizas asignadas.</p>`) +
@@ -2200,6 +2203,7 @@ function pintarCliPol(msg){
     if(r.ok){ cp.asignadas = r.rows; pintarCliPol(`<div class="ok">Póliza quitada.</div>`); } else $("cpMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
   });
   $("cpResto").querySelectorAll("[data-cp-ver]").forEach(a => a.onclick = ev => { ev.preventDefault(); verDoc(a.dataset.cpVer, "cpMsg"); });
+  $("cpResto").querySelectorAll("button[data-cp-pick]").forEach(b => b.onclick = () => { const i = b.nextElementSibling; i.value = ""; i.click(); });
   $("cpResto").querySelectorAll("input[data-cp-up]").forEach(inp => inp.onchange = async () => {
     const f = inp.files[0]; if(!f) return;
     if(f.size > MAX_DOC_MB * 1024 * 1024){ $("cpMsg").innerHTML = `<div class="err">El PDF pesa más de ${MAX_DOC_MB} MB.</div>`; return; }
