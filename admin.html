@@ -373,6 +373,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div class="panelTitle"><h2>Accesos a portales de las compañías</h2><button class="btn sm" id="btnPortRef">Actualizar</button></div>
         <p class="muted" style="padding:0 0 10px">Cargá acá el usuario y la clave de cada portal. Se guardan solo en tu script de Google (no en la planilla ni en este navegador) y el panel nunca los vuelve a mostrar. Se usan para sincronizar datos y bajar PDF de las pólizas.</p>
         <div id="portBody"><div class="loading">Cargando…</div></div>
+        <div class="panelTitle" style="margin-top:18px"><h2>API de Galicia Seguros (pruebas)</h2><button class="btn sm pri" id="btnGalTest">Probar conexión</button></div>
+        <div id="galTestMsg" class="muted" style="padding:0 0 8px">Comprueba que el script pueda ingresar a la API de Galicia con los datos guardados en sus propiedades.</div>
       </div>
       <div id="viewVigRamo" class="hide">
         <div class="panelTitle"><h2>Vigentes por ramo y compañía</h2><button class="btn sm" id="btnVigRef">Actualizar</button></div>
@@ -2243,6 +2245,18 @@ function pintarCliPol(msg){
     asignar(r, $("cpManual"));
   };
 }
+
+document.addEventListener("click", async ev => {
+  if(ev.target.id !== "btnGalTest") return;
+  const b = ev.target, m = $("galTestMsg");
+  b.disabled = true; m.className = "loading"; m.textContent = "Probando…";
+  try{
+    const r = await apiPost({action:"admin_galicia_test", key:KEY});
+    if(r.ok){ m.className = "ok"; m.textContent = "Conexión correcta con Galicia (" + (r.ambiente || "") + "). Token válido hasta " + (r.expires || "-") + "."; }
+    else { m.className = "err"; m.textContent = "No se pudo ingresar" + (r.status ? " (código " + r.status + ")" : "") + ": " + (r.error || ""); }
+  }catch(e){ m.className = "err"; m.textContent = "No se pudo conectar con el script."; }
+  b.disabled = false;
+});
 
 function renderAlta(){
   if(!datosModulo.rows){ $("altaBody").innerHTML = `<div class="loading">Cargando…</div>`; cargarModulo("TODAS").then(() => { if(currentTab === "Alta") renderAlta(); }); return; }
