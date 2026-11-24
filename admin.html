@@ -1834,7 +1834,11 @@ function openFicha(row){
       if(rec) rc += `<div style="margin-bottom:8px;font-size:.9rem">Reclamo iniciado el ${esc(rec.Fecha || "")}. Estado: <select id="fcRecEst">${RECST.concat(RECST.includes(rec.Estado) ? [] : [rec.Estado]).map(e => `<option${e === rec.Estado ? " selected" : ""}>${esc(e)}</option>`).join("")}</select></div>`;
       rc += `<button class="btn sm" id="fcHab">${hab ? "Reenviar instructivo" : "Habilitar y enviar instructivo"}</button>`;
       const rdocs = sinDocs.filter(d => String(d.tramite) === t && String(d.tipo).startsWith("Reclamo tercero"));
-      if(rdocs.length) rc += `<div style="margin-top:12px"><b style="font-size:.85rem">Documentación que cargó el cliente</b>${rdocs.map(d => `<div style="margin-top:4px"><span class="muted">${esc(String(d.tipo).replace("Reclamo tercero - ",""))}:</span> <a href="#" data-sd-ver="${esc(d.id)}">${esc(d.archivo)}</a></div>`).join("")}</div>`;
+      rc += `<div style="margin-top:14px"><b style="font-size:.88rem">Documentación del reclamo</b><p class="muted" style="margin:2px 0 8px;font-size:.82rem">Los mismos documentos que carga el cliente. Podés cargarlos vos por él (PDF, JPG o PNG, hasta 8 MB cada uno).</p>` +
+        REC_SLOTS_ADM.map((sl, k) => { const ls = rdocs.filter(d => d.tipo === "Reclamo tercero - " + sl);
+          return `<div class="detailRow"><div class="lbl">${esc(sl)}${sl === "Presupuesto de reparación" ? ' <span class="muted" style="font-weight:400">(si no tiene todo riesgo)</span>' : ""}</div><div class="val">
+            ${ls.map(d => `<div style="margin-bottom:5px"><a href="#" data-sd-ver="${esc(d.id)}">${esc(d.archivo)}</a> <span class="muted" style="font-size:.76rem">${String(d.origen || "") === "Gosalbez" ? "cargado por nosotros" : "cargado por el cliente"}</span> <button class="btn sm" data-rd-del="${esc(d.id)}">Quitar</button></div>`).join("") || '<span class="muted">Falta</span>'}
+            <div style="margin-top:4px"><input type="file" id="rdF${k}" multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="max-width:100%"> <button class="btn sm" data-rd-up="${k}">Subir</button></div></div></div>`; }).join("") + `</div>`;
       html += card(3, "Reclamo a la compañía del tercero", hab ? "Habilitado: el cliente ya puede cargar la documentación desde la app." : "Al habilitarlo, el cliente recibe un mail con el instructivo para cargar fotos y documentos.", rc);
     }
     html += card(auto ? 4 : 2, "Documentación para el cliente", "Archivos que el cliente descarga en “Mis siniestros” (PDF, JPG o PNG, hasta 8 MB).", `<div id="fcDocs"></div>`);
@@ -1864,6 +1868,24 @@ function openFicha(row){
         else { err(r.error || "No se pudo habilitar el reclamo."); bh.disabled = false; } }
       catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); bh.disabled = false; }
     };
+    $("modalBody").querySelectorAll("[data-rd-del]").forEach(b => b.onclick = async () => {
+      if(!confirm("¿Quitar este archivo del reclamo?")) return;
+      const r = await apiPost({action:"admin_siniestro_doc_borrar", key:KEY, id:b.dataset.rdDel});
+      if(r.ok){ sinDocs = sinDocs.filter(d => d.id !== b.dataset.rdDel); pintar(); } else err(r.error || "No se pudo quitar.");
+    });
+    $("modalBody").querySelectorAll("[data-rd-up]").forEach(b => b.onclick = async () => {
+      const k = Number(b.dataset.rdUp), fs = [...$("rdF" + k).files];
+      if(!fs.length){ err("Elegí un archivo primero."); return; }
+      if(fs.some(f => f.size > 8*1024*1024)){ err("Algún archivo pesa más de 8 MB."); return; }
+      b.disabled = true; b.textContent = "Subiendo…";
+      try{
+        let r;
+        for(const f of fs){ r = await apiPost({action:"admin_reclamo_doc_subir", key:KEY, tramite:t, slot:REC_SLOTS_ADM[k], name:f.name, type:f.type, data: await fileToBase64(f)}); if(!r.ok) throw new Error(r.error); }
+        if(r.reclamo) hubRec[t] = Object.assign(hubRec[t] || {Tramite:t}, {Estado:r.reclamo.estado, Fecha:r.reclamo.fecha});
+        await cargarSinDocs(); renderTable(); pintar();
+        $("fcMsg").innerHTML = `<div class="ok">Listo: ${fs.length === 1 ? "archivo cargado" : fs.length + " archivos cargados"} en “${esc(REC_SLOTS_ADM[k])}”.</div>`;
+      }catch(e){ err(e.message || "No se pudo subir."); b.disabled = false; b.textContent = "Subir"; }
+    });
     const sr = $("fcRecEst");
     if(sr) sr.onchange = async () => {
       sr.disabled = true;
@@ -1879,6 +1901,7 @@ function openFicha(row){
 }
 
 // ---- Siniestros: documentación (copia de denuncia, certificado, carta de franquicia, nota de pago) ----
+const REC_SLOTS_ADM = ["Título (frente)","Título (dorso)","DNI del titular (frente)","DNI del titular (dorso)","Cédula verde (frente)","Cédula verde (dorso)","Registro de conductor (frente)","Registro de conductor (dorso)","Fotos de los daños","Presupuesto de reparación"];
 const SIN_DOC_TIPOS = ["Denuncia compañía","Certificado de cobertura","Carta de Franquicia","Nota de pago siniestro"];
 let sinDocs = [];
 async function cargarSinDocs(){
