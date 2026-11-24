@@ -1093,7 +1093,7 @@ function authFailed(j){
 let DEEP=null;
 try{
   const q=new URLSearchParams(location.search);
-  if(q.get("siniestro")&&q.get("ir")){DEEP={t:q.get("siniestro"),ir:q.get("ir")};try{sessionStorage.setItem("gz_deep",JSON.stringify(DEEP))}catch(e){}}
+  if(q.get("ir")&&(q.get("siniestro")||q.get("ir")==="mispolizas")){DEEP={t:q.get("siniestro")||"",ir:q.get("ir")};try{sessionStorage.setItem("gz_deep",JSON.stringify(DEEP))}catch(e){}}
   else{try{const g=sessionStorage.getItem("gz_deep");if(g)DEEP=JSON.parse(g)}catch(e){}}
 }catch(e){}
 let PRE=null;
@@ -1107,6 +1107,7 @@ async function irDirecto(){
   const d=DEEP;DEEP=null;
   try{sessionStorage.removeItem("gz_deep")}catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}
+  if(d.ir==="mispolizas"){try{show("mispol");irAlPanel()}catch(e){}return}
   try{
     $("panel").innerHTML='<div class="panel" style="text-align:center;padding:36px 16px"><p style="font-weight:700;margin:0 0 6px">Abriendo tu siniestro…</p><p style="color:var(--mut);font-size:.9rem;margin:0">Un momento, estamos buscando tus datos.</p></div>';
     irAlPanel();
@@ -1203,7 +1204,7 @@ if(AUTH_ON){
     }
     if(!u.emailVerified){A("authVerifyMail").textContent=u.email||"";showPane("authVerify");return}
     showPane("authLoading");
-    if(DEEP&&!PRE){try{PRE=misFetch("mis_siniestros");PRE.catch(()=>{})}catch(e){PRE=null}}
+    if(DEEP&&DEEP.t&&!PRE){try{PRE=misFetch("mis_siniestros");PRE.catch(()=>{})}catch(e){PRE=null}}
     let res=null;
     try{res=await registerLogin()}catch(e){res=null}
     if(seq!==authSeq)return;

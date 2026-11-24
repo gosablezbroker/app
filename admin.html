@@ -1636,7 +1636,7 @@ function openFicha(row){
     const ok = m => msg.innerHTML = `<div class="ok">${esc(m)}</div>`, err = m => msg.innerHTML = `<div class="err">${esc(m)}</div>`;
     $("fcEstado").onchange = async e => {
       e.target.disabled = true;
-      try{ const r = await apiPost({action:"admin_siniestro_estado", key:KEY, tramite:t, estado:e.target.value}); if(r.ok){ row.Estado = e.target.value; renderTable(); pintar(); $("fcMsg").innerHTML = `<div class="ok">Estado actualizado a “${esc(e.target.value)}”.</div>`; } else { err(r.error || "No se pudo cambiar el estado."); e.target.disabled = false; } }
+      try{ const r = await apiPost({action:"admin_siniestro_estado", key:KEY, tramite:t, estado:e.target.value}); if(r.ok){ row.Estado = e.target.value; renderTable(); pintar(); $("fcMsg").innerHTML = `<div class="ok">Estado actualizado a “${esc(e.target.value)}”. ${r.avisado ? "Le avisamos al cliente por mail (copia a siniestros@)." : "No se le pudo avisar por mail (revisá que tenga un mail cargado)."}</div>`; } else { err(r.error || "No se pudo cambiar el estado."); e.target.disabled = false; } }
       catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); e.target.disabled = false; }
     };
     const bi = $("fcInsp");
@@ -1660,7 +1660,7 @@ function openFicha(row){
     const sr = $("fcRecEst");
     if(sr) sr.onchange = async () => {
       sr.disabled = true;
-      try{ const r = await apiPost({action:"admin_reclamo_estado", key:KEY, tramite:t, estado:sr.value}); if(r.ok){ rec.Estado = sr.value; renderTable(); ok("Estado del reclamo: “" + sr.value + "”."); } else err(r.error || "No se pudo cambiar."); }
+      try{ const r = await apiPost({action:"admin_reclamo_estado", key:KEY, tramite:t, estado:sr.value}); if(r.ok){ rec.Estado = sr.value; renderTable(); ok("Estado del reclamo: “" + sr.value + "”. " + (r.avisado ? "Le avisamos al cliente por mail." : "No se le pudo avisar por mail.")); } else err(r.error || "No se pudo cambiar."); }
       catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); }
       sr.disabled = false;
     };
@@ -2449,7 +2449,7 @@ function pintarCliPol(msg){
     try{
       const x = await apiPost({action:"admin_doc_upload", key:KEY, patente:inp.dataset.cpK, poliza:inp.dataset.cpP, tipo:inp.dataset.cpUp, name:f.name, data: await fileToBase64(f)});
       if(!x.ok) throw new Error(x.error);
-      await cargarTodosDocs(); pintarCliPol(`<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF cargado."} El cliente ya lo ve en la app.</div>`);
+      await cargarTodosDocs(); pintarCliPol(`<div class="ok">${x.reemplazado ? "PDF reemplazado." : "PDF cargado."} El cliente ya lo ve en la app.${x.avisados ? " Le avisamos por mail." : " (No se le avisó por mail: no hay un cliente registrado con esta póliza asignada.)"}</div>`);
     }catch(e){ $("cpMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo subir el PDF.")}</div>`; }
   });
   const asignar = async (poliza, btn) => {
