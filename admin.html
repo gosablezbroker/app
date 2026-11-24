@@ -244,6 +244,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="sec" data-sec="INI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button>
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
         <button class="sec" data-sec="CON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.8h15v10.2H9.3l-3.8 3.1v-3.1H4.5zM7.8 9.8h8.4M7.8 12.9h5.2"/></svg><span>Consultas y cotizaciones</span></button>
+        <button class="sec" data-sec="GAC"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3M10 6h4"/></svg><span>Gestión con App clientes</span></button>
         <button class="sec" data-sec="CPO"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4"/></svg><span>Mis pólizas (clientes)</span></button>
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
         <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
@@ -278,6 +279,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="POL" data-tab="CAR:OTR">Otras compañías</button>
         <button class="tab" data-sec="CRE" data-tab="Vehiculos">Vehículos y credenciales</button>
         <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
+        <button class="tab" data-sec="GAC" data-tab="UsuApp">Usuarios registrados por la app</button>
         <button class="tab" data-sec="USU" data-tab="Usuarios">Usuarios registrados</button>
         <button class="tab" data-sec="USU" data-tab="Portales">Accesos a portales</button>
       </div>
@@ -363,6 +365,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       <div id="viewAlta" class="hide">
         <div class="panelTitle"><h2 id="altaTitulo">Agregar póliza o endoso</h2></div>
         <div id="altaBody"></div>
+      </div>
+      <div id="viewUsuApp" class="hide">
+        <div class="panelTitle"><h2>Usuarios registrados por la app</h2><button class="btn sm" id="btnUaRef">Actualizar</button></div>
+        <div id="uaBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewEstudios" class="hide">
         <div class="panelTitle"><h2>Estudios de Abogados Gestores</h2><button class="btn sm" id="btnEstRef">Actualizar</button></div>
@@ -762,7 +768,7 @@ document.querySelectorAll(".sec").forEach(b => {
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
-const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Automotor", CPO:"CliPol", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", GAC:"UsuApp", CPO:"CliPol", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
 // ===== Módulos tipo Adminse calculados con la cartera ya importada =====
@@ -1224,10 +1230,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol", Estudios:"viewEstudios"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol","viewEstudios"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol", Estudios:"viewEstudios", UsuApp:"viewUsuApp"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol","viewEstudios","viewUsuApp"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(tab === "Estudios") renderEstudios(); else if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(tab === "Estudios") renderEstudios(); else if(tab === "UsuApp") renderUsuApp(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1243,7 +1249,7 @@ function selectTab(tab){
     "Reclamos terceros":"Reclamos a la compañía del tercero",
     "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados", "Estudios":"Estudios de Abogados Gestores"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados", "Estudios":"Estudios de Abogados Gestores", "UsuApp":"Usuarios registrados por la app"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -1455,6 +1461,106 @@ function renderTable(){
   });
 }
 
+// ---- Gestión con App clientes: usuarios registrados, sus pólizas, siniestros y movimientos ----
+const ua = {cargado:false, usuarios:[], pol:[], sin:[], rec:[], insp:[], cons:[], cot:[], q:""};
+function uaFecha(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0));
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);
+  if(m) return new Date(+m[3], +m[2]-1, +m[1], +(m[4]||0), +(m[5]||0));
+  return null;
+}
+function uaFmt(d){ return d ? d.toLocaleDateString("es-AR") + (d.getHours() || d.getMinutes() ? " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0") : "") : ""; }
+async function renderUsuApp(forzar){
+  $("btnUaRef").onclick = () => renderUsuApp(true);
+  if(forzar || !ua.cargado){
+    $("uaBody").innerHTML = `<div class="loading">Cargando…</div>`;
+    try{
+      const L = sh => apiGet({action:"admin_list", key:KEY, sheet:sh}).then(r => r.ok ? (r.rows || []) : []).catch(() => []);
+      const [u, a, s1, r1, i1, c1, c2] = await Promise.all([L("Usuarios"), apiPost({action:"admin_cliente_polizas_list", key:KEY}), L("Mis siniestros"), L("Reclamos terceros"), L("Inspecciones"), L("Otras consultas"), L("Cotizacion Hogar")]);
+      ua.usuarios = u.filter(x => x.Email);
+      ua.pol = a.ok ? (a.rows || []) : [];
+      ua.sin = s1; ua.rec = r1; ua.insp = i1; ua.cons = c1; ua.cot = c2;
+      await Promise.all([cargarSinDocs(), cargarTodosDocs()]);
+      ua.cargado = true;
+    }catch(e){ $("uaBody").innerHTML = `<div class="err">No se pudo cargar. Probá de nuevo.</div>`; return; }
+  }
+  pintarUsuApp();
+}
+const uaMail = x => String(x || "").trim().toLowerCase();
+function uaSinDe(email){ return ua.sin.filter(r => uaMail(r["Email sesion"]) === email || uaMail(r["Email formulario"]) === email); }
+function pintarUsuApp(){
+  const q = ua.q.toLowerCase();
+  const lista = ua.usuarios.filter(u => !q || [u.Email, u.Nombre].some(v => String(v || "").toLowerCase().includes(q)));
+  const filas = lista.map(u => {
+    const em = uaMail(u.Email);
+    const np = ua.pol.filter(p => uaMail(p.Email) === em).length, ns = uaSinDe(em).length;
+    const ult = uaFecha(u["Ultimo ingreso"]);
+    return `<tr data-ua="${esc(em)}" style="cursor:pointer"><td><b>${esc(u.Nombre || "—")}</b></td><td>${esc(u.Email)}</td><td>${esc(uaFmt(uaFecha(u["Primer ingreso"])).split(" ")[0] || "")}</td><td>${esc(ult ? uaFmt(ult) : "")}</td><td style="text-align:center">${np}</td><td style="text-align:center">${ns}</td><td><button class="btn sm" data-ua-ver="${esc(em)}">Ver ficha</button></td></tr>`;
+  }).join("");
+  $("uaBody").innerHTML = `<p class="muted" style="padding:0 0 10px">Personas registradas en la app. Tocá una para ver sus pólizas, siniestros y todos los movimientos entre ustedes y nosotros.</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><input id="uaQ" type="text" placeholder="Buscar por nombre o mail" value="${esc(ua.q)}" style="flex:1;max-width:420px"></div>
+    ${filas ? `<div class="tblwrap"><table><thead><tr><th>Nombre</th><th>Mail</th><th>Se registró</th><th>Último ingreso</th><th>Pólizas</th><th>Siniestros</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>` : '<p class="muted">No hay usuarios que coincidan.</p>'}
+    <p class="muted" style="margin-top:8px;font-size:.82rem">${lista.length} usuario${lista.length === 1 ? "" : "s"}</p>`;
+  const qi = $("uaQ");
+  qi.oninput = () => { ua.q = qi.value; const pos = qi.selectionStart; pintarUsuApp(); const n = $("uaQ"); n.focus(); n.setSelectionRange(pos, pos); };
+  $("uaBody").querySelectorAll("[data-ua]").forEach(tr => tr.onclick = () => abrirFichaUsuario(tr.dataset.ua));
+}
+function abrirFichaUsuario(email){
+  const u = ua.usuarios.find(x => uaMail(x.Email) === email) || {Email:email};
+  const pols = ua.pol.filter(p => uaMail(p.Email) === email);
+  const sins = uaSinDe(email);
+  const tr = new Set(sins.map(x => String(x.Tramite)));
+  const ev = [];
+  const add = (f, tipo, txt) => { const d = uaFecha(f); if(d) ev.push({d, tipo, txt}); };
+  add(u["Primer ingreso"], "Cuenta", "Se registró en la app");
+  if(u["Ultimo ingreso"] && String(u["Ultimo ingreso"]) !== String(u["Primer ingreso"])) add(u["Ultimo ingreso"], "Cuenta", "Último ingreso a la app" + (u.Ingresos ? " (" + u.Ingresos + " ingresos en total)" : ""));
+  pols.forEach(p => {
+    add(p.Asignado, "Póliza", `Le cargamos la póliza ${p.Poliza}${p.Compania ? " de " + p.Compania : ""}${p.Bien ? " (" + p.Bien + ")" : ""}`);
+    allDocs.filter(d => String(d.poliza || "").trim() === String(p.Poliza).trim() && normPat(d.patente) === normPat(p.DocKey)).forEach(d => add(d.subido, "Póliza", `Cargamos el PDF de ${d.tipo === "Credencial" ? "la credencial" : "la póliza"} ${p.Poliza}`));
+  });
+  sins.forEach(r => {
+    const t = String(r.Tramite);
+    add(r.Fecha, "Siniestro", `Denunció ${String(r.Tipo || "siniestro").toLowerCase()} ${t}${r.Patente ? " (patente " + r.Patente + ")" : ""}`);
+    if(r.Actualizado && uaFecha(r.Actualizado) && String(r.Actualizado) !== String(r.Fecha)) add(r.Actualizado, "Siniestro", `Siniestro ${t}: última actualización, estado “${r.Estado || ""}”`);
+    if(uaFecha(r["Reclamo habilitado"])) add(r["Reclamo habilitado"], "Reclamo", `Habilitamos el reclamo a tercero del siniestro ${t} y le enviamos el instructivo`);
+    sinDocs.filter(d => String(d.tramite) === t).forEach(d => {
+      const propio = String(d.origen || "") === "Gosalbez", rt = String(d.tipo).startsWith("Reclamo tercero");
+      add(d.subido, rt ? "Reclamo" : "Documento", propio ? `Cargamos “${d.tipo}” en el siniestro ${t}` : `Subió “${String(d.tipo).replace("Reclamo tercero - ", "")}”${rt ? " (reclamo a tercero)" : ""} en el siniestro ${t}`);
+    });
+  });
+  ua.insp.filter(i => tr.has(String(i.Tramite))).forEach(i => add(i.Solicitado, "Inspección", `Propuso inspección del siniestro ${i.Tramite}${i["Fecha inspeccion"] ? " para el " + i["Fecha inspeccion"] : ""}${i.Lugar ? " en " + i.Lugar : ""}${i.Localidad ? ", " + i.Localidad : ""}`));
+  ua.rec.filter(r => tr.has(String(r.Tramite))).forEach(r => {
+    add(r.Fecha, "Reclamo", `Inició el reclamo a tercero del siniestro ${r.Tramite}`);
+    if(r["Estudio derivado"]) add(r.Derivado, "Reclamo", `Derivamos el reclamo ${r.Tramite} al estudio ${r["Estudio derivado"]}`);
+  });
+  const delMail = r => Object.values(r).some(v => uaMail(v) === email);
+  ua.cons.filter(delMail).forEach(r => add(r.Fecha, "Consulta", `Nos hizo una consulta${r.Tramite ? " (" + r.Tramite + ")" : ""}`));
+  ua.cot.filter(delMail).forEach(r => add(r.Fecha, "Cotización", `Pidió una cotización de hogar${r.Tramite ? " (" + r.Tramite + ")" : ""}`));
+  ev.sort((a, b) => b.d - a.d);
+  const card = (t, inner) => `<div style="box-sizing:border-box;max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;background:var(--card)"><b style="font-size:1rem">${t}</b><div style="margin-top:8px">${inner}</div></div>`;
+  $("modalTitle").textContent = u.Nombre || email;
+  $("printSub").textContent = "Usuario de la app: " + email;
+  const polHtml = pols.length ? `<div class="tblwrap"><table><thead><tr><th>Compañía</th><th>Póliza</th><th>Ramo</th><th>Bien</th><th>Vigencia</th><th>PDF</th></tr></thead><tbody>${pols.map(p => {
+    const ds = allDocs.filter(d => String(d.poliza || "").trim() === String(p.Poliza).trim() && normPat(d.patente) === normPat(p.DocKey));
+    return `<tr><td>${esc(p.Compania)}</td><td><b>${esc(p.Poliza)}</b></td><td>${esc(p.Ramo)}</td><td style="white-space:normal">${esc(p.Bien)}</td><td>${esc(p.Inicio)} → ${esc(p.Fin)}</td><td>${["Poliza","Credencial"].map(tp => `${tp === "Poliza" ? "Póliza" : "Credencial"}: ${ds.some(d => d.tipo === tp) ? "✔" : "—"}`).join("<br>")}</td></tr>`;
+  }).join("")}</tbody></table></div>` : '<p class="muted">Todavía no le cargaste pólizas. Hacelo desde “Mis pólizas (clientes)”.</p>';
+  const sinHtml = sins.length ? `<div class="tblwrap"><table><thead><tr><th>Trámite</th><th>Fecha</th><th>Patente</th><th>Estado</th><th></th></tr></thead><tbody>${sins.map(r => `<tr><td><b>${esc(r.Tramite)}</b></td><td>${esc(uaFmt(uaFecha(r.Fecha)).split(" ")[0] || r.Fecha || "")}</td><td>${esc(r.Patente || "")}</td><td><span class="chip" style="cursor:default">${esc(r.Estado || "Recibido")}</span></td><td><button class="btn sm" data-ua-sin="${esc(r.Tramite)}">Gestionar</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No cargó siniestros.</p>';
+  const movHtml = ev.length ? `<div style="max-height:360px;overflow:auto">${ev.map(e => `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:.9rem"><span class="muted" style="flex:none;width:118px;font-size:.8rem">${esc(uaFmt(e.d))}</span><span class="chip" style="cursor:default;flex:none;align-self:flex-start;font-size:.72rem">${esc(e.tipo)}</span><span style="flex:1;min-width:0">${esc(e.txt)}</span></div>`).join("")}</div>` : '<p class="muted">Todavía no hay movimientos.</p>';
+  $("modalBody").innerHTML = `<div style="margin-bottom:14px;font-size:.92rem;line-height:1.6"><b>${esc(u.Nombre || "Sin nombre")}</b><br><span class="muted">${esc(email)}${u.Proveedor ? " · ingresa con " + esc(u.Proveedor) : ""}${u.Estado ? " · " + esc(u.Estado) : ""}</span></div>
+    <div id="uaMsg"></div>
+    ${card(`Pólizas que le cargamos (${pols.length})`, polHtml)}${card(`Siniestros que cargó (${sins.length})`, sinHtml)}${card(`Movimientos (${ev.length})`, movHtml)}`;
+  $("modalBody").querySelectorAll("[data-ua-sin]").forEach(b => b.onclick = () => {
+    const row = ua.sin.find(r => String(r.Tramite) === b.dataset.uaSin); if(!row) return;
+    hubRec = {}; ua.rec.forEach(x => hubRec[String(x.Tramite)] = x); hubInsp = {}; ua.insp.forEach(x => hubInsp[String(x.Tramite)] = x);
+    openFicha(row);
+  });
+  $("modalOverlay").classList.remove("hide");
+}
+
 // ---- Estudios de Abogados Gestores: alta de estudios + derivación de reclamos a tercero ----
 const est = {estudios:[], sin:[], rec:[], editId:null, filtro:"abiertos"};
 const DERIV_REQ_UI = [
@@ -1606,7 +1712,7 @@ function openFicha(row){
   $("printSub").textContent = "Siniestro " + t + " · generado el " + new Date().toLocaleString("es-AR");
   const ESTADOS = ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
   const RECST = ["Iniciado","Aceptado","Pagos","Finalizado"];
-  const card = (num, titulo, ayuda, inner) => `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;background:var(--card)">
+  const card = (num, titulo, ayuda, inner) => `<div style="box-sizing:border-box;max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;background:var(--card)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span style="flex:none;width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center">${num}</span><b style="font-size:1rem">${titulo}</b></div>
     <p class="muted" style="margin:0 0 10px;font-size:.85rem">${ayuda}</p>${inner}</div>`;
   const pintar = () => {
