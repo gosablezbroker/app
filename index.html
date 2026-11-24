@@ -904,6 +904,8 @@ async function cargarMisPolizas(box){
   }
 }
 // "Mis siniestros": lista las denuncias del cliente (según el email de su sesión) y baja el PDF de cada una.
+function minInsp(){const d=new Date(Date.now()+48*3600*1000);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function minInspTxt(){const p=minInsp().split("-");return p[2]+"/"+p[1]+"/"+p[0]}
 const escH=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const EST_COL={"Recibido":"#0b6bff","Inspección pendiente":"#c77700","Inspeccionado":"#0b6bff","Reparación pendiente":"#c77700","Finalizado":"#1a9b5b","En gestión":"#c77700","Cerrado":"#1a9b5b","Iniciado":"#0b6bff","Aceptado":"#0b6bff","Pagos":"#c77700","Sin iniciar":"#667"};
 const badge=e=>`<span style="font-size:.8rem;font-weight:700;color:#fff;background:${EST_COL[e]||"#667"};border-radius:99px;padding:3px 10px;white-space:nowrap">${escH(e)}</span>`;
@@ -946,7 +948,7 @@ async function detalleSiniestro(i,recargar,solo){
   let insp="";
   if(it.estado==="Inspección pendiente"){
     insp=card("Inspección del vehículo",`<p style="color:var(--mut);font-size:.9rem;margin:0 0 10px">${it.inspeccion?`Elegiste el <b>${escH(it.inspeccion.fecha)}</b> en ${escH(it.inspeccion.lugar)}, ${escH(it.inspeccion.localidad)}. Si querés cambiarlo, enviá otra fecha.`:"Tu vehículo tiene la inspección pendiente. Indicanos cuándo y dónde podés hacerla."}</p>
-      <div class="fw"><label>Fecha *</label><input id="inFecha" type="date" min="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="fw"><label>Fecha *</label><input id="inFecha" type="date" min="${minInsp()}"><small style="color:var(--mut)">La inspección se pide con <b>48 horas de anticipación</b>: podés elegir desde el ${minInspTxt()}.</small></div>
       <div class="fw"><label>Lugar (dirección) *</label><input id="inLugar" type="text" placeholder="Calle y altura"></div>
       <div class="fw"><label>Localidad *</label><input id="inLoc" type="text"></div>
       <p id="inMsg" style="display:none;font-size:.9rem"></p>
@@ -972,6 +974,7 @@ async function detalleSiniestro(i,recargar,solo){
     const m=$("inMsg"),say=(t,ok)=>{m.textContent=t;m.style.color=ok?"var(--wa)":"#d64545";m.style.display=t?"":"none"};
     const fecha=$("inFecha").value,lugar=$("inLugar").value.trim(),localidad=$("inLoc").value.trim();
     if(!fecha||!lugar||!localidad){say("Completá la fecha, el lugar y la localidad.");return}
+    if(fecha<minInsp()){say("La inspección se pide con 48 horas de anticipación. Elegí una fecha desde el "+minInspTxt()+".");return}
     send.disabled=true;send.textContent="Enviando…";say("");
     try{
       const j=await misFetch("inspeccion_solicitar",{tramite:it.tramite,fecha,lugar,localidad});
