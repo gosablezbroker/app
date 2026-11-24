@@ -1496,9 +1496,8 @@ function pintarEstudios(msg){
   const filasC = casos.map(c => {
     const der = c.r["Estudio derivado"] ? `<span class="chip" style="cursor:default">${esc(c.r["Estudio derivado"])}</span><br><span class="muted" style="font-size:.78rem">${esc(String(c.r.Derivado || "").slice(0,10))}</span>` : '<span class="muted">—</span>';
     const docs = `<div style="font-size:.82rem;line-height:1.6">Asegurado: ${c.d.asegurado ? "<b>✔ " + c.d.asegurado + " archivos</b>" : '<span style="color:var(--danger)">✘ falta</span>'}<br>${c.d.chk.map(k => `${esc(k.nombre)}: ${k.ok ? "<b>✔</b>" : '<span style="color:var(--danger)">✘ falta</span>'}`).join("<br>")}</div>`;
-    const acc = c.d.completo
-      ? `<select data-est-sel="${esc(c.t)}" style="max-width:170px"><option value="">Elegí estudio…</option>${optEst}</select><br><button class="btn sm pri" data-est-der="${esc(c.t)}" style="margin-top:6px">${c.r["Estudio derivado"] ? "Derivar de nuevo" : "Derivar al estudio"}</button>`
-      : `<span class="muted" style="font-size:.82rem">Completá la documentación para poder derivar.</span>`;
+    const hayDocs = c.d.asegurado > 0 || c.d.chk.some(k => k.ok);
+    const acc = `<select data-est-sel="${esc(c.t)}" style="max-width:190px"><option value="">Elegí el estudio…</option>${optEst}</select><br><button class="btn sm pri" data-est-der="${esc(c.t)}" style="margin-top:6px"${hayDocs ? "" : " disabled title='Cargá al menos un documento'"}>${c.r["Estudio derivado"] ? "Derivar de nuevo" : "Derivar a estudio"}</button>${c.d.completo ? "" : '<div class="muted" style="font-size:.78rem;margin-top:4px">Documentación incompleta: se envía lo que está cargado.</div>'}`;
     return `<tr><td><b>${esc(c.t)}</b></td><td>${esc(c.s0.Nombre || "")}<br><span class="muted">${esc(c.s0.Patente || "")}</span></td><td><span class="chip" style="cursor:default">${esc(c.r.Estado || "Iniciado")}</span></td><td style="white-space:normal">${docs}</td><td>${der}</td><td style="white-space:normal">${acc}<br><button class="btn sm" data-est-doc="${esc(c.t)}" style="margin-top:6px">Ver / cargar documentos</button></td></tr>`;
   }).join("");
   box.innerHTML = `<div id="estMsg">${msg || ""}</div>
@@ -1514,7 +1513,7 @@ function pintarEstudios(msg){
     <div style="border:1px solid var(--bd);border-radius:14px;padding:14px 16px;background:var(--card)">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><b style="font-size:1rem">2. Reclamos a tercero en proceso</b>
         <span><button class="chip${est.filtro === "abiertos" ? " on" : ""}" id="esFA">En proceso</button> <button class="chip${est.filtro === "todos" ? " on" : ""}" id="esFT">Todos</button></span></div>
-      <p class="muted" style="margin:4px 0 10px;font-size:.85rem">Cuando están la documentación del asegurado, la denuncia, el certificado de cobertura y la carta de franquicia, podés derivar el reclamo: se envía todo por mail al estudio que elijas (con copia a vos).</p>
+      <p class="muted" style="margin:4px 0 10px;font-size:.85rem">Elegí el estudio y tocá <b>Derivar a estudio</b>: se le envía un mail de aviso con toda la documentación que esté cargada (la del asegurado, la denuncia, el certificado de cobertura y la carta de franquicia). Vos recibís copia.</p>
       ${filasC ? `<div class="tblwrap"><table><thead><tr><th>Trámite</th><th>Asegurado</th><th>Reclamo</th><th>Documentación</th><th>Derivado a</th><th>Acción</th></tr></thead><tbody>${filasC}</tbody></table></div>` : '<p class="muted">No hay reclamos a tercero en proceso. Aparecen acá cuando un asegurado inicia el reclamo desde la app.</p>'}
     </div>`;
   const msgEl = $("estMsg");
@@ -1547,7 +1546,8 @@ function pintarEstudios(msg){
     const t = b.dataset.estDer, sel = box.querySelector(`[data-est-sel="${t}"]`), id = sel ? sel.value : "";
     if(!id){ $("estMsg").innerHTML = `<div class="err">Elegí a qué estudio derivar el reclamo ${esc(t)}.</div>`; $("estMsg").scrollIntoView({block:"center"}); return; }
     const e = est.estudios.find(x => String(x.Id) === id);
-    if(!confirm(`¿Derivar el reclamo ${t} a ${e ? e.Estudio : "el estudio"} (${e ? e.Email : ""})? Se envía por mail toda la documentación.`)) return;
+    const dd = estDocsDe(t), faltan = (dd.asegurado ? [] : ["documentación del asegurado"]).concat(dd.chk.filter(k => !k.ok).map(k => k.nombre.toLowerCase()));
+    if(!confirm(`¿Derivar el siniestro ${t} a ${e ? e.Estudio : "el estudio"} (${e ? e.Email : ""})? Se envía por mail un aviso con toda la documentación cargada.` + (faltan.length ? `\n\nOjo: todavía falta ${faltan.join(", ")}. El mail va a avisar que está pendiente.` : ""))) return;
     b.disabled = true; b.textContent = "Enviando…";
     try{
       const r = await apiPost({action:"admin_reclamo_derivar", key:KEY, tramite:t, estudioId:id});
@@ -1558,7 +1558,7 @@ function pintarEstudios(msg){
       }
       $("estMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo derivar.")}</div>`; $("estMsg").scrollIntoView({block:"center"});
     }catch(err){ $("estMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo (revisá antes si el mail ya salió).</div>`; }
-    b.disabled = false; b.textContent = "Derivar al estudio";
+    b.disabled = false; b.textContent = "Derivar a estudio";
   });
 }
 
