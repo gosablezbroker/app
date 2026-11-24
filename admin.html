@@ -1729,7 +1729,7 @@ function abrirSinDocs(tramite, box){
         const r = await apiPost({action:"admin_siniestro_doc_subir", key:KEY, tramite, tipo:SIN_DOC_TIPOS[i], name:f.name, type:f.type, data: await fileToBase64(f)});
         if(!r.ok) throw new Error(r.error);
         await cargarSinDocs(); pintar(); renderTable();
-        $("sdMsg").innerHTML = `<div class="ok">Archivo subido.</div>`;
+        $("sdMsg").innerHTML = r.avisado ? `<div class="ok">Archivo subido. Le avisamos al cliente por mail para que lo vea en la app (copia a siniestros@).</div>` : `<div class="ok">Archivo subido. El cliente lo ve en la app, pero no pudimos avisarle por mail (revisá que tenga un mail cargado).</div>`;
       }catch(e){ $("sdMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo subir el archivo.")}</div>`; b.disabled = false; b.textContent = "Subir"; }
     });
   };
