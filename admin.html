@@ -258,13 +258,11 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="REP" data-tab="Renovaciones">Renovaciones</button>
         <button class="tab" data-sec="REP" data-tab="Vigentes">Vigentes por ramo</button>
         <button class="tab" data-sec="IMP" data-tab="Importar">Importar</button>
-        <button class="tab" data-sec="SIN" data-tab="Automotor">Automotor</button>
-        <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Ramas varias (hogar / comercio)</button>
+        <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Gestión de siniestros</button>
+        <button class="tab" data-sec="SIN" data-tab="Automotor">Denuncias automotor</button>
+        <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Denuncias hogar / comercio</button>
         <button class="tab" data-sec="CON" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="CON" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
-        <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Mis siniestros (estado)</button>
-        <button class="tab" data-sec="SIN" data-tab="Reclamos terceros">Reclamos a terceros</button>
-        <button class="tab" data-sec="SIN" data-tab="Inspecciones">Inspecciones</button>
         <button class="tab" data-sec="CPO" data-tab="CliPol">Pólizas de clientes</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
@@ -1232,11 +1230,11 @@ function selectTab(tab){
     $("crumbTab").textContent = btnTab ? btnTab.textContent : tab;
     document.body.classList.remove("menuOpen"); }
   const titles = {"Importar":"Importar datos","TODAS":"Pólizas","Inicio":"Resumen de cartera","Clientes":"Clientes","Renovaciones":"Renovaciones","Vigentes":"Vigentes por ramo",
-    "Automotor":"Siniestros — Automotor",
-    "Hogar-Comercio":"Siniestros — Hogar / Comercio",
+    "Automotor":"Denuncias recibidas — Automotor",
+    "Hogar-Comercio":"Denuncias recibidas — Hogar / Comercio",
     "Otras consultas":"Otras consultas",
     "Cotizacion Hogar":"Cotizaciones — Hogar",
-    "Mis siniestros":"Siniestros — estado para el cliente",
+    "Mis siniestros":"Gestión de siniestros",
     "Reclamos terceros":"Reclamos a la compañía del tercero",
     "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
@@ -1275,6 +1273,7 @@ async function loadTab(tab){
     currentPage = 1;
     if(tab === "Vehiculos") await cargarTodosDocs();
     if(tab === "Mis siniestros" || tab === "Reclamos terceros") await cargarSinDocs();
+    if(tab === "Mis siniestros") await cargarHub();
     renderTable();
   }catch(err){
     $("listArea").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo en un momento.</div>`;
@@ -1284,9 +1283,10 @@ async function loadTab(tab){
 function renderTable(){
   const q = $("buscador").value.trim().toLowerCase();
   const isUsr = currentTab === "Usuarios";
-  const headers = currentHeaders.filter(h => h !== "_row" && !(isUsr && h === "UID"));
+  const allHeaders = currentHeaders.filter(h => h !== "_row" && !(isUsr && h === "UID"));
+  const headers = columnasCompactas(currentTab, allHeaders);
   const filtered = !q ? currentRows : currentRows.filter(row =>
-    headers.some(h => String(row[h]==null?"":row[h]).toLowerCase().includes(q))
+    allHeaders.some(h => String(row[h]==null?"":row[h]).toLowerCase().includes(q))
   );
 
   if(!headers.length){
@@ -1311,18 +1311,23 @@ function renderTable(){
 
   const isVeh = currentTab === "Vehiculos";
   const isRec = currentTab === "Reclamos terceros";
-  const isSin = currentTab === "Mis siniestros" || isRec;
+  const isHub = currentTab === "Mis siniestros";
+  const isSin = isHub || isRec;
   let html = `<div class="tblwrap"><table><thead><tr>`;
   headers.forEach(h => html += `<th>${esc(h)}</th>`);
   if(isUsr) html += `<th>Acceso</th>`;
   if(isVeh) html += `<th>PDF</th><th>SMG</th>`;
-  if(isSin) html += `<th>Documentos</th>`;
-  if(isSin && !isRec) html += `<th>Reclamo a tercero</th>`;
+  if(isHub) html += `<th>Inspección</th><th>Reclamo a tercero</th><th></th>`;
+  else if(isSin) html += `<th>Documentos</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
     headers.forEach(h => {
       const bloq = isUsr && h === "Estado" && String(row[h]).trim().toLowerCase() === "bloqueado";
+      if(isHub && h === "Estado"){
+        html += `<td><span class="chip" style="cursor:default;white-space:nowrap">${esc(row[h] || "Recibido")}</span></td>`;
+        return;
+      }
       if(isSin && h === "Estado"){
         const cur = String(row[h] || (isRec ? "Iniciado" : "Recibido"));
         const lst = isRec ? ["Iniciado","Aceptado","Pagos","Finalizado"] : ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
@@ -1337,14 +1342,11 @@ function renderTable(){
       html += `<td>${linksDocs(row.Patente, row.Poliza)}</td>`;
       html += `<td>${esSmg ? `<button class="btn sm" data-smg-pat="${esc(row.Patente)}" data-smg-pol="${esc(row.Poliza)}">Importar póliza y credencial</button>` : ""}</td>`;
     }
-    if(isSin){
+    if(isHub){
+      html += `<td>${chipInsp(row)}</td><td>${chipRec(row)}</td><td><button class="btn sm" data-ficha="${esc(row.Tramite)}">Gestionar</button></td>`;
+    } else if(isSin){
       const n = sinDocs.filter(d => String(d.tramite) === String(row.Tramite) && String(d.tipo).startsWith("Reclamo tercero") === isRec).length;
       html += `<td><button class="btn sm" data-sin-docs="${esc(row.Tramite)}">Documentos${n ? " (" + n + ")" : ""}</button></td>`;
-      if(!isRec){
-        const auto = String(row.Tipo || "") === "Siniestro automotor";
-        const hab = !!String(row["Reclamo habilitado"] || "").trim();
-        html += `<td>${auto ? `<button class="btn sm" data-rec-hab="${esc(row.Tramite)}">${hab ? "Reenviar instructivo" : "Habilitar y enviar instructivo"}</button>` : ""}</td>`;
-      }
     }
     if(isUsr){
       const esBloq = String(row.Estado||"").trim().toLowerCase() === "bloqueado";
@@ -1365,7 +1367,8 @@ function renderTable(){
     html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
   }
   else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
-  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> (${isRec ? "Iniciado / Aceptado / Pagos / Finalizado" : "Recibido / Inspección pendiente / Inspeccionado / Reparación pendiente / Finalizado"}): el cliente lo ve en “Mis siniestros” de la app.${!isRec ? " Con “Habilitar y enviar instructivo” el asegurado recibe un mail con los pasos para cargar la documentación del reclamo a tercero." : ""}${isRec ? " Con “Documentos” ves lo que cargó el cliente para el reclamo." : ""}</p><div id="sinMsg"></div>` + html;
+  else if(isHub) html = `<p class="muted" style="padding:0 0 8px">Tocá <strong>Gestionar</strong> (o la fila) para manejar todo el siniestro desde un solo lugar: cambiar el estado, pedir la inspección, habilitar el reclamo a tercero y subir documentación.</p><div id="sinMsg"></div>` + html;
+  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong>: el cliente lo ve en “Mis siniestros” de la app. Con “Documentos” ves lo que cargó el cliente para el reclamo.</p><div id="sinMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
   if(isVeh) actualizarSmgBulkInfo();
@@ -1402,25 +1405,8 @@ function renderTable(){
     $("listArea").querySelectorAll("button[data-sin-docs]").forEach(b => {
       b.onclick = ev => { ev.stopPropagation(); (isRec ? abrirRecDocs : abrirSinDocs)(b.dataset.sinDocs); };
     });
-    $("listArea").querySelectorAll("button[data-rec-hab]").forEach(b => {
-      b.onclick = async ev => {
-        ev.stopPropagation();
-        const t = b.dataset.recHab;
-        if(!confirm(`¿Habilitar el reclamo a tercero del trámite ${t} y enviarle al asegurado el instructivo por mail?`)) return;
-        b.disabled = true;
-        try{
-          const res = await apiPost({ action:"admin_reclamo_habilitar", key:KEY, tramite:t });
-          if(res.ok){
-            const fila = currentRows.find(r => String(r.Tramite) === t);
-            if(fila) fila["Reclamo habilitado"] = new Date().toLocaleDateString("es-AR");
-            b.textContent = "Reenviar instructivo";
-            $("sinMsg").innerHTML = res.mail ? `<div class="ok">${esc(t)}: reclamo habilitado y mail enviado a ${esc(res.enviadoA || "el asegurado")}.</div>` : `<div class="err">${esc(res.aviso || "Quedó habilitado, pero no se pudo enviar el mail.")}</div>`;
-          } else $("sinMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo habilitar el reclamo.")}</div>`;
-        }catch(err){
-          $("sinMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
-        }
-        b.disabled = false;
-      };
+    $("listArea").querySelectorAll("button[data-ficha]").forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); const r = currentRows.find(x => String(x.Tramite) === b.dataset.ficha); if(r) openFicha(r); };
     });
     $("listArea").querySelectorAll("select[data-sin-t]").forEach(sel => {
       sel.onclick = ev => ev.stopPropagation();
@@ -1455,11 +1441,122 @@ function renderTable(){
       if(isVeh){
         fillVehFormFromRow(row);
         $("viewVeh").scrollIntoView({behavior:"smooth", block:"start"});
+      } else if(isHub){
+        openFicha(row);
       } else {
-        openDetail(currentTab, headers, row);
+        openDetail(currentTab, allHeaders, row);
       }
     };
   });
+}
+
+// ---- Gestión de siniestros: tabla compacta + ficha con todo en un solo lugar ----
+let hubRec = {}, hubInsp = {};
+async function cargarHub(){
+  hubRec = {}; hubInsp = {};
+  try{ const r = await apiGet({action:"admin_list", key:KEY, sheet:"Reclamos terceros"}); if(r.ok) (r.rows||[]).forEach(x => hubRec[String(x.Tramite)] = x); }catch(e){}
+  try{ const r = await apiGet({action:"admin_list", key:KEY, sheet:"Inspecciones"}); if(r.ok) (r.rows||[]).forEach(x => hubInsp[String(x.Tramite)] = x); }catch(e){}
+}
+function columnasCompactas(tab, all){
+  if(tab === "Mis siniestros") return ["Tramite","Fecha","Nombre","Patente","Estado"].filter(h => all.includes(h));
+  if(tab !== "Automotor" && tab !== "Hogar-Comercio") return all;
+  const quiero = [/^tr[aá]mite/i, /^fecha$/i, /^tipo/i, /patente|dominio/i, /titular|nombre|asegurado/i, /celular|tel/i, /compa/i];
+  const out = [];
+  quiero.forEach(rx => { const h = all.find(x => rx.test(x) && !out.includes(x)); if(h) out.push(h); });
+  return out.length >= 3 ? out : all.slice(0, 6);
+}
+function chipInsp(row){
+  const i = hubInsp[String(row.Tramite)];
+  if(String(row.Tipo) !== "Siniestro automotor") return '<span class="muted">—</span>';
+  if(i && i["Fecha inspeccion"]) return `<span class="chip" style="cursor:default">${esc(i["Fecha inspeccion"])}</span>`;
+  if(String(row.Estado) === "Inspección pendiente") return '<span class="chip" style="cursor:default;color:var(--danger)">Pendiente</span>';
+  return '<span class="muted">—</span>';
+}
+function chipRec(row){
+  if(String(row.Tipo) !== "Siniestro automotor") return '<span class="muted">—</span>';
+  const r = hubRec[String(row.Tramite)];
+  if(r) return `<span class="chip" style="cursor:default">${esc(r.Estado || "Iniciado")}</span>`;
+  if(String(row["Reclamo habilitado"] || "").trim()) return '<span class="chip" style="cursor:default">Habilitado</span>';
+  return '<span class="muted">—</span>';
+}
+async function verSinDoc(id, msgBox){
+  try{
+    const g = await apiPost({action:"admin_siniestro_doc_get", key:KEY, id});
+    if(!g.ok) throw new Error(g.error);
+    const url = URL.createObjectURL(new Blob([b64ToBytes(g.data)], {type:g.type || "application/pdf"}));
+    window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }catch(e){ msgBox.innerHTML = `<div class="err">${esc(e.message || "No se pudo abrir el archivo.")}</div>`; }
+}
+function openFicha(row){
+  const t = String(row.Tramite);
+  const auto = String(row.Tipo || "") === "Siniestro automotor";
+  $("modalTitle").textContent = "Siniestro " + t;
+  $("printSub").textContent = "Siniestro " + t + " · generado el " + new Date().toLocaleString("es-AR");
+  const ESTADOS = ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
+  const RECST = ["Iniciado","Aceptado","Pagos","Finalizado"];
+  const card = (num, titulo, ayuda, inner) => `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;background:var(--card)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span style="flex:none;width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center">${num}</span><b style="font-size:1rem">${titulo}</b></div>
+    <p class="muted" style="margin:0 0 10px;font-size:.85rem">${ayuda}</p>${inner}</div>`;
+  const pintar = () => {
+    const insp = hubInsp[t], rec = hubRec[t];
+    const hab = !!String(row["Reclamo habilitado"] || "").trim();
+    const est = String(row.Estado || "Recibido"); const lst = ESTADOS.includes(est) ? ESTADOS : [est].concat(ESTADOS);
+    let html = `<div id="fcMsg"></div>
+    <div style="margin-bottom:14px;font-size:.92rem;line-height:1.6"><b>${esc(row.Nombre || "Sin nombre")}</b> · ${esc(row.Tipo || "")}${row.Patente ? " · Patente <b>" + esc(row.Patente) + "</b>" : ""}<br><span class="muted">Denuncia del ${esc(row.Fecha || "")}${(row["Email formulario"] || row["Email sesion"]) ? " · " + esc(row["Email formulario"] || row["Email sesion"]) : ""}</span></div>`;
+    html += card(1, "Estado del siniestro", "Es lo que el cliente ve en “Mis siniestros”.",
+      `<select id="fcEstado" style="max-width:100%">${lst.map(e => `<option${e === est ? " selected" : ""}>${esc(e)}</option>`).join("")}</select>`);
+    if(auto){
+      let ins = "";
+      if(insp && insp["Fecha inspeccion"]) ins += `<div class="detailRow"><div class="lbl">Propuesta del cliente</div><div class="val"><b>${esc(insp["Fecha inspeccion"])}</b> · ${esc(insp.Lugar || "")}${insp.Localidad ? ", " + esc(insp.Localidad) : ""}</div></div>`;
+      else if(est === "Inspección pendiente") ins += `<p style="margin:0 0 8px;font-size:.9rem">Ya se le pidió al cliente. Está esperando que elija fecha y lugar.</p>`;
+      ins += `<button class="btn sm" id="fcInsp">${est === "Inspección pendiente" ? "Reenviar pedido de inspección" : "Solicitar inspección"}</button>`;
+      html += card(2, "Inspección del vehículo", "Le llega un mail al asegurado para que elija fecha, lugar y localidad desde la app.", ins);
+      let rc = "";
+      if(rec) rc += `<div style="margin-bottom:8px;font-size:.9rem">Reclamo iniciado el ${esc(rec.Fecha || "")}. Estado: <select id="fcRecEst">${RECST.concat(RECST.includes(rec.Estado) ? [] : [rec.Estado]).map(e => `<option${e === rec.Estado ? " selected" : ""}>${esc(e)}</option>`).join("")}</select></div>`;
+      rc += `<button class="btn sm" id="fcHab">${hab ? "Reenviar instructivo" : "Habilitar y enviar instructivo"}</button>`;
+      const rdocs = sinDocs.filter(d => String(d.tramite) === t && String(d.tipo).startsWith("Reclamo tercero"));
+      if(rdocs.length) rc += `<div style="margin-top:12px"><b style="font-size:.85rem">Documentación que cargó el cliente</b>${rdocs.map(d => `<div style="margin-top:4px"><span class="muted">${esc(String(d.tipo).replace("Reclamo tercero - ",""))}:</span> <a href="#" data-sd-ver="${esc(d.id)}">${esc(d.archivo)}</a></div>`).join("")}</div>`;
+      html += card(3, "Reclamo a la compañía del tercero", hab ? "Habilitado: el cliente ya puede cargar la documentación desde la app." : "Al habilitarlo, el cliente recibe un mail con el instructivo para cargar fotos y documentos.", rc);
+    }
+    html += card(auto ? 4 : 2, "Documentación para el cliente", "Archivos que el cliente descarga en “Mis siniestros” (PDF, JPG o PNG, hasta 8 MB).", `<div id="fcDocs"></div>`);
+    $("modalBody").innerHTML = html;
+    const msg = $("fcMsg");
+    const ok = m => msg.innerHTML = `<div class="ok">${esc(m)}</div>`, err = m => msg.innerHTML = `<div class="err">${esc(m)}</div>`;
+    $("fcEstado").onchange = async e => {
+      e.target.disabled = true;
+      try{ const r = await apiPost({action:"admin_siniestro_estado", key:KEY, tramite:t, estado:e.target.value}); if(r.ok){ row.Estado = e.target.value; renderTable(); pintar(); $("fcMsg").innerHTML = `<div class="ok">Estado actualizado a “${esc(e.target.value)}”.</div>`; } else { err(r.error || "No se pudo cambiar el estado."); e.target.disabled = false; } }
+      catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); e.target.disabled = false; }
+    };
+    const bi = $("fcInsp");
+    if(bi) bi.onclick = async () => {
+      if(!confirm(`¿Pedirle al asegurado que coordine la inspección? Se envía un mail y el estado pasa a “Inspección pendiente”.`)) return;
+      bi.disabled = true;
+      try{ const r = await apiPost({action:"admin_inspeccion_solicitar", key:KEY, tramite:t});
+        if(r.ok){ row.Estado = "Inspección pendiente"; renderTable(); pintar(); $("fcMsg").innerHTML = r.mail ? `<div class="ok">Listo: mail enviado a ${esc(r.enviadoA || "el asegurado")}.</div>` : `<div class="err">${esc(r.aviso || "No se pudo enviar el mail.")}</div>`; }
+        else { err(r.error || "No se pudo solicitar la inspección."); bi.disabled = false; } }
+      catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); bi.disabled = false; }
+    };
+    const bh = $("fcHab");
+    if(bh) bh.onclick = async () => {
+      if(!confirm(`¿Habilitar el reclamo a tercero y enviarle al asegurado el instructivo por mail?`)) return;
+      bh.disabled = true;
+      try{ const r = await apiPost({action:"admin_reclamo_habilitar", key:KEY, tramite:t});
+        if(r.ok){ row["Reclamo habilitado"] = new Date().toLocaleDateString("es-AR"); renderTable(); pintar(); $("fcMsg").innerHTML = r.mail ? `<div class="ok">Listo: reclamo habilitado y mail enviado a ${esc(r.enviadoA || "el asegurado")}.</div>` : `<div class="err">${esc(r.aviso || "Quedó habilitado, pero no se pudo enviar el mail.")}</div>`; }
+        else { err(r.error || "No se pudo habilitar el reclamo."); bh.disabled = false; } }
+      catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); bh.disabled = false; }
+    };
+    const sr = $("fcRecEst");
+    if(sr) sr.onchange = async () => {
+      sr.disabled = true;
+      try{ const r = await apiPost({action:"admin_reclamo_estado", key:KEY, tramite:t, estado:sr.value}); if(r.ok){ rec.Estado = sr.value; renderTable(); ok("Estado del reclamo: “" + sr.value + "”."); } else err(r.error || "No se pudo cambiar."); }
+      catch(x){ err("No se pudo conectar con la planilla. Probá de nuevo."); }
+      sr.disabled = false;
+    };
+    $("modalBody").querySelectorAll("[data-sd-ver]").forEach(a => { if(a.closest("#fcDocs")) return; a.onclick = ev => { ev.preventDefault(); verSinDoc(a.dataset.sdVer, msg); }; });
+    abrirSinDocs(t, $("fcDocs"));
+  };
+  pintar();
+  $("modalOverlay").classList.remove("hide");
 }
 
 // ---- Siniestros: documentación (copia de denuncia, certificado, carta de franquicia, nota de pago) ----
@@ -1484,19 +1581,19 @@ function abrirRecDocs(tramite){
   });
   $("modalOverlay").classList.remove("hide");
 }
-function abrirSinDocs(tramite){
-  $("modalTitle").textContent = "Documentación — " + tramite;
-  $("printSub").textContent = "Documentación del siniestro " + tramite;
+function abrirSinDocs(tramite, box){
+  const emb = !!box; box = box || $("modalBody");
+  if(!emb){ $("modalTitle").textContent = "Documentación — " + tramite; $("printSub").textContent = "Documentación del siniestro " + tramite; }
   const pintar = () => {
     const docs = sinDocs.filter(d => String(d.tramite) === String(tramite));
-    $("modalBody").innerHTML = `<p class="muted">El cliente ve estos archivos en “Mis siniestros” de la app (PDF, JPG o PNG, hasta 8 MB).</p><div id="sdMsg"></div>` +
+    box.innerHTML = `<p class="muted">El cliente ve estos archivos en “Mis siniestros” de la app (PDF, JPG o PNG, hasta 8 MB).</p><div id="sdMsg"></div>` +
       SIN_DOC_TIPOS.map((tp, i) => {
         const lst = docs.filter(d => d.tipo === tp);
         return `<div class="detailRow"><div class="lbl">${esc(tp)}</div><div class="val">
           ${lst.map(d => `<div style="margin-bottom:6px"><a href="#" data-sd-ver="${esc(d.id)}">${esc(d.archivo)}</a> <button class="btn sm" data-sd-del="${esc(d.id)}">Quitar</button></div>`).join("") || '<span class="muted">Sin cargar</span>'}
           <input type="file" id="sdF${i}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" style="max-width:100%"> <button class="btn sm" data-sd-up="${i}">Subir</button></div></div>`;
       }).join("");
-    $("modalBody").querySelectorAll("[data-sd-ver]").forEach(a => a.onclick = async ev => {
+    box.querySelectorAll("[data-sd-ver]").forEach(a => a.onclick = async ev => {
       ev.preventDefault();
       try{
         const g = await apiPost({action:"admin_siniestro_doc_get", key:KEY, id:a.dataset.sdVer});
@@ -1505,13 +1602,13 @@ function abrirSinDocs(tramite){
         window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 120000);
       }catch(e){ $("sdMsg").innerHTML = `<div class="err">${esc(e.message || "No se pudo abrir el archivo.")}</div>`; }
     });
-    $("modalBody").querySelectorAll("[data-sd-del]").forEach(b => b.onclick = async () => {
+    box.querySelectorAll("[data-sd-del]").forEach(b => b.onclick = async () => {
       if(!confirm("¿Quitar este archivo? El cliente deja de verlo.")) return;
       const r = await apiPost({action:"admin_siniestro_doc_borrar", key:KEY, id:b.dataset.sdDel});
       if(r.ok){ sinDocs = sinDocs.filter(d => d.id !== b.dataset.sdDel); pintar(); renderTable(); }
       else $("sdMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
     });
-    $("modalBody").querySelectorAll("[data-sd-up]").forEach(b => b.onclick = async () => {
+    box.querySelectorAll("[data-sd-up]").forEach(b => b.onclick = async () => {
       const i = Number(b.dataset.sdUp), f = $("sdF" + i).files[0];
       if(!f){ $("sdMsg").innerHTML = `<div class="err">Elegí un archivo primero.</div>`; return; }
       if(f.size > 8*1024*1024){ $("sdMsg").innerHTML = `<div class="err">El archivo pesa más de 8 MB.</div>`; return; }
@@ -1525,7 +1622,7 @@ function abrirSinDocs(tramite){
     });
   };
   pintar();
-  $("modalOverlay").classList.remove("hide");
+  if(!emb) $("modalOverlay").classList.remove("hide");
 }
 
 // ---- Ver siniestro/consulta en detalle + descargar PDF ----
