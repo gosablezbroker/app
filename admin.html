@@ -259,6 +259,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="REP" data-tab="Vigentes">Vigentes por ramo</button>
         <button class="tab" data-sec="IMP" data-tab="Importar">Importar</button>
         <button class="tab" data-sec="SIN" data-tab="Mis siniestros">Gestión de siniestros</button>
+        <button class="tab" data-sec="SIN" data-tab="Estudios">Estudios de Abogados Gestores</button>
         <button class="tab" data-sec="SIN" data-tab="Automotor">Denuncias automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Denuncias hogar / comercio</button>
         <button class="tab" data-sec="CON" data-tab="Otras consultas">Otras consultas</button>
@@ -362,6 +363,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       <div id="viewAlta" class="hide">
         <div class="panelTitle"><h2 id="altaTitulo">Agregar póliza o endoso</h2></div>
         <div id="altaBody"></div>
+      </div>
+      <div id="viewEstudios" class="hide">
+        <div class="panelTitle"><h2>Estudios de Abogados Gestores</h2><button class="btn sm" id="btnEstRef">Actualizar</button></div>
+        <div id="estBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewCliPol" class="hide">
         <div class="panelTitle"><h2>Pólizas de clientes registrados</h2></div>
@@ -1219,10 +1224,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol", Estudios:"viewEstudios"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol","viewEstudios"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(tab === "Estudios") renderEstudios(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1238,7 +1243,7 @@ function selectTab(tab){
     "Reclamos terceros":"Reclamos a la compañía del tercero",
     "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados", "Estudios":"Estudios de Abogados Gestores"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -1450,6 +1455,113 @@ function renderTable(){
   });
 }
 
+// ---- Estudios de Abogados Gestores: alta de estudios + derivación de reclamos a tercero ----
+const est = {estudios:[], sin:[], rec:[], editId:null, filtro:"abiertos"};
+const DERIV_REQ_UI = [
+  {nombre:"Denuncia", tipos:["denuncia compañía","copia de denuncia","denuncia"]},
+  {nombre:"Certificado de cobertura", tipos:["certificado de cobertura","certificado"]},
+  {nombre:"Carta de franquicia", tipos:["carta de franquicia"]}
+];
+async function renderEstudios(forzar){
+  $("btnEstRef").onclick = () => renderEstudios(true);
+  if(forzar || !est.cargado){
+    $("estBody").innerHTML = `<div class="loading">Cargando…</div>`;
+    try{
+      const [e, s1, r1] = await Promise.all([apiPost({action:"admin_estudios_list", key:KEY}), apiGet({action:"admin_list", key:KEY, sheet:"Mis siniestros"}), apiGet({action:"admin_list", key:KEY, sheet:"Reclamos terceros"})]);
+      est.estudios = e.ok ? (e.rows || []) : [];
+      est.sin = s1.ok ? (s1.rows || []) : [];
+      est.rec = r1.ok ? (r1.rows || []).slice().reverse() : [];
+      await cargarSinDocs();
+      est.cargado = true;
+    }catch(err){ $("estBody").innerHTML = `<div class="err">No se pudo cargar. Probá de nuevo.</div>`; return; }
+  }
+  pintarEstudios();
+}
+function estDocsDe(t){
+  const docs = sinDocs.filter(d => String(d.tramite) === String(t));
+  const asegurado = docs.filter(d => String(d.tipo).startsWith("Reclamo tercero")).length;
+  const chk = DERIV_REQ_UI.map(rq => ({nombre:rq.nombre, ok: docs.some(d => rq.tipos.includes(String(d.tipo).toLowerCase()))}));
+  return {asegurado, chk, completo: asegurado > 0 && chk.every(c => c.ok)};
+}
+function pintarEstudios(msg){
+  const box = $("estBody");
+  const ed = est.editId ? est.estudios.find(x => String(x.Id) === est.editId) : null;
+  const filas = est.estudios.map(x => `<tr><td><b>${esc(x.Estudio)}</b></td><td>${esc(x.Responsable)}</td><td>${esc(x.Email)}</td><td>${esc(x.Telefono)}</td><td style="white-space:nowrap"><button class="btn sm" data-est-edit="${esc(x.Id)}">Editar</button> <button class="btn sm" data-est-del="${esc(x.Id)}">Quitar</button></td></tr>`).join("");
+  let casos = est.rec.map(r => {
+    const t = String(r.Tramite), s0 = est.sin.find(x => String(x.Tramite) === t) || {};
+    return {r, t, s0, d: estDocsDe(t)};
+  });
+  if(est.filtro === "abiertos") casos = casos.filter(c => String(c.r.Estado) !== "Finalizado");
+  const optEst = est.estudios.map(x => `<option value="${esc(x.Id)}">${esc(x.Estudio)}</option>`).join("");
+  const filasC = casos.map(c => {
+    const der = c.r["Estudio derivado"] ? `<span class="chip" style="cursor:default">${esc(c.r["Estudio derivado"])}</span><br><span class="muted" style="font-size:.78rem">${esc(String(c.r.Derivado || "").slice(0,10))}</span>` : '<span class="muted">—</span>';
+    const docs = `<div style="font-size:.82rem;line-height:1.6">Asegurado: ${c.d.asegurado ? "<b>✔ " + c.d.asegurado + " archivos</b>" : '<span style="color:var(--danger)">✘ falta</span>'}<br>${c.d.chk.map(k => `${esc(k.nombre)}: ${k.ok ? "<b>✔</b>" : '<span style="color:var(--danger)">✘ falta</span>'}`).join("<br>")}</div>`;
+    const acc = c.d.completo
+      ? `<select data-est-sel="${esc(c.t)}" style="max-width:170px"><option value="">Elegí estudio…</option>${optEst}</select><br><button class="btn sm pri" data-est-der="${esc(c.t)}" style="margin-top:6px">${c.r["Estudio derivado"] ? "Derivar de nuevo" : "Derivar al estudio"}</button>`
+      : `<span class="muted" style="font-size:.82rem">Completá la documentación para poder derivar.</span>`;
+    return `<tr><td><b>${esc(c.t)}</b></td><td>${esc(c.s0.Nombre || "")}<br><span class="muted">${esc(c.s0.Patente || "")}</span></td><td><span class="chip" style="cursor:default">${esc(c.r.Estado || "Iniciado")}</span></td><td style="white-space:normal">${docs}</td><td>${der}</td><td style="white-space:normal">${acc}<br><button class="btn sm" data-est-doc="${esc(c.t)}" style="margin-top:6px">Ver / cargar documentos</button></td></tr>`;
+  }).join("");
+  box.innerHTML = `<div id="estMsg">${msg || ""}</div>
+    <div style="border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:16px;background:var(--card)">
+      <b style="font-size:1rem">1. Estudios cargados</b>
+      <p class="muted" style="margin:4px 0 10px;font-size:.85rem">Cargá los datos de cada estudio. Cuando derivás un reclamo, el mail sale a la casilla que figura acá.</p>
+      ${filas ? `<div class="tblwrap"><table><thead><tr><th>Estudio</th><th>Responsable</th><th>Mail</th><th>Teléfono</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>` : '<p class="muted">Todavía no cargaste ningún estudio.</p>'}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:12px">
+        <input id="esN" placeholder="Nombre del estudio *" value="${esc(ed ? ed.Estudio : "")}"><input id="esR" placeholder="Responsable" value="${esc(ed ? ed.Responsable : "")}"><input id="esM" type="email" placeholder="Mail *" value="${esc(ed ? ed.Email : "")}"><input id="esT" placeholder="Teléfono" value="${esc(ed ? ed.Telefono : "")}">
+      </div>
+      <div style="margin-top:8px"><button class="btn sm pri" id="esSave">${ed ? "Guardar cambios" : "Agregar estudio"}</button>${ed ? ' <button class="btn sm" id="esCancel">Cancelar</button>' : ""}</div>
+    </div>
+    <div style="border:1px solid var(--bd);border-radius:14px;padding:14px 16px;background:var(--card)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><b style="font-size:1rem">2. Reclamos a tercero en proceso</b>
+        <span><button class="chip${est.filtro === "abiertos" ? " on" : ""}" id="esFA">En proceso</button> <button class="chip${est.filtro === "todos" ? " on" : ""}" id="esFT">Todos</button></span></div>
+      <p class="muted" style="margin:4px 0 10px;font-size:.85rem">Cuando están la documentación del asegurado, la denuncia, el certificado de cobertura y la carta de franquicia, podés derivar el reclamo: se envía todo por mail al estudio que elijas (con copia a vos).</p>
+      ${filasC ? `<div class="tblwrap"><table><thead><tr><th>Trámite</th><th>Asegurado</th><th>Reclamo</th><th>Documentación</th><th>Derivado a</th><th>Acción</th></tr></thead><tbody>${filasC}</tbody></table></div>` : '<p class="muted">No hay reclamos a tercero en proceso. Aparecen acá cuando un asegurado inicia el reclamo desde la app.</p>'}
+    </div>`;
+  const msgEl = $("estMsg");
+  if(msg) msgEl.scrollIntoView({block:"center", behavior:"smooth"});
+  $("esFA").onclick = () => { est.filtro = "abiertos"; pintarEstudios(); };
+  $("esFT").onclick = () => { est.filtro = "todos"; pintarEstudios(); };
+  if($("esCancel")) $("esCancel").onclick = () => { est.editId = null; pintarEstudios(); };
+  $("esSave").onclick = async () => {
+    const b = $("esSave"); b.disabled = true;
+    try{
+      const r = await apiPost({action:"admin_estudio_guardar", key:KEY, id:est.editId || "", estudio:$("esN").value, responsable:$("esR").value, email:$("esM").value, telefono:$("esT").value});
+      if(r.ok){ est.estudios = r.rows || []; est.editId = null; pintarEstudios(`<div class="ok">Estudio guardado.</div>`); return; }
+      $("estMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`;
+    }catch(e){ $("estMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`; }
+    b.disabled = false;
+  };
+  box.querySelectorAll("[data-est-edit]").forEach(b => b.onclick = () => { est.editId = b.dataset.estEdit; pintarEstudios(); box.scrollIntoView({behavior:"smooth"}); });
+  box.querySelectorAll("[data-est-del]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Quitar este estudio de la lista?")) return;
+    const r = await apiPost({action:"admin_estudio_borrar", key:KEY, id:b.dataset.estDel});
+    if(r.ok){ est.estudios = r.rows || []; pintarEstudios(`<div class="ok">Estudio quitado.</div>`); } else $("estMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo quitar.")}</div>`;
+  });
+  box.querySelectorAll("[data-est-doc]").forEach(b => b.onclick = () => {
+    const row = est.sin.find(x => String(x.Tramite) === b.dataset.estDoc);
+    if(!row){ $("estMsg").innerHTML = `<div class="err">No se encontró el siniestro.</div>`; return; }
+    hubRec = {}; est.rec.forEach(x => hubRec[String(x.Tramite)] = x); hubInsp = hubInsp || {};
+    openFicha(row);
+  });
+  box.querySelectorAll("[data-est-der]").forEach(b => b.onclick = async () => {
+    const t = b.dataset.estDer, sel = box.querySelector(`[data-est-sel="${t}"]`), id = sel ? sel.value : "";
+    if(!id){ $("estMsg").innerHTML = `<div class="err">Elegí a qué estudio derivar el reclamo ${esc(t)}.</div>`; $("estMsg").scrollIntoView({block:"center"}); return; }
+    const e = est.estudios.find(x => String(x.Id) === id);
+    if(!confirm(`¿Derivar el reclamo ${t} a ${e ? e.Estudio : "el estudio"} (${e ? e.Email : ""})? Se envía por mail toda la documentación.`)) return;
+    b.disabled = true; b.textContent = "Enviando…";
+    try{
+      const r = await apiPost({action:"admin_reclamo_derivar", key:KEY, tramite:t, estudioId:id});
+      if(r.ok){
+        const fila = est.rec.find(x => String(x.Tramite) === t);
+        if(fila){ fila["Estudio derivado"] = r.estudio; fila.Derivado = new Date().toISOString(); }
+        pintarEstudios(`<div class="ok">Reclamo ${esc(t)} derivado a ${esc(r.estudio)} (${esc(r.enviadoA)})${r.mails > 1 ? " en " + r.mails + " mails" : ""}.</div>`); return;
+      }
+      $("estMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo derivar.")}</div>`; $("estMsg").scrollIntoView({block:"center"});
+    }catch(err){ $("estMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo (revisá antes si el mail ya salió).</div>`; }
+    b.disabled = false; b.textContent = "Derivar al estudio";
+  });
+}
+
 // ---- Gestión de siniestros: tabla compacta + ficha con todo en un solo lugar ----
 let hubRec = {}, hubInsp = {};
 async function cargarHub(){
@@ -1644,7 +1756,7 @@ function openDetail(tab, headers, row){
   `).join("");
   $("modalOverlay").classList.remove("hide");
 }
-function closeDetail(){ $("modalOverlay").classList.add("hide"); }
+function closeDetail(){ $("modalOverlay").classList.add("hide"); if(currentTab === "Estudios" && est.cargado) pintarEstudios(); }
 $("btnCerrarModal").onclick = closeDetail;
 $("modalOverlay").addEventListener("click", e => { if(e.target.id === "modalOverlay") closeDetail(); });
 $("btnDescargarPdf").onclick = () => window.print();
