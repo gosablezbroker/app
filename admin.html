@@ -255,13 +255,11 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
         <button class="sec" data-sec="CON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.8h15v10.2H9.3l-3.8 3.1v-3.1H4.5zM7.8 9.8h8.4M7.8 12.9h5.2"/></svg><span>Consultas y cotizaciones</span></button>
         <button class="sec" data-sec="GAC"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3M10 6h4"/></svg><span>Gestión con App clientes</span></button>
-        <button class="sec" data-sec="CPO"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h4"/></svg><span>Mis pólizas (clientes)</span></button>
         <button class="sec" data-sec="POL"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg><span>Pólizas</span></button>
         <button class="sec" data-sec="CLI"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M17 11a3 3 0 100-6M22 20c0-3-2-4.5-4-5"/></svg><span>Clientes</span></button>
         <button class="sec" data-sec="REP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Reportes</span></button>
         <button class="sec" data-sec="IMP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg><span>Importaciones</span></button>
         <button class="sec" data-sec="CRE"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l2-6h14l2 6M3 13v5h3v-2h12v2h3v-5M3 13h18M7 16h.01M17 16h.01"/></svg><span>Credenciales automotores</span></button>
-        <button class="sec" data-sec="USU"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span>Usuarios</span></button>
       </div>
         <div class="tabs" id="subtabs">
         <button class="tab" data-sec="INI" data-tab="Inicio">Resumen de cartera</button>
@@ -275,7 +273,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Denuncias hogar / comercio</button>
         <button class="tab" data-sec="CON" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="CON" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
-        <button class="tab" data-sec="CPO" data-tab="CliPol">Pólizas de clientes</button>
+        <button class="tab" data-sec="GAC" data-tab="CliPol">Mis pólizas (clientes)</button>
         <button class="tab" data-sec="POL" data-tab="TODAS">Todas las pólizas</button>
         <button class="tab" data-sec="POL" data-tab="Alta">+ Póliza / endoso</button>
         <button class="tab" data-sec="POL" data-tab="CAR:SMO">SMG</button>
@@ -290,8 +288,8 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="CRE" data-tab="Vehiculos">Vehículos y credenciales</button>
         <button class="tab" data-sec="CRE" data-tab="SMG">Importar de SMG</button>
         <button class="tab" data-sec="GAC" data-tab="UsuApp">Usuarios registrados por la app</button>
-        <button class="tab" data-sec="USU" data-tab="Usuarios">Usuarios registrados</button>
-        <button class="tab" data-sec="USU" data-tab="Portales">Accesos a portales</button>
+        <button class="tab" data-sec="GAC" data-tab="Usuarios">Lista de usuarios</button>
+        <button class="tab" data-sec="GAC" data-tab="Portales">Accesos a portales</button>
       </div>
       </nav>
       <div class="sideFoot">Broker de Seguros<br><small>© Gosalbez. Todos los derechos reservados.</small></div>
@@ -780,10 +778,10 @@ document.querySelectorAll(".sec").forEach(b => {
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
   const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
 });
-const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", GAC:"UsuApp", CPO:"CliPol", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", GAC:"UsuApp", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 // ---- Inicio: accesos grandes con icono ----
-{ const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas y movimientos"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], CPO:["#12a594","Cargar pólizas y credenciales a clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"], USU:["#d6409f","Usuarios y portales"]};
+{ const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas, siniestros y movimientos"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"]};
   const box = document.getElementById("iniTiles");
   document.querySelectorAll(".side .sec").forEach(b => {
     const k = b.dataset.sec; if(k === "INI" || !T[k]) return;
