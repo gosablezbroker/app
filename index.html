@@ -136,10 +136,6 @@ html.authOn:not(.authed) .wrap{display:none}
 .installBar .btn{flex:0 0 auto;padding:9px 16px}
 .installBar .authLink{font-size:1.1rem;padding:4px 6px;color:var(--mut)}
 .installSteps{flex:1 1 100%;margin:0;padding-left:20px;font-size:.86rem;color:var(--tx);display:grid;gap:4px}
-@media print{
-  body *{visibility:hidden}
-  #credResult,#credResult *{visibility:visible}
-  #credResult{position:absolute;top:0;left:0;width:100%;padding:20px}
 }
 
 /* ===== Rediseño: mismo estilo que gosalbez.com.ar ===== */
@@ -210,11 +206,10 @@ a#bw.btn.wa,#bw.btn.wa{background:var(--wa);border-color:var(--wa)}
 .waFab svg{width:32px;height:32px}
 @media(max-width:560px){.hideS{display:none}.topbar .in{height:66px}.topbar .logo img{height:56px;margin:-6px 0}.pillBtn{padding:10px 16px}.hero .in{padding-top:36px;padding-bottom:48px}.main{padding-top:30px}}
 html.authOn:not(.authed) .waFab{display:none}
-@media print{.topbar,.hero,.waFab,.foot{display:none!important}}
-
 .secH{margin:22px 0 4px;padding-top:16px;border-top:1px solid var(--bd);color:var(--navy);font-size:1.02rem}
 .fw:first-child .secH{margin-top:6px;padding-top:0;border-top:0}
 html.deepMode .hero,html.deepMode .secT,html.deepMode .sub,html.deepMode #opts,html.deepMode .installBar{display:none!important}
+.credFoot{display:none}
 .credHero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:20px 18px;background:linear-gradient(135deg,var(--navy2),var(--navy));color:#fff}
 .credVeh{flex:1 1 150px;min-width:0}
 .credVeh small,.credPlate small{display:block;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;opacity:.75;font-weight:600}
@@ -233,13 +228,20 @@ html.deepMode .hero,html.deepMode .secT,html.deepMode .sub,html.deepMode #opts,h
 .credGrua{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;background:var(--navy);color:#fff}
 .credGrua span{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;opacity:.85;font-weight:600}
 .credGrua b{font-size:1.15rem;font-weight:800}
+@media print{.waFab{display:none!important}}
 @media print{
-  @page{size:A4;margin:12mm}
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff!important;height:auto!important;min-height:0!important;margin:0!important}
+  .topbar,.hero,.waFab,.foot,.userBar,.installBar,.secT,.sub,#opts,.authGate,.backTop,#credBox,#credErr{display:none!important}
+  .wrap,.main,.in{padding:0!important;margin:0!important;max-width:none!important;display:block!important}
+  #panel .panel{padding:0!important;box-shadow:none!important;border:0!important;background:none!important}
+  #panel .panel>*:not(#credResult){display:none!important}
   #credResult,#credResult *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  #credResult{--card:#fff;--tx:#122246;--mut:#5b6785;--bd:#dfe5f1;--tint:#e8efff;--navy:#122246;--navy2:#1b3a78;color:#122246;max-width:520px;margin:0 auto}
-  #credResult .credCard{box-shadow:none;border:1.5px solid #122246;background:#fff}
+  #credResult{display:block!important;position:static!important;margin:0 auto!important;padding:0!important;width:100%;max-width:560px;--card:#fff;--tx:#122246;--mut:#5b6785;--bd:#dfe5f1;--tint:#e8efff;--navy:#122246;--navy2:#1b3a78;color:#122246;page-break-inside:avoid;break-inside:avoid}
+  #credResult .credCard{box-shadow:none;border:1.5px solid #122246;border-radius:18px;background:#fff;page-break-inside:avoid;break-inside:avoid}
   #credResult .btns,#credResult #docErr{display:none!important}
-  #credResult p{color:#3b4a6b!important}
+  #credResult .credFoot{display:block!important;text-align:center;margin-top:10px!important;font-weight:600;color:#122246!important}
+  #credResult p{color:#3b4a6b!important;font-size:8.5pt!important;line-height:1.35!important}
 }
 </style>
 </head>
@@ -580,6 +582,7 @@ function show(id,fixed){
           <div class="credGrua"><span>Teléfono de grúa / asistencia</span><b>${grua}</b></div>
           </div>
           <p style="color:var(--mut);font-size:.72rem;line-height:1.4;margin-top:12px;text-align:justify">La posesión de este comprobante obligatorio será prueba suficiente de la vigencia del seguro obligatorio de automotores por el artículo 68 de la Ley N° 24.449. Conforme el artículo 2 de la Disposición N° 70/2009 de la AGENCIA NACIONAL DE SEGURIDAD VIAL, la falta de portación del recibo de pago de la prima del seguro obligatorio por parte del conductor del vehículo, no podrá ser aducida por la autoridad de constatación para determinar el incumplimiento de los requisitos para la circulación.</p>
+          <p class="credFoot">Emitida por Gosalbez Broker de Seguros el ${new Date().toLocaleDateString("es-AR")} · WhatsApp 11 2747-4286 · consultas@gosalbez.com.ar</p>
           <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button>${(d.docs||[]).map(x=>`<button type="button" class="btn" data-doc="${x.id}" data-pat="${d.patente}">${x.tipo==="Poliza"?"Descargar póliza original (PDF)":"Descargar credencial original (PDF)"}</button>`).join("")}</div>
           <div id="docErr" style="display:none;color:#d64545;font-size:.85rem;margin-top:8px"></div>`;
           res.style.display="";
