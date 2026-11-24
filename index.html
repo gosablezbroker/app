@@ -1003,10 +1003,12 @@ function formReclamoTercero(tramite,idx){
   navBack=()=>detalleSiniestro(idx);
   const campo=(id,l)=>`<div class="fw"><label>${l} *</label><input class="filein" data-rs="${id}" type="file" accept="image/*,.pdf"></div>`;
   $("panel").innerHTML=`<div class="panel"><h2>${ICO.auto} Reclamo a la compañía del tercero</h2>
-    <p style="color:var(--mut);font-size:.9rem">Siniestro <b>${escH(tramite)}</b>. Cargá la documentación (podés sacarle foto): la recibimos nosotros y gestionamos el reclamo. Todo es obligatorio.</p>
+    <p style="color:var(--mut);font-size:.9rem">Siniestro <b>${escH(tramite)}</b>. Cargá la documentación (podés sacarle foto): la recibimos nosotros y gestionamos el reclamo. Todo es obligatorio, salvo el presupuesto de reparación (solo si no tenés todo riesgo).</p>
     ${REC_DOCS.map(d=>`<h3 style="margin-top:14px">${d}</h3>${campo(d+" (frente)","Frente")}${campo(d+" (dorso)","Dorso")}`).join("")}
     <h3 style="margin-top:14px">Fotos de los daños</h3>
     <div class="fw"><label>Fotos de los daños y de todos los ángulos del auto dañado *</label><input class="filein" id="recFotos" type="file" multiple accept="image/*"><p style="color:var(--mut);font-size:.78rem;margin:5px 0 0">Hasta ${REC_MAX_FOTOS} fotos.</p></div>
+    <h3 style="margin-top:14px">Presupuesto de reparación</h3>
+    <div class="fw"><label>Presupuesto del taller (PDF o foto) <span style="font-weight:500;color:var(--mut)">— solo si NO tenés cobertura todo riesgo</span></label><input class="filein" id="recPresu" type="file" multiple accept="image/*,.pdf"><p style="color:var(--mut);font-size:.78rem;margin:5px 0 0">Opcional. Si tu seguro es todo riesgo, dejalo vacío.</p></div>
     <p id="recErr" style="display:none;color:#d64545;font-size:.9rem"></p>
     <div class="btns" style="margin-top:14px"><button type="button" class="btn wa" id="recSend">Enviar reclamo</button></div></div>`;
   $("panel").scrollIntoView({behavior:"smooth",block:"start"});
@@ -1023,6 +1025,7 @@ function formReclamoTercero(tramite,idx){
       const files=[];
       for(const i of slots){const f=i.files[0];files.push({slot:i.dataset.rs,name:f.name,type:/^image\//.test(f.type)?"image/jpeg":f.type,data:await archivoB64(f)})}
       for(const f of fotos)files.push({slot:"Fotos de los daños",name:f.name,type:"image/jpeg",data:await archivoB64(f)});
+      for(const f of [...$("recPresu").files])files.push({slot:"Presupuesto de reparación",name:f.name,type:/^image\//.test(f.type)?"image/jpeg":f.type,data:await archivoB64(f)});
       const idToken=await getAuthToken();
       const r=await fetch(CFG.sheetsUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"reclamo_tercero_iniciar",tramite,files,idToken})});
       const j=await r.json();
