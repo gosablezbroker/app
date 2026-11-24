@@ -946,7 +946,7 @@ async function detalleSiniestro(i,recargar){
   }
   let rec="";
   if(esAuto){
-    rec=card("Reclamo en la compañía del tercero",it.reclamo?`<p style="margin:0">Estado: ${badge(it.reclamo.estado)} <span style="color:var(--mut);font-size:.85rem">· iniciado el ${escH(it.reclamo.fecha)}</span></p>`:`<p style="margin:0 0 6px">Estado: ${badge("Sin iniciar")}</p><p style="color:var(--mut);font-size:.9rem;margin:0 0 10px">Cargá la documentación y gestionamos el reclamo a la compañía del otro vehículo.</p><div class="btns"><button type="button" class="btn wa" data-rec="${escH(it.tramite)}">Iniciar reclamo</button></div>`);
+    rec=card("Reclamo en la compañía del tercero",it.reclamo?`<p style="margin:0">Estado: ${badge(it.reclamo.estado)} <span style="color:var(--mut);font-size:.85rem">· iniciado el ${escH(it.reclamo.fecha)}</span></p>`:(it.reclamoHabilitado?`<p style="margin:0 0 6px">Estado: ${badge("Sin iniciar")}</p><p style="color:var(--mut);font-size:.9rem;margin:0 0 10px">Cargá la documentación y gestionamos el reclamo a la compañía del otro vehículo.</p><div class="btns"><button type="button" class="btn wa" data-rec="${escH(it.tramite)}">Iniciar reclamo</button></div>`:`<p style="margin:0 0 6px">Estado: ${badge("Sin iniciar")}</p><p style="color:var(--mut);font-size:.9rem;margin:0">Cuando habilitemos el reclamo te enviamos un mail con los pasos para cargar la documentación.</p>`));
   }
   $("panel").innerHTML=`<div class="panel"><h2>${ICO.check} Siniestro ${escH(it.tramite)}</h2>
     <p style="color:var(--mut);font-size:.9rem;margin:4px 0">${escH(it.tipo)}${it.patente?" · Patente "+escH(it.patente):""} · ${escH(it.fecha)}</p>

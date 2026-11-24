@@ -1317,6 +1317,7 @@ function renderTable(){
   if(isUsr) html += `<th>Acceso</th>`;
   if(isVeh) html += `<th>PDF</th><th>SMG</th>`;
   if(isSin) html += `<th>Documentos</th>`;
+  if(isSin && !isRec) html += `<th>Reclamo a tercero</th>`;
   html += `</tr></thead><tbody>`;
   rows.forEach((row, idx) => {
     html += `<tr ${isUsr ? "" : 'style="cursor:pointer"'} data-idx="${idx}">`;
@@ -1339,6 +1340,11 @@ function renderTable(){
     if(isSin){
       const n = sinDocs.filter(d => String(d.tramite) === String(row.Tramite) && String(d.tipo).startsWith("Reclamo tercero") === isRec).length;
       html += `<td><button class="btn sm" data-sin-docs="${esc(row.Tramite)}">Documentos${n ? " (" + n + ")" : ""}</button></td>`;
+      if(!isRec){
+        const auto = String(row.Tipo || "") === "Siniestro automotor";
+        const hab = !!String(row["Reclamo habilitado"] || "").trim();
+        html += `<td>${auto ? `<button class="btn sm" data-rec-hab="${esc(row.Tramite)}">${hab ? "Reenviar instructivo" : "Habilitar y enviar instructivo"}</button>` : ""}</td>`;
+      }
     }
     if(isUsr){
       const esBloq = String(row.Estado||"").trim().toLowerCase() === "bloqueado";
@@ -1359,7 +1365,7 @@ function renderTable(){
     html = `<p class="muted" style="padding:0 0 8px">${currentRows.length} usuarios registrados, ${bloqueados} bloqueados. Un usuario bloqueado no puede ver credenciales ni enviar denuncias.</p><div id="usrMsg"></div>` + html;
   }
   else if(isVeh) html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para cargarla en el formulario de abajo y editarla. En los vehículos de SMG, el botón <strong>Importar póliza y credencial</strong> trae los PDF directo de Swiss Medical.</p><div id="smgMsg"></div>` + html;
-  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> (${isRec ? "Iniciado / Aceptado / Pagos / Finalizado" : "Recibido / Inspección pendiente / Inspeccionado / Reparación pendiente / Finalizado"}): el cliente lo ve en “Mis siniestros” de la app.${isRec ? " Con “Documentos” ves lo que cargó el cliente para el reclamo." : ""}</p><div id="sinMsg"></div>` + html;
+  else if(isSin) html = `<p class="muted" style="padding:0 0 8px">Cambiá el <strong>Estado</strong> (${isRec ? "Iniciado / Aceptado / Pagos / Finalizado" : "Recibido / Inspección pendiente / Inspeccionado / Reparación pendiente / Finalizado"}): el cliente lo ve en “Mis siniestros” de la app.${!isRec ? " Con “Habilitar y enviar instructivo” el asegurado recibe un mail con los pasos para cargar la documentación del reclamo a tercero." : ""}${isRec ? " Con “Documentos” ves lo que cargó el cliente para el reclamo." : ""}</p><div id="sinMsg"></div>` + html;
   else html = `<p class="muted" style="padding:0 0 8px">Tocá una fila para ver el detalle completo y descargarlo en PDF.</p>` + html;
   $("listArea").innerHTML = html;
   if(isVeh) actualizarSmgBulkInfo();
@@ -1395,6 +1401,26 @@ function renderTable(){
   if(isSin){
     $("listArea").querySelectorAll("button[data-sin-docs]").forEach(b => {
       b.onclick = ev => { ev.stopPropagation(); (isRec ? abrirRecDocs : abrirSinDocs)(b.dataset.sinDocs); };
+    });
+    $("listArea").querySelectorAll("button[data-rec-hab]").forEach(b => {
+      b.onclick = async ev => {
+        ev.stopPropagation();
+        const t = b.dataset.recHab;
+        if(!confirm(`¿Habilitar el reclamo a tercero del trámite ${t} y enviarle al asegurado el instructivo por mail?`)) return;
+        b.disabled = true;
+        try{
+          const res = await apiPost({ action:"admin_reclamo_habilitar", key:KEY, tramite:t });
+          if(res.ok){
+            const fila = currentRows.find(r => String(r.Tramite) === t);
+            if(fila) fila["Reclamo habilitado"] = new Date().toLocaleDateString("es-AR");
+            b.textContent = "Reenviar instructivo";
+            $("sinMsg").innerHTML = res.mail ? `<div class="ok">${esc(t)}: reclamo habilitado y mail enviado a ${esc(res.enviadoA || "el asegurado")}.</div>` : `<div class="err">${esc(res.aviso || "Quedó habilitado, pero no se pudo enviar el mail.")}</div>`;
+          } else $("sinMsg").innerHTML = `<div class="err">${esc(res.error || "No se pudo habilitar el reclamo.")}</div>`;
+        }catch(err){
+          $("sinMsg").innerHTML = `<div class="err">No se pudo conectar con la planilla. Probá de nuevo.</div>`;
+        }
+        b.disabled = false;
+      };
     });
     $("listArea").querySelectorAll("select[data-sin-t]").forEach(sel => {
       sel.onclick = ev => ev.stopPropagation();
