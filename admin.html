@@ -230,6 +230,42 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 .tile small{color:var(--mut);font-size:.8rem;line-height:1.35;font-weight:500}
 .side .sec svg{color:var(--tc,currentColor)}
 .side .sec.on svg{color:#fff}
+
+/* ---- Barra lateral solo iconos + buscador central + solapas arriba ---- */
+.shell .side{width:76px;flex:0 0 76px;padding:14px 10px;overflow:visible;align-items:center}
+.brand{padding:2px 0 14px;justify-content:center;margin-bottom:10px;width:100%}
+.brand div{display:none}
+.side .secs{align-items:center}
+.side .sec{width:52px;height:52px;padding:0;justify-content:center;position:relative}
+.side .sec>span{position:absolute;left:62px;top:50%;transform:translateY(-50%);background:#0a1226;color:#fff;padding:6px 11px;border-radius:9px;font-size:.8rem;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:50;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
+.side .sec:hover>span,.side .sec:focus-visible>span{opacity:1}
+.side .sec svg{width:25px;height:25px}
+.side .sec.on::after,.side .sec:not(.on):has(+ .subs)::after{display:none}
+.sideFoot{display:none}
+.side .nav{flex:0 0 auto}
+.top .crumb{display:none}
+.gsearch{position:relative;flex:1;max-width:620px;margin:0 auto}
+.gsearch input{width:100%;box-sizing:border-box;padding:11px 16px 11px 42px;border:1px solid var(--bd);border-radius:999px;background:var(--card);font:500 .92rem Poppins,sans-serif;color:var(--tx);box-shadow:var(--shadow-sm)}
+.gsearch input:focus{outline:0;border-color:var(--ac);box-shadow:0 0 0 4px var(--ring)}
+.gsearch>svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--mut);fill:none;stroke-width:2;stroke-linecap:round}
+.gres{position:absolute;left:0;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--bd);border-radius:18px;box-shadow:0 18px 40px -14px rgba(18,34,70,.35);max-height:70vh;overflow:auto;padding:8px;z-index:70}
+.gres h4{margin:8px 10px 4px;font-size:.7rem;letter-spacing:.07em;color:var(--mut);text-transform:uppercase}
+.gres button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;border-radius:11px;padding:8px 10px;cursor:pointer;color:var(--tx);font:500 .86rem Poppins,sans-serif}
+.gres button:hover,.gres button.sel{background:var(--tint)}
+.gres button i{font-style:normal;flex:none;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;font-weight:700}
+.gres button span{min-width:0;flex:1}.gres button b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gres button small{display:block;color:var(--mut);font-size:.74rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gres .gnone{padding:14px;color:var(--mut);font-size:.86rem}
+.subBar{display:flex;gap:8px;flex-wrap:wrap;padding:14px 28px 0}
+.subBar:not(:has(.tab:not(.hide))){display:none}
+.subBar .tab{border:1px solid var(--bd);background:var(--card);color:var(--mut);border-radius:999px;padding:8px 16px;font:600 .84rem Poppins,sans-serif;cursor:pointer}
+.subBar .tab:hover{border-color:var(--ac);color:var(--ac)}
+.subBar .tab.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.tab.solo{display:none !important}
+@media (max-width:860px){
+  .shell .side{width:76px;flex:0 0 76px;transform:translateX(-100%)}
+  .subBar{padding:10px 14px 0}.gsearch{max-width:none}
+}
 </style>
 </head>
 <body>
@@ -298,12 +334,14 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
     <header class="top">
       <button class="burger" id="burger" aria-label="Menú"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <div class="crumb"><span id="crumbSec">Panel</span><i>/</i><b id="crumbTab"></b></div>
+      <div class="gsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="gq" type="search" autocomplete="off" placeholder="Buscar pólizas, siniestros, clientes, usuarios de la app…"><div class="gres hide" id="gres"></div></div>
       <div class="topAct">
         <span class="muted" id="backupMsg"></span>
         <button class="btn sm" id="btnBackup">Backup completo</button>
         <button class="btn sm" id="btnSalir">Salir</button>
       </div>
     </header>
+    <div class="subBar" id="subBar"></div>
     <div class="content">
     <div class="card">
 
@@ -776,10 +814,52 @@ document.querySelectorAll(".tab").forEach(btn => {
 document.querySelectorAll(".sec").forEach(b => {
   const tabs = [...document.querySelectorAll(`#subtabs .tab[data-sec="${b.dataset.sec}"]`)];
   if(tabs.length < 2) { tabs.forEach(t => t.classList.add("solo")); return; }
-  const box = document.createElement("div"); box.className = "subs"; tabs.forEach(t => box.appendChild(t)); b.after(box);
+  tabs.forEach(t => $("subBar").appendChild(t));
 });
+document.querySelectorAll(".side .sec").forEach(b => { b.title = b.querySelector("span").textContent; b.setAttribute("aria-label", b.title); });
 const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", GAC:"UsuApp", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
+
+// ---- Buscador central: pólizas, siniestros, clientes y usuarios de la app ----
+{ const G = {sin:null, cli:null, usu:null, pending:null}; let seq = 0, items = [], idx = -1;
+  const box = $("gres"), inp = $("gq");
+  const cargar = () => G.pending || (G.pending = (async () => {
+    const L = sh => apiGet({action:"admin_list", key:KEY, sheet:sh}).then(r => r.ok ? (r.rows || []) : []).catch(() => []);
+    const [sin, usu, cli] = await Promise.all([L("Mis siniestros"), L("Usuarios"), apiPost({action:"admin_clientes_list", key:KEY}).then(r => r.ok ? (r.rows || []) : []).catch(() => [])]);
+    G.sin = sin; G.usu = usu.filter(u => u.Email); G.cli = cli;
+  })().finally(() => { G.pending = null; }));
+  const hit = (q, vals) => { const t = vals.map(v => String(v || "")).join(" ").toLowerCase(); return q.split(/\s+/).every(x => t.includes(x)); };
+  const row = (c, tag, tit, sub, fn) => { items.push(fn); return `<button data-gi="${items.length - 1}"><i style="background:${c}">${tag}</i><span><b>${esc(tit)}</b><small>${esc(sub)}</small></span></button>`; };
+  const cerrar = () => { box.classList.add("hide"); idx = -1; };
+  async function buscar(){
+    const q = inp.value.trim().toLowerCase(); const mi = ++seq;
+    if(q.length < 2){ cerrar(); return; }
+    box.classList.remove("hide"); box.innerHTML = `<div class="gnone">Buscando…</div>`;
+    let pol = [];
+    try{ const [p] = await Promise.all([cargarBusqueda(false), (G.sin && G.usu && G.cli) ? 0 : cargar()]); pol = p || []; }catch(e){}
+    if(mi !== seq) return;
+    items = []; let h = "";
+    const P = pol.filter(r => hit(q, BUSQ_CAMPOS.map(k => r[k]))).slice(0, 6);
+    if(P.length) h += "<h4>Pólizas</h4>" + P.map(r => row("#f76b15", "P", `${r.Poliza || "—"} · ${r.Asegurado || r.Tomador || r.Cliente || ""}`, [r.Compania, r.Ramo, r.Patente || r.Bien].filter(Boolean).join(" · "), () => { selectTab("TODAS"); $("busqGlobal").value = inp.value.trim(); buscarGlobal(); })).join("");
+    const S = (G.sin || []).filter(r => hit(q, [r.Tramite, r.Nombre, r.Patente, r["Email sesion"], r["Email formulario"], r.Tipo, r.Estado])).slice(0, 6);
+    if(S.length) h += "<h4>Siniestros</h4>" + S.map(r => row("#e5484d", "S", `${r.Tramite} · ${r.Nombre || ""}`, [r.Tipo, r.Patente, r.Estado].filter(Boolean).join(" · "), async () => { await cargarSinDocs(); selectTab("Mis siniestros"); openFicha(r); })).join("");
+    const C = (G.cli || []).filter(c => hit(q, [c.Nombre, c.CUIT, c.DNI, c.Mails, c.Telefonos])).slice(0, 6);
+    if(C.length) h += "<h4>Clientes</h4>" + C.map(c => row("#3e63dd", "C", c.Nombre || "—", [c.CUIT || c.DNI, c.Mails, c.Telefonos].filter(Boolean).join(" · "), async () => { selectTab("Clientes"); await new Promise(r => setTimeout(r, 400)); $("cliBuscar").value = c.Nombre; $("cliBuscar").dispatchEvent(new Event("input")); })).join("");
+    const U = (G.usu || []).filter(u => hit(q, [u.Nombre, u.Email])).slice(0, 6);
+    if(U.length) h += "<h4>Usuarios de la app</h4>" + U.map(u => row("#0b6bff", "A", u.Nombre || u.Email, u.Email, async () => { selectTab("UsuApp"); await renderUsuApp(); abrirFichaUsuario(String(u.Email).trim().toLowerCase()); })).join("");
+    box.innerHTML = h || `<div class="gnone">No encontré nada para “${esc(inp.value.trim())}”.</div>`;
+    box.querySelectorAll("[data-gi]").forEach(b => b.onclick = () => { const f = items[+b.dataset.gi]; cerrar(); inp.blur(); f(); });
+  }
+  let tm; inp.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(buscar, 250); });
+  inp.addEventListener("focus", () => { if(inp.value.trim().length >= 2) buscar(); });
+  inp.addEventListener("keydown", e => {
+    const bs = [...box.querySelectorAll("[data-gi]")];
+    if(e.key === "Escape"){ cerrar(); return; }
+    if(e.key === "ArrowDown" || e.key === "ArrowUp"){ e.preventDefault(); if(!bs.length) return; idx = (idx + (e.key === "ArrowDown" ? 1 : -1) + bs.length) % bs.length; bs.forEach((b, i) => b.classList.toggle("sel", i === idx)); bs[idx].scrollIntoView({block:"nearest"}); }
+    if(e.key === "Enter" && bs.length){ e.preventDefault(); (bs[idx] || bs[0]).click(); }
+  });
+  document.addEventListener("click", e => { if(!e.target.closest(".gsearch")) cerrar(); });
+}
 // ---- Inicio: accesos grandes con icono ----
 { const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas, siniestros y movimientos"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"]};
   const box = document.getElementById("iniTiles");
