@@ -1085,6 +1085,26 @@ function authFailed(j){
   if(AUTH)AUTH.signOut().catch(()=>{});
 }
 
+// Enlaces directos de los mails: ?siniestro=TRAMITE&ir=reclamo|inspeccion
+let DEEP=null;
+try{const q=new URLSearchParams(location.search);if(q.get("siniestro")&&q.get("ir"))DEEP={t:q.get("siniestro"),ir:q.get("ir")}}catch(e){}
+async function irDirecto(){
+  if(!DEEP)return;
+  const d=DEEP;DEEP=null;
+  try{history.replaceState(null,"",location.pathname)}catch(e){}
+  try{
+    const j=await misFetch("mis_siniestros");
+    if(!j.ok)return;
+    MIS=j.items||[];
+    const i=MIS.findIndex(x=>x.tramite===d.t);
+    if(i<0){show("mis");return}
+    const it=MIS[i];
+    if(d.ir==="reclamo"&&it.tipo==="Siniestro automotor"&&it.reclamoHabilitado&&!it.reclamo){formReclamoTercero(it.tramite,i);return}
+    await detalleSiniestro(i);
+    if(d.ir==="inspeccion"){const f=$("inFecha");if(f){f.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>f.focus({preventScroll:true}),400)}}
+  }catch(e){}
+}
+if(!AUTH_ON)window.addEventListener("load",()=>setTimeout(irDirecto,300));
 if(AUTH_ON){
   const A=id=>document.getElementById(id);
   const PANES=["authLoading","authMain","authVerify","authBlocked"];
@@ -1141,6 +1161,7 @@ if(AUTH_ON){
     A("userWho").textContent=u.displayName||u.email||"";
     A("userBar").classList.remove("hide");
     window.scrollTo(0,0);
+    irDirecto();
   }
   async function registerLogin(){
     const idToken=await AUTH.token(true);
