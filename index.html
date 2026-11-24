@@ -211,6 +211,33 @@ a#bw.btn.wa,#bw.btn.wa{background:var(--wa);border-color:var(--wa)}
 @media(max-width:560px){.hideS{display:none}.topbar .in{height:66px}.topbar .logo img{height:56px;margin:-6px 0}.pillBtn{padding:10px 16px}.hero .in{padding-top:36px;padding-bottom:48px}.main{padding-top:30px}}
 html.authOn:not(.authed) .waFab{display:none}
 @media print{.topbar,.hero,.waFab,.foot{display:none!important}}
+
+.credHero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:20px 18px;background:linear-gradient(135deg,var(--navy2),var(--navy));color:#fff}
+.credVeh{flex:1 1 150px;min-width:0}
+.credVeh small,.credPlate small{display:block;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;opacity:.75;font-weight:600}
+.credVeh b{display:block;font-size:1.3rem;line-height:1.15;margin-top:4px;font-weight:800}
+.credVeh em{display:block;font-style:normal;font-size:.9rem;opacity:.85;margin-top:2px}
+.credPlate{flex:none;background:#fff;color:#122246;border:3px solid #122246;border-radius:10px;padding:6px 14px 8px;max-width:100%;box-sizing:border-box;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.credPlate small{font-size:.55rem;opacity:1;color:#0550e6;letter-spacing:.2em}
+.credPlate b{display:block;font-size:clamp(1.2rem,6vw,1.55rem);letter-spacing:.12em;font-weight:800;line-height:1.1}
+.credBand{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;background:var(--tint);font-size:.9rem}
+.credChip{font-weight:800;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 12px;border-radius:99px;color:#fff}
+.credChip.ok{background:#1a7a4c}.credChip.no{background:#b3392f}
+.credGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;padding:18px}
+.credF.wide{grid-column:1/-1}
+.credF span{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600}
+.credF b{display:block;font-size:.98rem;margin-top:2px;word-break:break-word}
+.credGrua{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;background:var(--navy);color:#fff}
+.credGrua span{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;opacity:.85;font-weight:600}
+.credGrua b{font-size:1.15rem;font-weight:800}
+@media print{
+  @page{size:A4;margin:12mm}
+  #credResult,#credResult *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #credResult{--card:#fff;--tx:#122246;--mut:#5b6785;--bd:#dfe5f1;--tint:#e8efff;--navy:#122246;--navy2:#1b3a78;color:#122246;max-width:520px;margin:0 auto}
+  #credResult .credCard{box-shadow:none;border:1.5px solid #122246;background:#fff}
+  #credResult .btns,#credResult #docErr{display:none!important}
+  #credResult p{color:#3b4a6b!important}
+}
 </style>
 </head>
 <body>
@@ -520,22 +547,29 @@ function show(id,fixed){
           const compLogo=ci&&ci.logo?ci.logo:"";
           const compName=ci&&ci.name?ci.name:(d.compania||"-");
           const grua=ci&&ci.tel?ci.tel:CFG.tel;
+          const _hoy=new Date();_hoy.setHours(0,0,0,0);
+          const _mf=String(d.fin||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+          const vigente=_mf?(new Date(+_mf[1],+_mf[2]-1,+_mf[3])>=_hoy):null;
+          const chip=vigente===null?"":(vigente?'<span class="credChip ok">Vigente</span>':'<span class="credChip no">Vencida</span>');
           res.innerHTML=`<div class="credCard">
           <div class="credHead">
             ${brokerLogo?`<img src="${brokerLogo}" alt="Gosalbez Broker">`:'<span></span>'}
             <span class="credTitle">${ICO.idcard}Credencial de circulación</span>
             ${compLogo?`<img src="${compLogo}" alt="${compName}" onerror="this.style.display='none'">`:'<span></span>'}
           </div>
-          <div class="credRow"><span>Marca / Modelo</span><span>${[d.marca,d.modelo].filter(Boolean).join(" ")||"-"}</span></div>
-          <div class="credRow"><span>Año</span><span>${d.anio||"-"}</span></div>
-          <div class="credRow"><span>Patente</span><span>${d.patente||"-"}</span></div>
-          <div class="credRow"><span>Compañía</span><span>${compName}</span></div>
-          <div class="credRow"><span>N° de póliza</span><span>${d.poliza||"-"}</span></div>
-          <div class="credRow"><span>Vigencia</span><span>${fmtFecha(d.inicio)} al ${fmtFecha(d.fin)}</span></div>
-          <div class="credRow"><span>Asegurado</span><span>${d.asegurado||"-"}</span></div>
-          <div class="credRow"><span>Chasis</span><span>${d.chasis||"-"}</span></div>
-          <div class="credRow"><span>Motor</span><span>${d.motor||"-"}</span></div>
-          <div class="credRow"><span>Teléfono de grúa</span><span>${grua}</span></div>
+          <div class="credHero">
+            <div class="credVeh"><small>Vehículo asegurado</small><b>${[d.marca,d.modelo].filter(Boolean).join(" ")||"-"}</b><em>Año ${d.anio||"-"}</em></div>
+            <div class="credPlate"><small>ARGENTINA</small><b>${d.patente||"-"}</b></div>
+          </div>
+          <div class="credBand">${chip}<span>Vigencia <b>${fmtFecha(d.inicio)}</b> al <b>${fmtFecha(d.fin)}</b></span></div>
+          <div class="credGrid">
+            <div class="credF wide"><span>Asegurado</span><b>${d.asegurado||"-"}</b></div>
+            <div class="credF"><span>Compañía</span><b>${compName}</b></div>
+            <div class="credF"><span>N° de póliza</span><b>${d.poliza||"-"}</b></div>
+            <div class="credF"><span>Chasis</span><b>${d.chasis||"-"}</b></div>
+            <div class="credF"><span>Motor</span><b>${d.motor||"-"}</b></div>
+          </div>
+          <div class="credGrua"><span>Teléfono de grúa / asistencia</span><b>${grua}</b></div>
           </div>
           <p style="color:var(--mut);font-size:.72rem;line-height:1.4;margin-top:12px;text-align:justify">La posesión de este comprobante obligatorio será prueba suficiente de la vigencia del seguro obligatorio de automotores por el artículo 68 de la Ley N° 24.449. Conforme el artículo 2 de la Disposición N° 70/2009 de la AGENCIA NACIONAL DE SEGURIDAD VIAL, la falta de portación del recibo de pago de la prima del seguro obligatorio por parte del conductor del vehículo, no podrá ser aducida por la autoridad de constatación para determinar el incumplimiento de los requisitos para la circulación.</p>
           <div class="btns"><button type="button" class="btn wa" id="credPrint">Imprimir / Guardar PDF</button>${(d.docs||[]).map(x=>`<button type="button" class="btn" data-doc="${x.id}" data-pat="${d.patente}">${x.tipo==="Poliza"?"Descargar póliza original (PDF)":"Descargar credencial original (PDF)"}</button>`).join("")}</div>
