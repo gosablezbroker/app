@@ -1087,22 +1087,35 @@ function authFailed(j){
 
 // Enlaces directos de los mails: ?siniestro=TRAMITE&ir=reclamo|inspeccion
 let DEEP=null;
-try{const q=new URLSearchParams(location.search);if(q.get("siniestro")&&q.get("ir"))DEEP={t:q.get("siniestro"),ir:q.get("ir")}}catch(e){}
+try{
+  const q=new URLSearchParams(location.search);
+  if(q.get("siniestro")&&q.get("ir")){DEEP={t:q.get("siniestro"),ir:q.get("ir")};try{sessionStorage.setItem("gz_deep",JSON.stringify(DEEP))}catch(e){}}
+  else{try{const g=sessionStorage.getItem("gz_deep");if(g)DEEP=JSON.parse(g)}catch(e){}}
+}catch(e){}
+function irAlPanel(){
+  const go=()=>{const p=$("panel");if(!p)return;const y=p.getBoundingClientRect().top+window.pageYOffset-70;window.scrollTo(0,Math.max(0,y))};
+  go();setTimeout(go,350);setTimeout(go,900);
+}
 async function irDirecto(){
   if(!DEEP)return;
   const d=DEEP;DEEP=null;
+  try{sessionStorage.removeItem("gz_deep")}catch(e){}
   try{history.replaceState(null,"",location.pathname)}catch(e){}
   try{
     const j=await misFetch("mis_siniestros");
-    if(!j.ok)return;
+    if(!j.ok)throw new Error(j.error||"");
     MIS=j.items||[];
-    const i=MIS.findIndex(x=>x.tramite===d.t);
-    if(i<0){show("mis");return}
+    const i=MIS.findIndex(x=>String(x.tramite)===String(d.t));
+    if(i<0){show("mis");irAlPanel();return}
     const it=MIS[i];
-    if(d.ir==="reclamo"&&it.tipo==="Siniestro automotor"&&it.reclamoHabilitado&&!it.reclamo){formReclamoTercero(it.tramite,i);return}
+    if(d.ir==="reclamo"&&it.tipo==="Siniestro automotor"&&it.reclamoHabilitado&&!it.reclamo){formReclamoTercero(it.tramite,i);irAlPanel();return}
     await detalleSiniestro(i);
-    if(d.ir==="inspeccion"){const f=$("inFecha");if(f){f.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>f.focus({preventScroll:true}),400)}}
-  }catch(e){}
+    irAlPanel();
+    if(d.ir==="inspeccion"){const f=$("inFecha");if(f){setTimeout(()=>{f.scrollIntoView({block:"center"});f.focus({preventScroll:true})},1000)}}
+  }catch(e){
+    if(String(e&&e.message)==="auth")return;
+    try{show("mis");irAlPanel()}catch(e2){}
+  }
 }
 if(!AUTH_ON)window.addEventListener("load",()=>setTimeout(irDirecto,300));
 if(AUTH_ON){
