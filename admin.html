@@ -220,6 +220,16 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
   .topAct #btnBackup{display:none}
   .card{padding:16px;border-radius:18px}
 }
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:18px;border:1px solid var(--bd);border-radius:18px;background:var(--card);color:var(--tx);cursor:pointer;font-family:inherit;box-shadow:0 4px 14px -8px rgba(18,34,70,.25);transition:transform .15s,box-shadow .15s,border-color .15s}
+.tile:hover,.tile:focus-visible{transform:translateY(-3px);border-color:var(--tc);box-shadow:0 12px 24px -12px var(--tc);outline:0}
+.tile .ti{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:var(--tc);margin-bottom:6px}
+.tile .ti svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tile b{font-size:1rem;font-weight:700}
+.tile small{color:var(--mut);font-size:.8rem;line-height:1.35;font-weight:500}
+.side .sec svg{color:var(--tc,currentColor)}
+.side .sec.on svg{color:#fff}
 </style>
 </head>
 <body>
@@ -338,7 +348,9 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div id="tdTabla"></div>
       </div>
       <div id="viewInicio" class="hide">
-        <div class="panelTitle"><h2>Resumen de cartera</h2><button class="btn sm" id="btnIniRef">Actualizar</button></div>
+        <div class="panelTitle"><h2>¿Qué querés hacer?</h2></div>
+        <div id="iniTiles" class="tiles"></div>
+        <div class="panelTitle" style="margin-top:26px"><h2>Resumen de cartera</h2><button class="btn sm" id="btnIniRef">Actualizar</button></div>
         <div id="iniBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewClientes" class="hide">
@@ -770,6 +782,18 @@ document.querySelectorAll(".sec").forEach(b => {
 });
 const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", GAC:"UsuApp", CPO:"CliPol", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos", USU:"Usuarios"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
+// ---- Inicio: accesos grandes con icono ----
+{ const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas y movimientos"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], CPO:["#12a594","Cargar pólizas y credenciales a clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"], USU:["#d6409f","Usuarios y portales"]};
+  const box = document.getElementById("iniTiles");
+  document.querySelectorAll(".side .sec").forEach(b => {
+    const k = b.dataset.sec; if(k === "INI" || !T[k]) return;
+    b.style.setProperty("--tc", T[k][0]);
+    const t = document.createElement("button"); t.className = "tile"; t.style.setProperty("--tc", T[k][0]);
+    t.innerHTML = `<span class="ti">${b.querySelector("svg").outerHTML}</span><b>${b.querySelector("span").textContent}</b><small>${T[k][1]}</small>`;
+    t.onclick = () => selectTab(SEC_PRIMERA[k]); box.appendChild(t);
+  });
+}
+
 
 // ===== Módulos tipo Adminse calculados con la cartera ya importada =====
 const num = v => { if(typeof v === "number") return v; const t = String(v == null ? "" : v).replace(/[^\d.,-]/g, ""); if(!t) return 0; const n = t.includes(",") ? parseFloat(t.replace(/\./g, "").replace(",", ".")) : parseFloat(t); return isNaN(n) ? 0 : n; };
