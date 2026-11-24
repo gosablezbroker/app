@@ -212,6 +212,8 @@ a#bw.btn.wa,#bw.btn.wa{background:var(--wa);border-color:var(--wa)}
 html.authOn:not(.authed) .waFab{display:none}
 @media print{.topbar,.hero,.waFab,.foot{display:none!important}}
 
+.secH{margin:22px 0 4px;padding-top:16px;border-top:1px solid var(--bd);color:var(--navy);font-size:1.02rem}
+.fw:first-child .secH{margin-top:6px;padding-top:0;border-top:0}
 .credHero{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:20px 18px;background:linear-gradient(135deg,var(--navy2),var(--navy));color:#fff}
 .credVeh{flex:1 1 150px;min-width:0}
 .credVeh small,.credPlate small{display:block;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;opacity:.75;font-weight:600}
@@ -381,25 +383,29 @@ const S=[
  cols:["mail","cel","tipo","cond","tit","veh","pat","cia","lugar","fecha","hora","desc","danios","ter_ndni","ter_cont","ter_cia","ter_veh","ter_pat","ter_danios","les","ter_tit","ter_pol","sloc","sprov","scalle"],
  list:["DNI y licencia de conducir","Patente y datos de tu póliza","Fotos de los daños y del lugar","Datos del otro vehículo: patente, conductor, DNI y aseguradora","Fecha, hora y lugar del hecho","Denuncia policial, si hubo robo o lesionados"],
  tip:"Denunciá lo antes posible: cada póliza tiene plazos. No firmes ni reconozcas responsabilidad ante terceros.",
- f:[F("pat","Patente / Dominio del asegurado *"),
-   F("mail","Tu email *","email",null,null,true),
-   F("cel","Tu celular *","tel",null,null,true),
+ f:[F("_s1","1. Vehículo asegurado","heading"),
+   F("pat","Patente / Dominio del asegurado *"),
    F("tipo","Tipo de siniestro","select",["Choque","Robo","Daños a Cristales, Cerradura, Granizo u otros"]),
-   F("_h1","Tus datos y los del titular de póliza","heading"),
-   F("cond","Conductor del vehículo (Nombre, Apellido, DNI)"),
-   F("tit","Titular de póliza (Nombre / Apellido / Razón social) *"),
    F("veh","Vehículo (Marca / Modelo / Año) *"),
    F("cia","Compañía del asegurado","select",CIAS),
-   F("lugar","Lugar del siniestro (indicá calles, altura y localidad) *"),
-   F("sloc","Localidad *"),
-   F("sprov","Provincia *"),
-   F("scalle","Calle y altura *"),
+   F("_s2","2. Titular y conductor","heading"),
+   F("tit","Titular de póliza (Nombre / Apellido / Razón social) *"),
+   F("cond","Conductor del vehículo (Nombre, Apellido, DNI)"),
+   F("_s3","3. Tus datos de contacto","heading"),
+   F("mail","Tu email *","email",null,null,true),
+   F("cel","Tu celular *","tel",null,null,true),
+   F("_s4","4. Dónde y cuándo ocurrió","heading"),
    F("fecha","Fecha del siniestro *","date"),
    F("hora","Hora del siniestro","time"),
+   F("scalle","Calle y altura *"),
+   F("sloc","Localidad *"),
+   F("sprov","Provincia *"),
+   F("lugar","Lugar o referencia del siniestro (esquina, ruta, estacionamiento…) *"),
+   F("_s5","5. Qué pasó y daños","heading"),
    F("desc","Descripción del siniestro (mecánica del accidente)","area"),
    F("danios","Daños a tu vehículo","area"),
    F("adj","Adjuntá fotos del siniestro o del daño (opcional)","file"),
-   F("_terh","DATOS DEL TERCERO","heading",null,["tipo","Choque"]),
+   F("_terh","6. Datos del tercero","heading",null,["tipo","Choque"]),
    F("ter_cont","Celular o mail del tercero","text",null,["tipo","Choque"]),
    F("ter_ndni","Conductor del vehículo del tercero (Nombre, Apellido, DNI)","text",null,["tipo","Choque"]),
    F("ter_tit","Titular de póliza del tercero (Nombre / Apellido / Razón social)","text",null,["tipo","Choque"]),
@@ -595,7 +601,7 @@ function show(id,fixed){
   const visibleFields=fixed?s.f.filter(f=>!(f.id in fixed)&&(!f.show||fixed[f.show[0]]===f.show[1])):s.f;
   const fld=visibleFields.map(f=>{
     const at=f.show?` data-show-if="${f.show[0]}" data-show-val="${f.show[1]}" style="display:none"`:"";
-    if(f.t==="heading")return `<div class="fw"${at}><h3 style="margin:14px 0 6px">${f.l}</h3></div>`;
+    if(f.t==="heading")return `<div class="fw"${at}><h3 class="secH">${f.l}</h3></div>`;
     if(f.t==="note")return `<div class="fw"${at}><p style="color:var(--mut);font-size:.85rem;margin:10px 0">${f.l}</p></div>`;
     if(f.t==="file")return `<div class="fw"${at}><label>${f.l}</label><input class="filein" data-k="${f.id}" type="file" multiple accept="image/*,.pdf"><p style="color:var(--mut);font-size:.78rem;margin:5px 0 0">Fotos o PDF, hasta ${MAX_FILE_MB} MB por archivo (máx. ${MAX_FILES} archivos).</p><span class="errmsg" data-fileerr="${f.id}" style="display:none;color:#d64545;font-size:.8rem"></span></div>`;
     const rq=f.req?" required":"";
@@ -606,7 +612,7 @@ function show(id,fixed){
   $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2>
   ${s.alert?`<div class="alert">${ICO.warn}${s.alert}</div>`:""}
   ${s.list?`<h3>Tené a mano</h3><ul>${s.list.map(x=>`<li>${x}</li>`).join("")}</ul><p style="color:var(--mut);font-size:.88rem;margin:10px 0 0">${s.tip}</p>`:`<h3>Cómo hacerlo</h3><ul>${s.steps.map(x=>`<li>${x}</li>`).join("")}</ul>`}
-  ${s.link?`<div class="btns">${s.imgLink?`<a href="${s.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center"><img src="${s.imgLink}" alt="${s.linkLabel||s.t}" style="height:46px;width:auto;display:block"></a>`:`<a class="btn wa" href="${s.link}" target="_blank" rel="noopener">${s.linkLabel||"Completar formulario de denuncia"}</a>`}</div></div>`:`<h3>Tus datos</h3>${fld}
+  ${s.link?`<div class="btns">${s.imgLink?`<a href="${s.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center"><img src="${s.imgLink}" alt="${s.linkLabel||s.t}" style="height:46px;width:auto;display:block"></a>`:`<a class="btn wa" href="${s.link}" target="_blank" rel="noopener">${s.linkLabel||"Completar formulario de denuncia"}</a>`}</div></div>`:`${s.id==="auto"?"":"<h3>Tus datos</h3>"}${fld}
   ${s.notify?`<div id="reqwarn" style="display:none;background:rgba(214,69,69,.1);border:1px solid #d64545;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:.9rem;color:#d64545">${ICO.warn}Faltan completar campos obligatorios, marcados en rojo arriba.</div>
   <div id="rcpt" style="display:none;background:rgba(26,155,91,.1);border:1px solid var(--wa);border-radius:10px;padding:10px 12px;margin-top:14px;font-size:.9rem"></div>
   <div class="btns"><button type="button" class="btn wa" id="bs">Enviar</button></div></div>`
@@ -724,7 +730,7 @@ function show(id,fixed){
       st.textContent="Escribí la patente y tocá “Buscar”: si ya tenemos tus datos, los completamos solos.";
       const row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:stretch";
       pat.parentNode.insertBefore(row,pat);row.appendChild(pat);pat.style.flex="1";pat.style.minWidth="0";
-      const bb=document.createElement("button");bb.type="button";bb.className="btn wa";bb.textContent="Buscar";bb.style.whiteSpace="nowrap";row.appendChild(bb);
+      const bb=document.createElement("button");bb.type="button";bb.className="btn wa";bb.textContent="Buscar";bb.style.whiteSpace="nowrap";bb.style.width="auto";bb.style.flex="none";row.appendChild(bb);
       pat.closest(".fw").appendChild(st);
       pat.style.textTransform="uppercase";
       let ult="";
