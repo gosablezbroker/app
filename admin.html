@@ -1577,15 +1577,17 @@ async function renderInspPend(){
     await cargarSinDocs();
     hubInsp = {}; insp.forEach(x => hubInsp[String(x.Tramite)] = x);
     hubRec = {}; rec.forEach(x => hubRec[String(x.Tramite)] = x);
-    const pend = sin.filter(r => String(r.Estado || "") === "Inspección pendiente");
+    const SOL = "Inspección solicitada a la compañía";
+    const pend = sin.filter(r => String(r.Estado || "") === "Inspección pendiente"), solic = sin.filter(r => String(r.Estado || "") === SOL);
     const coord = [], esper = [];
     pend.forEach(r => { const i = hubInsp[String(r.Tramite)]; (i && i["Fecha inspeccion"] ? coord : esper).push(r); });
-    const fi = r => { const d = uaFecha(hubInsp[String(r.Tramite)]["Fecha inspeccion"]); return d ? d.getTime() : 9e15; };
-    coord.sort((a, b) => fi(a) - fi(b));
+    const fi = r => { const d = uaFecha((hubInsp[String(r.Tramite)] || {})["Fecha inspeccion"]); return d ? d.getTime() : 9e15; };
+    coord.sort((a, b) => fi(a) - fi(b)); solic.sort((a, b) => fi(a) - fi(b));
     const tabla = (lista, coordinada) => lista.length ? `<div class="tblwrap"><table><thead><tr><th>Trámite</th><th>Asegurado</th><th>Patente</th><th>${coordinada ? "Inspección el" : "Pedido enviado"}</th>${coordinada ? "<th>Lugar</th>" : ""}<th></th></tr></thead><tbody>${lista.map(r => { const i = hubInsp[String(r.Tramite)] || {};
       return `<tr><td><b>${esc(r.Tramite)}</b></td><td style="white-space:normal">${esc(r.Nombre || "")}</td><td>${esc(r.Patente || "")}</td><td>${coordinada ? "<b>" + esc(i["Fecha inspeccion"]) + "</b>" : esc(uaFmt(uaFecha(r.Actualizado)).split(" ")[0] || r.Actualizado || "")}</td>${coordinada ? `<td style="white-space:normal">${esc(i.Lugar || "")}${i.Localidad ? ", " + esc(i.Localidad) : ""}</td>` : ""}<td><button class="btn sm" data-ip="${esc(r.Tramite)}">Gestionar</button></td></tr>`; }).join("")}</tbody></table></div>` : `<p class="muted">No hay ninguna.</p>`;
     const bloque = (col, tit, n, ayuda, inner) => `<div style="box-sizing:border-box;max-width:100%;overflow-x:auto;border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:16px;background:var(--card)"><div style="display:flex;align-items:center;gap:10px"><span style="flex:none;min-width:30px;height:30px;padding:0 8px;box-sizing:border-box;border-radius:99px;background:${col};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">${n}</span><b style="font-size:1rem">${tit}</b></div><p class="muted" style="margin:4px 0 10px;font-size:.84rem">${ayuda}</p>${inner}</div>`;
-    $("ipBody").innerHTML = bloque("#12a594", "Coordinadas por el asegurado", coord.length, "El asegurado ya eligió fecha y lugar. Ordenadas por la fecha de inspección más próxima.", tabla(coord, true)) +
+    $("ipBody").innerHTML = bloque("#12a594", "Coordinadas por el asegurado", coord.length, "El asegurado ya eligió fecha y lugar. Falta pedirla a la compañía: desde Gestionar pasala a “Inspección solicitada a la compañía”.", tabla(coord, true)) +
+      bloque("#0b6bff", "Solicitadas a la compañía", solic.length, "Ya la pedimos a la compañía. Ordenadas por la fecha de inspección más próxima.", tabla(solic, true)) +
       bloque("#f76b15", "Enviadas, esperando respuesta", esper.length, "Le mandamos el pedido y todavía no eligió fecha.", tabla(esper, false));
     $("ipBody").querySelectorAll("[data-ip]").forEach(b => b.onclick = () => { const row = sin.find(r => String(r.Tramite) === b.dataset.ip); if(row) openFicha(row); });
   }catch(e){ $("ipBody").innerHTML = `<div class="err">No se pudo cargar. Probá de nuevo.</div>`; }
