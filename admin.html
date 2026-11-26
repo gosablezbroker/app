@@ -1447,7 +1447,7 @@ function renderTable(){
       }
       if(isSin && h === "Estado"){
         const cur = String(row[h] || (isRec ? "Iniciado" : "Recibido"));
-        const lst = isRec ? ["Iniciado","Aceptado","Pagos","Finalizado"] : ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
+        const lst = isRec ? ["Iniciado","Aceptado","Pagos","Finalizado"] : ["Recibido","Inspección pendiente","Inspección solicitada a la compañía","Inspeccionado","Reparación pendiente","Finalizado"];
         if(!lst.includes(cur)) lst.unshift(cur);
         html += `<td><select data-sin-t="${esc(row.Tramite)}">${lst.map(e => `<option${e === cur ? " selected" : ""}>${e}</option>`).join("")}</select></td>`;
         return;
@@ -1840,7 +1840,7 @@ function openFicha(row){
   const auto = String(row.Tipo || "") === "Siniestro automotor";
   $("modalTitle").textContent = "Siniestro " + t;
   $("printSub").textContent = "Siniestro " + t + " · generado el " + new Date().toLocaleString("es-AR");
-  const ESTADOS = ["Recibido","Inspección pendiente","Inspeccionado","Reparación pendiente","Finalizado"];
+  const ESTADOS = ["Recibido","Inspección pendiente","Inspección solicitada a la compañía","Inspeccionado","Reparación pendiente","Finalizado"];
   const RECST = ["Iniciado","Aceptado","Pagos","Finalizado"];
   const card = (num, titulo, ayuda, inner) => `<div style="box-sizing:border-box;max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;background:var(--card)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span style="flex:none;width:26px;height:26px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center">${num}</span><b style="font-size:1rem">${titulo}</b></div>
