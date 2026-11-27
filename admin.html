@@ -1662,7 +1662,7 @@ function abrirAlta(t){
   const link = alt.base + x.token;
   const docs = sinDocs.filter(d => String(d.tramite) === t);
   const filas = [["Tipo", x.tipo], ["Compañía", x.compania], ["Vigencia", x.desde ? x.desde + " al " + x.hasta : ""], ["Cobertura", x.cobertura], ["Suma asegurada", x.suma ? "$ " + x.suma : ""], ["Costo mensual", "$ " + x.costo], ["Mensaje", x.nota], ["Mail del envío", x.emailEnvio]];
-  const dat = [["Tomador", x.nombre], ["DNI / CUIT", x.documento], ["Domicilio", x.domicilio ? x.domicilio + ", " + x.localidad : ""], ["Celular", x.celular], ["Mail", x.email], ["Vehículo", x.marcaModelo], ["Año", x.anio], ["Patente", x.patente], ["Motor", x.motor], ["Chasis", x.chasis], ["Aceptada el", x.aceptada]].filter(f => f[1]);
+  const dat = [["Tomador", x.nombre], ["DNI / CUIT", x.documento], ["Domicilio", x.domicilio ? x.domicilio + ", " + x.localidad : ""], ["Celular", x.celular], ["Mail", x.email], ["Vehículo", x.marcaModelo], ["Año", x.anio], ["Patente", x.patente], ["Motor", x.motor], ["Chasis", x.chasis], ["Cláusula de no repetición", x.nrRazon ? x.nrRazon + " — CUIT " + x.nrCuit : ""], ["Beneficiario", x.benRazon ? x.benRazon + " — CUIT " + x.benCuit : ""], ["Aceptada el", x.aceptada]].filter(f => f[1]);
   const fl = a => a.filter(f => f[1]).map(f => `<div><span class="muted">${esc(f[0])}:</span> <b>${esc(f[1])}</b></div>`).join("");
   $("modalTitle").textContent = "Trámite " + t; $("printSub").textContent = x.tipo;
   $("modalBody").innerHTML = `<div style="line-height:1.75;font-size:.94rem;margin-bottom:12px">${fl(filas)}</div>

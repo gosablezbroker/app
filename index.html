@@ -1065,7 +1065,9 @@ async function abrirAltaPublica(token){
     <h3 style="margin:18px 0 8px">Datos del ${esAuto?"cliente":"cliente / tomador de la póliza"}</h3>
     ${campo("alNom","Nombre y apellido / Razón social *")}${campo("alDoc","DNI / CUIT *","Solo números","text",'inputmode="numeric"')}${campo("alDom","Domicilio *","Calle y número")}${campo("alLoc","Localidad *")}${campo("alCel","Celular *","","tel")}${campo("alMail","Mail *","","email")}
     ${esAuto?`<h3 style="margin:18px 0 8px">Datos del vehículo</h3>${campo("alMar","Marca / Modelo *")}${campo("alAnio","Año *","","text",'inputmode="numeric" maxlength="4"')}${campo("alPat","Patente *","Ej: AB123CD","text",'style="text-transform:uppercase" maxlength="10"')}${campo("alMot","Motor *")}${campo("alCha","Chasis *")}`:
-    `<h3 style="margin:18px 0 4px">Datos del personal</h3><p style="margin:0 0 10px;color:#5b6b8f;font-size:.88rem">Cargalos uno por uno o importá un Excel / CSV con las columnas: ${ALT_CSV_COLS.join(", ")}. <a href="#" id="altaModelo">Descargar modelo</a></p>
+    `<h3 style="margin:18px 0 8px">Cláusula de no repetición</h3>${campo("alNrR","Razón social *")}${campo("alNrC","CUIT *","Solo números","text",'inputmode="numeric"')}
+      <h3 style="margin:18px 0 8px">Beneficiario</h3>${campo("alBeR","Razón social *")}${campo("alBeC","CUIT *","Solo números","text",'inputmode="numeric"')}
+      <h3 style="margin:18px 0 4px">Datos del personal</h3><p style="margin:0 0 10px;color:#5b6b8f;font-size:.88rem">Cargalos uno por uno o importá un Excel / CSV con las columnas: ${ALT_CSV_COLS.join(", ")}. <a href="#" id="altaModelo">Descargar modelo</a></p>
       <input id="altaXls" type="file" accept=".xlsx,.xls,.csv" style="margin-bottom:10px"><div id="altaPers"></div><button type="button" class="btn" id="altaAdd" style="margin-top:6px">+ Agregar persona</button>`}
     <p id="altaMsg" style="display:none;margin:14px 0 0;font-size:.92rem"></p>
     <button type="button" class="btn wa" id="altaOk" style="width:100%;margin-top:16px;padding:14px">Aceptar cotización y enviar mis datos</button>
@@ -1107,7 +1109,8 @@ async function abrirAltaPublica(token){
     if(!body.nombre||!body.documento||!body.domicilio||!body.localidad||!body.celular){msg("Completá todos los datos.");return}
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)){msg("Revisá el mail.");return}
     if(esAuto){Object.assign(body,{marcaModelo:V("alMar"),anio:V("alAnio"),patente:V("alPat"),motor:V("alMot"),chasis:V("alCha")});if(!body.marcaModelo||!body.anio||!body.patente||!body.motor||!body.chasis){msg("Completá todos los datos del vehículo.");return}}
-    else{body.personal=[...document.querySelectorAll(".altaFila")].map(d=>{const o={};d.querySelectorAll("input").forEach(i=>o[i.dataset.k]=i.value.trim());return o}).filter(o=>o.nombre||o.apellido||o.dni);if(!body.personal.length){msg("Cargá al menos una persona.");return}if(body.personal.some(p=>!p.nombre||!p.apellido||!p.dni)){msg("Cada persona necesita nombre, apellido y DNI.");return}}
+    else{Object.assign(body,{nrRazon:V("alNrR"),nrCuit:V("alNrC"),benRazon:V("alBeR"),benCuit:V("alBeC")});if(!body.nrRazon||!body.nrCuit){msg("Completá razón social y CUIT de la cláusula de no repetición.");return}if(!body.benRazon||!body.benCuit){msg("Completá razón social y CUIT del beneficiario.");return}
+      body.personal=[...document.querySelectorAll(".altaFila")].map(d=>{const o={};d.querySelectorAll("input").forEach(i=>o[i.dataset.k]=i.value.trim());return o}).filter(o=>o.nombre||o.apellido||o.dni);if(!body.personal.length){msg("Cargá al menos una persona.");return}if(body.personal.some(p=>!p.nombre||!p.apellido||!p.dni)){msg("Cada persona necesita nombre, apellido y DNI.");return}}
     b.disabled=true;b.textContent="Enviando…";msg("");
     try{
       const j=await altaPost("alta_aceptar",body);if(!j.ok)throw new Error(j.error);
