@@ -243,6 +243,19 @@ html.deepMode .hero,html.deepMode .secT,html.deepMode .sub,html.deepMode #opts,h
   #credResult .credFoot{display:block!important;text-align:center;margin-top:10px!important;font-weight:600;color:#122246!important}
   #credResult p{color:#3b4a6b!important;font-size:8.5pt!important;line-height:1.35!important}
 }
+
+/* hero compacto y moderno */
+.hero{border-radius:0 0 22px 22px;background:radial-gradient(120% 160% at 100% 0%,#1f5bff 0%,rgba(31,91,255,0) 55%),linear-gradient(120deg,#0a1431,#122246)}
+.hero .in{padding-top:14px;padding-bottom:16px;gap:16px}
+.hero .tag{display:none}
+.hero .ring{display:none}
+.heroT{font-size:clamp(1.1rem,4.2vw,1.45rem);margin:0 0 2px}
+.heroS{font-size:.82rem;margin:0 0 10px;max-width:60ch}
+.heroBtn{font-size:.88rem;padding:8px 18px}
+.heroArt{width:auto;transform:none;filter:none}
+.hcard{width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px);box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}
+.hcard svg{width:32px;height:32px}
+@media(max-width:560px){.heroArt{display:block}.hcard{width:52px;height:52px;border-radius:16px}.hcard svg{width:26px;height:26px}.hero .in{padding-top:12px;padding-bottom:14px}}
 </style>
 </head>
 <body>
@@ -292,27 +305,11 @@ html.deepMode .hero,html.deepMode .secT,html.deepMode .sub,html.deepMode #opts,h
     <div class="in">
       <div class="heroTxt">
         <span class="tag">GOSALBEZ · BROKER DE SEGUROS</span>
-        <p class="heroT">Descargá ahora<br><b>tu credencial automotor</b></p>
-        <p class="heroS">Todo tu seguro en un solo lugar: credencial, denuncias de siniestros y consultas.</p>
+        <p class="heroT">Descargá tu <b>credencial automotor</b></p>
+        <p class="heroS">Credencial, denuncias de siniestros y consultas, en un solo lugar.</p>
         <button type="button" class="heroBtn" id="heroCred">Descargar <span aria-hidden="true">→</span></button>
       </div>
-      <div class="heroArt" aria-hidden="true">
-      <svg viewBox="0 0 240 330" role="img" aria-label="">
-        <defs><linearGradient id="gcard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82ff"/><stop offset="1" stop-color="#0550e6"/></linearGradient></defs>
-        <rect x="30" y="8" width="180" height="314" rx="30" fill="#0b1736" stroke="#fff" stroke-opacity=".55" stroke-width="3"/>
-        <rect x="42" y="22" width="156" height="286" rx="20" fill="#eef3ff"/>
-        <rect x="92" y="14" width="56" height="6" rx="3" fill="#fff" fill-opacity=".35"/>
-        <text x="120" y="62" text-anchor="middle" font-family="Poppins,sans-serif" font-weight="700" font-size="15" fill="#122246">CREDENCIAL</text>
-        <text x="120" y="80" text-anchor="middle" font-family="Poppins,sans-serif" font-weight="600" font-size="11" fill="#0550e6">AUTOMOTOR</text>
-        <rect x="58" y="98" width="124" height="82" rx="14" fill="url(#gcard)"/>
-        <path d="M82 152h76l-8-18c-2-4-5-6-9-6h-42c-4 0-7 2-9 6z" fill="#fff" fill-opacity=".92"/>
-        <rect x="80" y="150" width="80" height="12" rx="5" fill="#fff"/>
-        <circle cx="96" cy="164" r="6" fill="#122246"/><circle cx="144" cy="164" r="6" fill="#122246"/>
-        <rect x="58" y="196" width="124" height="9" rx="4.5" fill="#c9d9fb"/><rect x="58" y="214" width="96" height="9" rx="4.5" fill="#c9d9fb"/><rect x="58" y="232" width="110" height="9" rx="4.5" fill="#c9d9fb"/>
-        <rect x="58" y="258" width="124" height="34" rx="17" fill="#0550e6"/>
-        <text x="120" y="280" text-anchor="middle" font-family="Poppins,sans-serif" font-weight="600" font-size="12" fill="#fff">Descargar</text>
-      </svg>
-      </div>
+      <div class="heroArt" aria-hidden="true"><div class="hcard"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><circle cx="8" cy="12" r="1.9"/><path d="M5.3 15.6c.6-1.2 1.7-1.8 2.7-1.8s2.1.6 2.7 1.8M13.5 9.8h5M13.5 12.8h5M13.5 15.8h3"/></svg></div></div>
     </div>
   </section>
   <main class="main">
