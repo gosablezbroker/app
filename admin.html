@@ -350,23 +350,26 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
 
       <div id="viewImp" class="hide">
         <div class="panelTitle"><h2>Importar datos</h2><button class="btn sm" id="impRef">Actualizar</button></div>
-        <p class="muted" style="padding:0 0 10px">Un botón por compañía: al tocarlo se abre la selección del archivo (SMG se importa directo). El resultado se ve en la pestaña de esa compañía.</p>
-        <div class="chips" id="impTipo"><button class="chip on">Operaciones (pólizas)</button><button class="chip" disabled title="Próximamente">Pagos pendientes</button><button class="chip" disabled title="Próximamente">Pagos realizados</button><button class="chip" disabled title="Próximamente">Comisiones</button></div>
-        <div class="impGrid" id="impGrid"><div class="loading">Cargando…</div></div>
-      <div id="polBar" style="padding:14px;border:1px solid var(--bd);border-radius:16px;margin-top:18px">
-        <div class="panelTitle"><h2>Importar todas las compañías</h2></div>
-        <p class="muted" style="padding:0 0 10px">
-          Trae SMG automáticamente (autos y otros ramos). Para el resto elegí los archivos: el <strong>Excel de Adminse</strong>
-          (Producción &gt; Pólizas &gt; Descargar) para Río Uruguay, Mercantil, Meridional, ATM y otras, y el <strong>.zip de Galicia</strong>.
-          Lo que no elijas no se toca.
-        </p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <label class="muted">Excel Adminse <input type="file" id="allExcel" accept=".xlsx,.xls"></label>
-          <label class="muted">Zip Galicia <input type="file" id="allZip" accept=".zip"></label>
-          <button class="btn pri" id="btnImportAll">Importar todas las compañías</button>
+        <div style="padding:20px;border:2px solid var(--ac);border-radius:20px;background:var(--card);box-shadow:var(--shadow-sm)" id="polBar">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="pill k-ok">Importación general</span><b style="font-size:1.1rem">Todas las compañías de una vez</b></div>
+          <p class="muted" style="padding:6px 0 14px">Es la importación de todos los días: actualiza <strong>toda la cartera</strong> con los archivos que bajás de cada sistema. Lo que no elijas no se toca.</p>
+          <ol style="margin:0 0 14px;padding-left:20px;line-height:1.8;font-size:.92rem">
+            <li><strong>SMG:</strong> se trae sola (autos y otros ramos). No tenés que elegir nada.</li>
+            <li><strong>Excel de Adminse</strong> (Producción &gt; Pólizas &gt; Descargar): trae Río Uruguay, Mercantil, Meridional, ATM, Mapfre, Zurich y otras.</li>
+            <li><strong>Zip de Galicia:</strong> el .zip que baja del portal de Galicia.</li>
+          </ol>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <label class="muted">1) Excel de Adminse <input type="file" id="allExcel" accept=".xlsx,.xls"></label>
+            <label class="muted">2) Zip de Galicia <input type="file" id="allZip" accept=".zip"></label>
+          </div>
+          <button class="btn pri" id="btnImportAll">Importar todo (SMG + lo que hayas elegido)</button>
+          <div id="allMsg" style="margin-top:10px"></div>
         </div>
-        <div id="allMsg" style="margin-top:10px"></div>
-      </div>
+        <details style="margin-top:20px;border:1px solid var(--bd);border-radius:20px;background:var(--card);padding:6px 20px 16px" id="impIndiv">
+          <summary style="cursor:pointer;padding:14px 0;font-weight:700;font-size:1rem">Importación individual por compañía <span class="pill" style="margin-left:6px">Solo si hace falta</span></summary>
+          <p class="muted" style="padding:0 0 12px">Sirve para actualizar <strong>una sola compañía</strong> sin tocar las demás. Se usa el mismo Excel de Adminse (o el zip de Galicia), pero <strong>solo se reemplazan las pólizas de la compañía elegida</strong>; el resto del archivo se ignora. Si querés actualizar todo, usá la importación general de arriba.</p>
+          <div class="impGrid" id="impGrid"><div class="loading">Cargando…</div></div>
+        </details>
       </div>
       <div id="viewTodas" class="hide">
         <div class="kpis" id="tdKpi"></div>
@@ -1315,7 +1318,7 @@ function renderImp(){
     {n:"Otras compañías", sub:"ART y otras (Excel de Adminse)", met:"Por archivo", tab:"CAR:OTR", c: cnt("OTR"), f: carActualizado},
     {n:"Clientes", sub:"Agenda de clientes de Adminse", met:"Por archivo", tab:"Clientes", c: (datosModulo.clientes || []).length, f: datosModulo.clientesAct || ""}
   ];
-  $("impGrid").innerHTML = items.map((it, i) => `<div class="impCard"><div class="impTop"><b>${esc(it.n)}</b><span class="pill ${it.met.startsWith("Auto") ? "k-ok" : ""}">${esc(it.met)}</span></div><div class="muted" style="padding:0">${esc(it.sub)}</div><div class="impNum">${it.c}<small>${it.n === "Clientes" ? "clientes" : "pólizas"}</small></div><div class="muted" style="padding:0 0 10px">${it.f ? "Última importación: " + esc(it.f) : (it.c ? "" : "Sin importar todavía")}</div><button class="btn pri sm" data-i="${i}">Importar</button></div>`).join("");
+  $("impGrid").innerHTML = items.map((it, i) => `<div class="impCard"><div class="impTop"><b>${esc(it.n)}</b><span class="pill ${it.met.startsWith("Auto") ? "k-ok" : ""}">${it.met.startsWith("Auto") ? "Automática" : "Individual"}</span></div><div class="muted" style="padding:0">${esc(it.sub)}</div><div class="impNum">${it.c}<small>${it.n === "Clientes" ? "clientes" : "pólizas"}</small></div><div class="muted" style="padding:0 0 10px">${it.f ? "Última importación: " + esc(it.f) : (it.c ? "" : "Sin importar todavía")}</div><button class="btn pri sm" data-i="${i}">${it.met.startsWith("Auto") ? "Importar SMG" : "Importar solo " + esc(it.n)}</button></div>`).join("");
   const disparo = {"CAR:SMO":"btnSmgImp", GALC:"btnGalSubir", Clientes:"btnCliSubir"};
   $("impGrid").querySelectorAll("button[data-i]").forEach(b => b.onclick = () => {
     const t = items[Number(b.dataset.i)].tab;
