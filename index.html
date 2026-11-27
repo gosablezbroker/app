@@ -1045,7 +1045,7 @@ async function abrirAltaPublica(token){
   document.documentElement.classList.add("altaMode");
   const pg=document.createElement("div");pg.id="altaPage";
   pg.style.cssText="position:fixed;inset:0;z-index:99999;overflow:auto;background:#f0f4fc;font-family:Poppins,system-ui,sans-serif;color:#122246";
-  pg.innerHTML=`<div style="max-width:640px;margin:0 auto;padding:18px 16px 60px"><div style="text-align:center;margin:6px 0 14px"><img src="${(document.querySelector(".logo img")||{}).src||""}" alt="Gosalbez Broker de Seguros" style="height:60px"></div><div id="altaIn" style="background:#fff;border-radius:20px;padding:20px;box-shadow:0 10px 30px -14px rgba(18,34,70,.3)">Cargando tu cotización…</div></div>`;
+  pg.innerHTML=`<div style="max-width:640px;margin:0 auto;padding:18px 16px 60px"><div style="text-align:left;margin:0 0 4px"><a href="${location.pathname}" style="color:#0b6bff;font-weight:600;font-size:.9rem;text-decoration:none">← Ir a la pantalla principal</a></div><div style="text-align:center;margin:6px 0 14px"><img src="${(document.querySelector(".logo img")||{}).src||""}" alt="Gosalbez Broker de Seguros" style="height:60px"></div><div id="altaIn" style="background:#fff;border-radius:20px;padding:20px;box-shadow:0 10px 30px -14px rgba(18,34,70,.3)">Cargando tu cotización…</div></div>`;
   document.body.appendChild(pg);
   const box=$("altaIn");
   let a;
@@ -1124,7 +1124,8 @@ async function abrirAltaPublica(token){
     b.disabled=true;b.textContent="Enviando…";msg("");
     try{
       const j=await altaPost("alta_aceptar",body);if(!j.ok)throw new Error(j.error);
-      box.innerHTML=`<div style="text-align:center"><h2 style="margin:0 0 6px">¡Listo, recibimos tu aceptación!</h2><p style="color:#5b6b8f">Este es tu número de trámite:</p><div style="font-size:1.6rem;font-weight:800;margin:6px 0 12px">${escH(j.tramite)}</div><p>${j.mail?"Te mandamos un mail con tu certificado de cobertura provisorio.":""} Cuando la compañía emita la póliza te la enviamos.</p>${j.cert?'<button type="button" class="btn wa" id="altaCertB">Descargar certificado provisorio</button>':""}</div>`;
+      box.innerHTML=`<div style="text-align:center"><h2 style="margin:0 0 6px">¡Listo, recibimos tu aceptación!</h2><p style="color:#5b6b8f">Este es tu número de trámite:</p><div style="font-size:1.6rem;font-weight:800;margin:6px 0 12px">${escH(j.tramite)}</div><p>${j.mail?"Te mandamos un mail con tu certificado de cobertura provisorio.":""} Cuando la compañía emita la póliza te la enviamos.</p>${j.cert?'<button type="button" class="btn wa" id="altaCertB">Descargar certificado provisorio</button>':""}<div style="margin-top:14px"><button type="button" class="btn" id="altaVolver" style="width:100%;padding:13px">Volver a la pantalla principal</button></div></div>`;
+      $("altaVolver").onclick=()=>{location.href=location.origin+location.pathname};
       const cb=$("altaCertB");if(cb)cb.onclick=async()=>{try{const g=await altaPost("alta_cert",{token});if(!g.ok)throw new Error(g.error);bajarB64(g.data,g.type,g.name)}catch(e){alert("No pudimos descargar el certificado.")}};
       window.scrollTo(0,0);pg.scrollTop=0;
     }catch(e){msg(e.message||"No pudimos enviar tus datos. Probá de nuevo.");b.disabled=false;b.textContent="Aceptar cotización y enviar mis datos"}
