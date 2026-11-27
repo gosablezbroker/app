@@ -653,9 +653,12 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
           <div class="panelTitle"><h2>Importar vehículos desde Excel</h2></div>
           <p class="muted" style="padding:0 0 6px">
-            Reemplaza <strong>toda</strong> la lista de vehículos por el contenido del archivo. Usá esto para subir
-            un listado nuevo completo (por ejemplo, el export actualizado de las compañías), no para agregar uno solo.
+            Elegí el archivo (el Excel de vehículos de Adminse) y después una de las dos opciones:
           </p>
+          <ul class="muted" style="margin:0 0 10px;padding-left:20px;line-height:1.7">
+            <li><strong>Agregar nuevos y actualizar vencidos (recomendado):</strong> suma los vehículos que todavía no están y actualiza los que figuran vencidos o con una vigencia más vieja que la del archivo. <strong>No borra nada.</strong></li>
+            <li><strong>Reemplazar lista completa:</strong> la lista queda exactamente igual al archivo. Los que no estén en el archivo dejan de aparecer.</li>
+          </ul>
           <p class="muted" style="padding:0 0 10px">
             Acepta dos formatos: el listado simple con las columnas
             <code>Patente, Compania, Poliza, Inicio, Fin, Asegurado, Email, Celular, Marca, Modelo, Anio, Chasis, Motor, Uso</code>
@@ -665,7 +668,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
           </p>
           <div id="importMsg"></div>
           <input type="file" id="importFile" accept=".xlsx,.xls">
-          <div style="margin-top:14px"><button class="btn" id="btnImportar">Importar y reemplazar lista completa</button></div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn pri" id="btnVehMerge">Agregar nuevos y actualizar vencidos</button><button class="btn" id="btnImportar">Importar y reemplazar lista completa</button></div>
         </div>
 
         <div style="margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)">
@@ -3811,6 +3814,55 @@ $("btnImportar").onclick = () => {
     $("btnImportar").disabled = false;
   };
   reader.readAsArrayBuffer(file);
+};
+
+
+// Vehículos: suma los que faltan y actualiza los vencidos / con vigencia más vieja, sin borrar nada.
+$("btnVehMerge").onclick = async () => {
+  const file = $("importFile").files[0], msg = $("importMsg"), btn = $("btnVehMerge");
+  msg.innerHTML = "";
+  if(!file){ msg.innerHTML = `<div class="err">Elegí primero un archivo .xlsx.</div>`; return; }
+  btn.disabled = true; const txt = btn.textContent; btn.textContent = "Revisando…";
+  const fin = () => { btn.disabled = false; btn.textContent = txt; };
+  try{
+    let parsed;
+    try{ parsed = parseWorkbookToVehRows(XLSX.read(new Uint8Array(await file.arrayBuffer()), {type:"array", cellDates:true})); }
+    catch(e){ msg.innerHTML = `<div class="err">No se pudo leer el archivo. ¿Es un Excel (.xlsx) válido?</div>`; return fin(); }
+    if(!parsed.rows.length){ msg.innerHTML = `<div class="err">No se encontraron filas con patente en el archivo.</div>`; return fin(); }
+    const cur = await apiGet({action:"admin_list", key:KEY, sheet:"Vehiculos"});
+    if(!cur.ok) throw new Error(cur.error || "No se pudo leer la lista actual.");
+    const pat = v => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const fechaDe = r => { const d = parseDateFlexible(r.Fin); return d ? d.getTime() : 0; };
+    const actuales = {}; (cur.rows || []).forEach(r => { const k = pat(r.Patente); if(k) (actuales[k] = actuales[k] || []).push(r); });
+    const nuevos = [], actualizados = [], iguales = [], reemplazo = {};
+    const vistas = {};
+    parsed.rows.forEach(r => { const k = pat(r.Patente); if(!k) return; const prev = vistas[k]; if(!prev || fechaDe(r) > fechaDe(prev)) vistas[k] = r; });
+    Object.keys(vistas).forEach(k => {
+      const f = vistas[k], ex = actuales[k];
+      if(!ex){ nuevos.push(f); return; }
+      const mejorFin = Math.max(...ex.map(fechaDe));
+      const vencido = mejorFin < hoy.getTime(), masNuevo = fechaDe(f) > mejorFin;
+      if(vencido || masNuevo){
+        const base = ex.slice().sort((a, b) => fechaDe(b) - fechaDe(a))[0], m = Object.assign({}, f);
+        VEH_FIELDS.forEach(c => { if(!String(m[c] || "").trim() && base[c]) m[c] = base[c]; });
+        reemplazo[k] = m; actualizados.push(k);
+      } else iguales.push(k);
+    });
+    if(!nuevos.length && !actualizados.length){ msg.innerHTML = `<div class="ok">No hay nada para agregar ni actualizar: los ${iguales.length} vehículos del archivo ya están al día.</div>`; return fin(); }
+    if(!confirm(`Del archivo (${Object.keys(vistas).length} vehículos):\n\n• ${nuevos.length} nuevos para agregar\n• ${actualizados.length} para actualizar (vencidos o con vigencia más vieja)\n• ${iguales.length} ya están al día\n\nNo se borra ningún vehículo. ¿Seguimos?`)) return fin();
+    const resultado = [];
+    Object.keys(actuales).forEach(k => { if(reemplazo[k]) return; actuales[k].forEach(r => resultado.push(r)); });
+    Object.keys(reemplazo).forEach(k => resultado.push(reemplazo[k]));
+    nuevos.forEach(r => resultado.push(r));
+    const rows = resultado.map(r => { const o = {}; VEH_FIELDS.forEach(c => { o[c] = r[c] == null ? "" : r[c]; }); return o; });
+    const res = await apiPost({action:"admin_import_vehiculos", key:KEY, rows});
+    if(!res.ok) throw new Error(res.error || "No se pudo guardar.");
+    msg.innerHTML = `<div class="ok">Listo: ${nuevos.length} vehículos agregados y ${actualizados.length} actualizados. Ahora hay ${res.imported} vehículos en la lista.</div>`;
+    $("importFile").value = "";
+    if(currentTab === "Vehiculos") loadTab("Vehiculos");
+  }catch(e){ msg.innerHTML = `<div class="err">${esc(e.message || "No se pudo importar.")}</div>`; }
+  fin();
 };
 
 // ---- Envío masivo de credenciales por email ----
