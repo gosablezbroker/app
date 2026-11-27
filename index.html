@@ -919,19 +919,29 @@ async function cargarMisPolizas(box){
 const END_TIPOS=["Cambio de forma de pago","Baja de póliza","Otro endoso"];
 const END_SECCIONES=["Automotores","Hogar","Comercio / Integral","Vida","Accidentes personales","Otra"];
 const END_MARCAS=["Visa","Mastercard","American Express","Cabal","Tarjeta Naranja"];
-async function cargarEndosos(box){
+const END_COL={"Recibido":"#0b6bff","En gestión":"#c77700","Enviado a la compañía":"#c77700","Finalizado":"#1a9b5b","Rechazado":"#d64545"};
+function enTimeout(p,ms){return Promise.race([p,new Promise((_,no)=>setTimeout(()=>no(new Error("timeout")),ms))])}
+async function cargarEndosos(box,tab){
+  box.innerHTML='<p style="color:var(--mut)">Cargando tus pedidos…</p>';
   let pols=[],mis=[];
   try{
-    const [a,b]=await Promise.all([misFetch("mis_polizas"),misFetch("mis_endosos")]);
-    if(!a.ok||!b.ok)throw new Error(a.error||b.error||"");
-    pols=a.items||[];mis=b.items||[];
-  }catch(e){box.innerHTML='<p style="color:#d64545">No pudimos cargar esta sección. Probá de nuevo en unos minutos.</p>';return}
-  const lista=mis.length?mis.map(x=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(x.tramite)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${END_COL[x.estado]||"#667"};border-radius:99px;padding:3px 10px;white-space:nowrap">${escH(x.estado)}</span></div>
-    <div style="color:var(--mut);font-size:.9rem;margin-top:6px"><b style="color:var(--tx)">${escH(x.tipo)}</b>${x.motivo?" — "+escH(x.motivo):""}<br>Póliza ${escH(x.poliza)}${x.seccion?" · "+escH(x.seccion):""}${x.patente?" · "+escH(x.patente):""}<br>Pedido el ${escH(x.fecha)}</div>
-    ${x.nota?`<div style="margin-top:8px;background:var(--tint,#eef3ff);border-radius:10px;padding:9px 12px;font-size:.9rem"><b>Mensaje de Gosalbez:</b> ${escH(x.nota)}</div>`:""}</div>`).join(""):'<p style="color:var(--mut)">Todavía no hiciste pedidos.</p>';
+    const [a,b]=await enTimeout(Promise.all([misFetch("mis_polizas"),misFetch("mis_endosos")]),25000);
+    if(!a.ok)throw new Error(a.error||"");
+    if(!b.ok||!Array.isArray(b.items))throw new Error("viejo");
+    pols=a.items||[];mis=b.items;
+  }catch(e){
+    if(String(e&&e.message)==="auth")return;
+    box.innerHTML='<p style="color:#d64545">No pudimos cargar esta sección. Revisá tu conexión e intentá de nuevo.</p><div class="btns"><button type="button" class="btn" id="enRe">Reintentar</button></div>';
+    $("enRe").onclick=()=>cargarEndosos(box,tab);return;
+  }
+  const fila=(k,v)=>v?`<div style="display:flex;gap:8px;padding:3px 0"><span style="flex:0 0 112px;color:var(--mut)">${k}</span><b style="font-weight:600;min-width:0;word-break:break-word">${escH(v)}</b></div>`:"";
+  const lista=mis.length?mis.map(x=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-sm)">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><div style="font-size:.72rem;color:var(--mut);font-weight:600;letter-spacing:.05em">Nº DE GESTIÓN</div><b style="font-size:1.1rem;letter-spacing:.3px">${escH(x.tramite)}</b></div><span style="font-size:.8rem;font-weight:700;color:#fff;background:${END_COL[x.estado]||"#667"};border-radius:99px;padding:5px 12px;white-space:nowrap">${escH(x.estado)}</span></div>
+    <div style="font-size:.9rem;margin-top:10px;border-top:1px solid var(--bd);padding-top:8px">${fila("Pedido",x.tipo)}${fila("Póliza",x.poliza)}${fila("Sección",x.seccion)}${fila("Patente",x.patente)}${fila("Asegurado",x.asegurado)}${fila(x.tipo==="Baja de póliza"?"Fecha de baja":x.tipo==="Cambio de forma de pago"?"Desde el":"Fecha del cambio",x.fechaPedida)}${fila("Tarjeta",x.marca)}${fila("Detalle",x.detalle)}${fila("Pedido el",x.fecha)}${fila("Última novedad",x.actualizado)}</div>
+    ${x.nota?`<div style="margin-top:8px;background:var(--tint,#eef3ff);border-radius:10px;padding:9px 12px;font-size:.9rem"><b>Mensaje de Gosalbez:</b> ${escH(x.nota)}</div>`:""}</div>`).join(""):'<p style="color:var(--mut)">Todavía no hiciste pedidos. Cuando cargues uno, aparece acá con su número de gestión y su estado.</p>';
   const hoyL=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-  box.innerHTML=`<p style="color:var(--mut);font-size:.9rem;margin:6px 0 12px">Cargá tu pedido y te damos un <b>número de gestión</b> para seguirlo.</p>
+  box.innerHTML=`<div style="display:flex;gap:6px;background:var(--tint);border-radius:99px;padding:4px;margin-bottom:14px"><button type="button" class="enTab" data-et="n" style="flex:1;border:0;border-radius:99px;padding:10px;font:600 .9rem inherit;font-family:inherit;cursor:pointer">Nuevo pedido</button><button type="button" class="enTab" data-et="m" style="flex:1;border:0;border-radius:99px;padding:10px;font:600 .9rem inherit;font-family:inherit;cursor:pointer">Mis pedidos (${mis.length})</button></div>
+   <div id="enNuevo"><p style="color:var(--mut);font-size:.9rem;margin:6px 0 12px">Cargá tu pedido y te damos un <b>número de gestión</b> para seguirlo.</p>
    <div class="fw"><label>¿Qué necesitás? *</label><select id="enTipo">${END_TIPOS.map(t=>`<option>${t}</option>`).join("")}</select></div>
    ${pols.length?`<div class="fw"><label>Completar con una de mis pólizas</label><select id="enPol"><option value="">Elegir…</option>${pols.map((p,i)=>`<option value="${i}">${escH(p.compania)} · ${escH(p.poliza)}${p.bien?" · "+escH(p.bien):""}</option>`).join("")}</select></div>`:""}
    <div class="fw"><label>Número de póliza *</label><input id="enNro" type="text" inputmode="numeric"></div>
@@ -949,7 +959,9 @@ async function cargarEndosos(box){
    <div class="fw" id="enFilesW"><label>Documentación (opcional)</label><input id="enFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"><small style="color:var(--mut)">Fotos o PDF que acompañen el pedido (hasta 8 archivos).</small></div>
    <p id="enMsg" style="display:none;font-size:.9rem"></p>
    <div class="btns"><button type="button" class="btn wa" id="enSend">Enviar pedido</button></div>
-   <h3 style="margin-top:22px">Mis pedidos</h3>${lista}`;
+   </div><div id="enMis" style="display:none">${lista}</div>`;
+  const pintaTab=t=>{$("enNuevo").style.display=t==="n"?"":"none";$("enMis").style.display=t==="m"?"":"none";box.querySelectorAll(".enTab").forEach(b=>{const on=b.dataset.et===t;b.style.background=on?"var(--ac)":"transparent";b.style.color=on?"#fff":"var(--tx)"})};
+  box.querySelectorAll(".enTab").forEach(b=>b.onclick=()=>pintaTab(b.dataset.et));pintaTab(tab||"n");
   const tipo=$("enTipo");
   const ajusta=()=>{
     const t=tipo.value,pago=t==="Cambio de forma de pago";
@@ -990,9 +1002,9 @@ async function cargarEndosos(box){
     try{
       const files=[];for(const f of fs)files.push({name:f.name,type:/^image\//.test(f.type)?"image/jpeg":f.type,data:await archivoB64(f)});
       const j=await misFetch("endoso_crear",{tipo:t,poliza:nro,seccion:pago?"":$("enSec").value,patente:pago?"":$("enPat").value.trim(),asegurado:pago?"":$("enAseg").value.trim(),fecha,tarjeta:pago?$("enTarj").value:"",marca:pago?$("enMarca").value:"",detalle:t==="Otro endoso"?$("enDet").value.trim():"",files});
-      if(!j.ok)throw new Error(j.error||"");
+      if(!j.ok||!j.tramite)throw new Error(j.error||"Todavía no está habilitado el envío. Probá más tarde.");
       box.innerHTML=`<div style="background:rgba(26,155,91,.1);border:1px solid #1a9b5b;border-radius:12px;padding:16px"><b>¡Recibimos tu pedido!</b><div style="font-size:1.4rem;font-weight:800;margin:8px 0;letter-spacing:.5px">${escH(j.tramite)}</div><div style="font-size:.9rem">Este es tu <b>número de gestión</b>.${j.mail?" Te mandamos un mail con el detalle.":""} Podés seguir el estado desde acá.</div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="enOtro">Ver mis pedidos</button></div>`;
-      $("enOtro").onclick=()=>cargarEndosos(box);
+      $("enOtro").onclick=()=>cargarEndosos(box,"m");
     }catch(e){say(e.message||"No pudimos enviar el pedido. Probá de nuevo.");b.disabled=false;b.textContent="Enviar pedido"}
   };
 }
