@@ -173,8 +173,9 @@ body{letter-spacing:-.005em}
 .opt{border:none;border-radius:26px;padding:20px;gap:16px;box-shadow:var(--shadow-card);transition:transform .18s ease,box-shadow .18s ease}
 .opt:hover{border-color:transparent;transform:translateY(-3px);box-shadow:var(--shadow-up)}
 .opt.on{box-shadow:0 0 0 3px var(--ring),var(--shadow-card)}
-.opt .i{width:56px;height:56px;border-radius:50%;background:var(--tint)}
-.opt .i svg{width:26px;height:26px}
+.opt .i{width:58px;height:58px;border-radius:17px;background:var(--tc,var(--ac));color:#fff;box-shadow:0 8px 16px -8px var(--tc,var(--ac))}
+.opt .i svg{width:30px!important;height:30px!important;margin:0!important;vertical-align:0!important;stroke-width:1.8}
+.opt:hover{border-color:transparent}
 .opt b{font-weight:600;font-size:1.04rem;color:var(--tx)}
 .opt span{font-size:.88rem;line-height:1.5}
 .opt .arrow{opacity:1;color:var(--ac);font-weight:600;font-size:.92rem;white-space:nowrap}
@@ -355,6 +356,8 @@ const ICO={
   check:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.1em;height:1.1em;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.6 2.6L16.2 9"/></svg>`,
   cam:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h1.8l1-1.6h7.4l1 1.6h1.8A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9Z"/><circle cx="12" cy="13" r="3.3"/></svg>`,
   idcard:`<svg viewBox="0 0 24 24" ${SVGA} style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:4px"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="8" cy="12" r="1.9"/><path d="M5.3 15.6c.6-1.2 1.7-1.8 2.7-1.8s2.1.6 2.7 1.8"/><path d="M13.5 9.8h5M13.5 12.8h5M13.5 15.8h3"/></svg>`,
+  poliza:`<svg viewBox="0 0 24 24" ${SVGA}><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg>`,
+  endoso:`<svg viewBox="0 0 24 24" ${SVGA}><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h4"/><path d="M3 14h5M5.5 11.5 8 14l-2.5 2.5"/></svg>`,
   gov:`<svg viewBox="0 0 24 24" ${SVGA}><path d="M4 10.2 12 4.3l8 5.9"/><path d="M4.5 10.2v7.8M8.2 10.2v7.8M12 10.2v7.8M15.8 10.2v7.8M19.5 10.2v7.8"/><path d="M3.5 19.7h17"/></svg>`
 };
 // Datos por compañía para la credencial: nombre para mostrar, teléfono de
@@ -423,8 +426,8 @@ const S=[
  list:["DNI y datos de tu póliza","Dirección del inmueble o comercio","Fotos o videos de los daños","Lista de bienes afectados con valor aproximado","Facturas o comprobantes, si los tenés","Denuncia policial, en caso de robo","Presupuesto de reparación, si ya lo tenés"],
  tip:"No descartes los bienes dañados hasta que te lo indiquemos.",
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area"),F("adj","Adjuntá fotos o documentos (opcional)","file")]},
-{id:"mispol",i:ICO.cred,t:"Mis pólizas",d:"Consultá tus pólizas, su vigencia y descargá los PDF.",mypol:true},
-{id:"endosos",i:ICO.cred,t:"Endosos / bajas",d:"Pedí un cambio o la baja de tu póliza y seguilo con tu número de gestión.",endosos:true},
+{id:"mispol",i:ICO.poliza,t:"Mis pólizas",d:"Consultá tus pólizas, su vigencia y descargá los PDF.",mypol:true},
+{id:"endosos",i:ICO.endoso,t:"Endosos / bajas",d:"Pedí un cambio o la baja de tu póliza y seguilo con tu número de gestión.",endosos:true},
 {id:"mis",i:ICO.check,t:"Mis siniestros",d:"Mirá el estado de tus denuncias y bajá el PDF de cada una.",mine:true},
 {id:"cotihogar",i:ICO.hog,t:"Cotizá el seguro para tu Hogar",d:"Cubrí los daños de los electrodomésticos, incendio, robo y cristales.",
  steps:["Completá tus datos y los de tu vivienda, y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite.","Tocá “Enviar mis datos por WhatsApp” para que los recibamos al instante y te contactamos con tu cotización."],
@@ -472,7 +475,9 @@ const S=[
 ];
 const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>'+'<br><span style="font-size:.75rem;color:var(--mut)">© '+new Date().getFullYear()+' Gosalbez Broker de Seguros. Todos los derechos reservados. Queda prohibida la copia o reproducción de esta aplicación.</span>';
-$("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div><span class="arrow"><em>Ingresar</em> →</span></button>`).join("");
+const OPT_COL={cred:"#0b6bff",auto:"#e5484d",hog:"#f76b15",mispol:"#12a594",endosos:"#ca8a04",mis:"#3e63dd",cotihogar:"#8e4ec6",otras:"#d6409f",grua:"#6e56cf",gov:"#30a46c",miarg:"#30a46c"};
+const optCol=id=>OPT_COL[id]||(/hog/.test(id)?OPT_COL.hog:/auto/.test(id)?OPT_COL.auto:"#0b6bff");
+$("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}" style="--tc:${optCol(s.id)}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div><span class="arrow"><em>Ingresar</em> →</span></button>`).join("");
 const WAHOLA="https://wa.me/"+CFG.wa+"?text="+encodeURIComponent("Hola, necesito ayuda con mi seguro.");
 $("waFab").href=WAHOLA;$("topWa").href=WAHOLA;
 $("heroCred").onclick=()=>{const b=document.querySelector('.opt[data-id="cred"]');if(b){b.click();setTimeout(()=>$("panel").scrollIntoView({behavior:"smooth",block:"start"}),60)}};
