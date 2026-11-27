@@ -911,8 +911,9 @@ async function cargarMisPolizas(box){
   }
 }
 // Endosos / bajas: el cliente pide un cambio o la baja de una póliza y recibe un número de gestión.
-const END_MOTIVOS={Endoso:["Cambio de vehículo","Cambio de cobertura","Cambio de suma asegurada","Cambio de datos o domicilio","Inclusión de accesorios o GNC","Cambio de acreedor prendario","Otro"],Baja:["Venta del vehículo / bien","Cambio de compañía","Siniestro total","Ya no lo necesito","Otro"]};
-const END_COL={"Recibido":"#0b6bff","En gestión":"#c77700","Enviado a la compañía":"#c77700","Finalizado":"#1a9b5b","Rechazado":"#d64545"};
+const END_TIPOS=["Cambio de forma de pago","Baja de póliza","Otro endoso"];
+const END_SECCIONES=["Automotores","Hogar","Comercio / Integral","Vida","Accidentes personales","Otra"];
+const END_MARCAS=["Visa","Mastercard","American Express","Cabal","Tarjeta Naranja"];
 async function cargarEndosos(box){
   let pols=[],mis=[];
   try{
@@ -922,31 +923,68 @@ async function cargarEndosos(box){
   }catch(e){box.innerHTML='<p style="color:#d64545">No pudimos cargar esta sección. Probá de nuevo en unos minutos.</p>';return}
   const lista=mis.length?mis.map(x=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(x.tramite)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${END_COL[x.estado]||"#667"};border-radius:99px;padding:3px 10px;white-space:nowrap">${escH(x.estado)}</span></div>
-    <div style="color:var(--mut);font-size:.9rem;margin-top:6px"><b style="color:var(--tx)">${escH(x.tipo)}</b> — ${escH(x.motivo)}<br>${escH(x.compania)} · ${escH(x.poliza)}${x.bien?" · "+escH(x.bien):""}<br>Pedido el ${escH(x.fecha)}</div>
+    <div style="color:var(--mut);font-size:.9rem;margin-top:6px"><b style="color:var(--tx)">${escH(x.tipo)}</b>${x.motivo?" — "+escH(x.motivo):""}<br>Póliza ${escH(x.poliza)}${x.seccion?" · "+escH(x.seccion):""}${x.patente?" · "+escH(x.patente):""}<br>Pedido el ${escH(x.fecha)}</div>
     ${x.nota?`<div style="margin-top:8px;background:var(--tint,#eef3ff);border-radius:10px;padding:9px 12px;font-size:.9rem"><b>Mensaje de Gosalbez:</b> ${escH(x.nota)}</div>`:""}</div>`).join(""):'<p style="color:var(--mut)">Todavía no hiciste pedidos.</p>';
-  if(!pols.length){box.innerHTML='<p style="color:var(--mut)">Para pedir un endoso o una baja necesitamos que tengas tus pólizas cargadas en la app. Escribinos por WhatsApp y te las habilitamos.</p>'+`<h3 style="margin-top:18px">Mis pedidos</h3>${lista}`;return}
+  const hoyL=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
   box.innerHTML=`<p style="color:var(--mut);font-size:.9rem;margin:6px 0 12px">Cargá tu pedido y te damos un <b>número de gestión</b> para seguirlo.</p>
-   <div class="fw"><label>¿Qué necesitás? *</label><select id="enTipo"><option value="Endoso">Endoso (un cambio en mi póliza)</option><option value="Baja">Baja (dar de baja mi póliza)</option></select></div>
-   <div class="fw"><label>Póliza *</label><select id="enPol">${pols.map((p,i)=>`<option value="${i}">${escH(p.compania)} · ${escH(p.poliza)}${p.bien?" · "+escH(p.bien):""}</option>`).join("")}</select></div>
-   <div class="fw"><label>Motivo *</label><select id="enMot"></select></div>
-   <div class="fw"><label>Detalle del pedido</label><textarea id="enDet" rows="4" placeholder="Contanos qué querés cambiar (por ejemplo: nueva patente, nueva dirección, fecha de la baja…)"></textarea></div>
-   <div class="fw"><label>Documentación (opcional)</label><input id="enFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"><small style="color:var(--mut)">Fotos o PDF que acompañen el pedido (hasta 8 archivos).</small></div>
+   <div class="fw"><label>¿Qué necesitás? *</label><select id="enTipo">${END_TIPOS.map(t=>`<option>${t}</option>`).join("")}</select></div>
+   ${pols.length?`<div class="fw"><label>Completar con una de mis pólizas</label><select id="enPol"><option value="">Elegir…</option>${pols.map((p,i)=>`<option value="${i}">${escH(p.compania)} · ${escH(p.poliza)}${p.bien?" · "+escH(p.bien):""}</option>`).join("")}</select></div>`:""}
+   <div class="fw"><label>Número de póliza *</label><input id="enNro" type="text" inputmode="numeric"></div>
+   <div id="enPago">
+     <div class="fw"><label>Marca de la tarjeta *</label><select id="enMarca"><option value="">Elegir…</option>${END_MARCAS.map(m=>`<option>${m}</option>`).join("")}</select></div>
+     <div class="fw"><label>Número de tarjeta de crédito * <small style="color:var(--mut)">(solo números)</small></label><input id="enTarj" type="text" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="Sin espacios ni guiones"></div>
+   </div>
+   <div id="enDatos">
+     <div class="fw"><label>Sección *</label><select id="enSec"><option value="">Elegir…</option>${END_SECCIONES.map(m=>`<option>${m}</option>`).join("")}</select></div>
+     <div class="fw" id="enPatW"><label>Patente *</label><input id="enPat" type="text" maxlength="10" style="text-transform:uppercase" placeholder="Ej: AB123CD"></div>
+     <div class="fw"><label>Asegurado *</label><input id="enAseg" type="text" placeholder="Nombre y apellido"></div>
+   </div>
+   <div class="fw"><label id="enFechaL">Fecha *</label><input id="enFecha" type="date" min="${hoyL()}"></div>
+   <div class="fw" id="enDetW"><label>¿Qué necesitás? *</label><textarea id="enDet" rows="4" placeholder="Contanos qué cambio necesitás en tu póliza"></textarea></div>
+   <div class="fw" id="enFilesW"><label>Documentación (opcional)</label><input id="enFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"><small style="color:var(--mut)">Fotos o PDF que acompañen el pedido (hasta 8 archivos).</small></div>
    <p id="enMsg" style="display:none;font-size:.9rem"></p>
    <div class="btns"><button type="button" class="btn wa" id="enSend">Enviar pedido</button></div>
    <h3 style="margin-top:22px">Mis pedidos</h3>${lista}`;
-  const tipo=$("enTipo"),mot=$("enMot");
-  const pintaMot=()=>{mot.innerHTML=END_MOTIVOS[tipo.value].map(m=>`<option>${escH(m)}</option>`).join("")};
-  tipo.onchange=pintaMot;pintaMot();
+  const tipo=$("enTipo");
+  const ajusta=()=>{
+    const t=tipo.value,pago=t==="Cambio de forma de pago";
+    $("enPago").style.display=pago?"":"none";$("enDatos").style.display=pago?"none":"";
+    $("enDetW").style.display=t==="Otro endoso"?"":"none";$("enFilesW").style.display=pago?"none":"";
+    $("enFechaL").textContent=pago?"¿Desde qué fecha? *":t==="Baja de póliza"?"Fecha de baja *":"Fecha del cambio *";
+    $("enPatW").style.display=/auto/i.test($("enSec").value)?"":"none";
+  };
+  tipo.onchange=ajusta;$("enSec").onchange=ajusta;
+  $("enTarj").oninput=e=>{e.target.value=e.target.value.replace(/\D/g,"")};
+  if($("enPol"))$("enPol").onchange=()=>{
+    const p=pols[+$("enPol").value];if(!p)return;
+    $("enNro").value=p.poliza||"";
+    const r=String(p.ramo||"");$("enSec").value=/auto|moto/i.test(r)?"Automotores":/hogar/i.test(r)?"Hogar":/comerc|integral/i.test(r)?"Comercio / Integral":/vida/i.test(r)?"Vida":/accid/i.test(r)?"Accidentes personales":"";
+    if(/auto|moto/i.test(r))$("enPat").value=String(p.dockey||"").toUpperCase();
+    ajusta();
+  };
+  ajusta();
   $("enSend").onclick=async()=>{
     const b=$("enSend"),m=$("enMsg"),say=(t,ok)=>{m.textContent=t;m.style.color=ok?"var(--wa)":"#d64545";m.style.display=t?"":"none"};
-    const fs=[...$("enFiles").files];
+    const t=tipo.value,pago=t==="Cambio de forma de pago",fecha=$("enFecha").value,nro=$("enNro").value.trim();
+    const fs=pago?[]:[...$("enFiles").files];
+    if(!nro){say("Indicá el número de póliza.");return}
+    if(!fecha){say("Indicá la fecha.");return}
+    if(fecha<hoyL()){say("La fecha no puede ser anterior a hoy.");return}
+    if(pago){
+      if(!$("enMarca").value){say("Elegí la marca de la tarjeta.");return}
+      if(!/^\d{13,19}$/.test($("enTarj").value)){say("Revisá el número de tarjeta: solo números, entre 13 y 19 dígitos.");return}
+    }else{
+      if(!$("enSec").value){say("Elegí la sección.");return}
+      if(/auto/i.test($("enSec").value)&&!$("enPat").value.trim()){say("Indicá la patente.");return}
+      if(!$("enAseg").value.trim()){say("Indicá el nombre del asegurado.");return}
+      if(t==="Otro endoso"&&!$("enDet").value.trim()){say("Escribí qué necesitás.");return}
+    }
     if(fs.length>8){say("Podés adjuntar hasta 8 archivos.");return}
     if(fs.some(f=>f.size>15*1024*1024)){say("Algún archivo pesa demasiado.");return}
     b.disabled=true;b.textContent="Enviando…";say("");
     try{
       const files=[];for(const f of fs)files.push({name:f.name,type:/^image\//.test(f.type)?"image/jpeg":f.type,data:await archivoB64(f)});
-      const p=pols[+$("enPol").value];
-      const j=await misFetch("endoso_crear",{tipo:tipo.value,motivo:mot.value,poliza:p.poliza,dockey:p.dockey,detalle:$("enDet").value.trim(),files});
+      const j=await misFetch("endoso_crear",{tipo:t,poliza:nro,seccion:pago?"":$("enSec").value,patente:pago?"":$("enPat").value.trim(),asegurado:pago?"":$("enAseg").value.trim(),fecha,tarjeta:pago?$("enTarj").value:"",marca:pago?$("enMarca").value:"",detalle:t==="Otro endoso"?$("enDet").value.trim():"",files});
       if(!j.ok)throw new Error(j.error||"");
       box.innerHTML=`<div style="background:rgba(26,155,91,.1);border:1px solid #1a9b5b;border-radius:12px;padding:16px"><b>¡Recibimos tu pedido!</b><div style="font-size:1.4rem;font-weight:800;margin:8px 0;letter-spacing:.5px">${escH(j.tramite)}</div><div style="font-size:.9rem">Este es tu <b>número de gestión</b>.${j.mail?" Te mandamos un mail con el detalle.":""} Podés seguir el estado desde acá.</div></div><div class="btns" style="margin-top:14px"><button type="button" class="btn" id="enOtro">Ver mis pedidos</button></div>`;
       $("enOtro").onclick=()=>cargarEndosos(box);
