@@ -266,6 +266,11 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
   .shell .side{width:76px;flex:0 0 76px;transform:translateX(-100%)}
   .subBar{padding:10px 14px 0}.gsearch{max-width:none}
 }
+#modalBody{min-width:0;max-width:100%;grid-template-columns:minmax(0,1fr)}
+#modalBody>*{min-width:0}
+#modalBody *{box-sizing:border-box}
+#modalBody input:not([type=checkbox]):not([type=file]),#modalBody select,#modalBody textarea{max-width:100%}
+#modalBody .tblwrap{max-width:100%;overflow-x:auto}
 </style>
 </head>
 <body>
@@ -289,6 +294,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <div class="secs" id="secs">
         <button class="sec" data-sec="INI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button>
         <button class="sec" data-sec="SIN"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5"/></svg><span>Siniestros</span></button>
+        <button class="sec" data-sec="ALT"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M13 11v6M10 14h6"/></svg><span>Pólizas nuevas</span></button>
         <button class="sec" data-sec="END"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h4"/><path d="M3 14h5M5.5 11.5 8 14l-2.5 2.5"/></svg><span>Endosos / bajas</span></button>
         <button class="sec" data-sec="CON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.8h15v10.2H9.3l-3.8 3.1v-3.1H4.5zM7.8 9.8h8.4M7.8 12.9h5.2"/></svg><span>Consultas y cotizaciones</span></button>
         <button class="sec" data-sec="GAC"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3M10 6h4"/></svg><span>Gestión con App clientes</span></button>
@@ -309,6 +315,7 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
         <button class="tab" data-sec="SIN" data-tab="Estudios">Estudios de Abogados Gestores</button>
         <button class="tab" data-sec="SIN" data-tab="Automotor">Denuncias automotor</button>
         <button class="tab" data-sec="SIN" data-tab="Hogar-Comercio">Denuncias hogar / comercio</button>
+        <button class="tab" data-sec="ALT" data-tab="Altas">Altas y cotizaciones</button>
         <button class="tab" data-sec="END" data-tab="Endosos">Endosos / bajas</button>
         <button class="tab" data-sec="CON" data-tab="Otras consultas">Otras consultas</button>
         <button class="tab" data-sec="CON" data-tab="Cotizacion Hogar">Cotizaciones hogar</button>
@@ -418,6 +425,10 @@ input[type=file]{padding:8px 10px;font-size:.82rem}
       <div id="viewAlta" class="hide">
         <div class="panelTitle"><h2 id="altaTitulo">Agregar póliza o endoso</h2></div>
         <div id="altaBody"></div>
+      </div>
+      <div id="viewAltas" class="hide">
+        <div class="panelTitle"><h2>Pólizas nuevas: altas y cotizaciones</h2><span><button class="btn pri sm" id="btnAltaNueva">+ Nueva cotización</button> <button class="btn sm" id="btnAltaRef">Actualizar</button></span></div>
+        <div id="altBody"><div class="loading">Cargando…</div></div>
       </div>
       <div id="viewEndosos" class="hide">
         <div class="panelTitle"><h2>Endosos / bajas</h2><button class="btn sm" id="btnEnRef">Actualizar</button></div>
@@ -833,7 +844,7 @@ document.querySelectorAll(".sec").forEach(b => {
   tabs.forEach(t => $("subBar").appendChild(t));
 });
 document.querySelectorAll(".side .sec").forEach(b => { b.title = b.querySelector("span").textContent; b.setAttribute("aria-label", b.title); });
-const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", END:"Endosos", GAC:"UsuApp", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos"};
+const SEC_PRIMERA = {IMP:"Importar", INI:"Inicio", CLI:"Clientes", REP:"Renovaciones", SIN:"Mis siniestros", END:"Endosos", ALT:"Altas", GAC:"UsuApp", CON:"Otras consultas", POL:"TODAS", CRE:"Vehiculos"};
 document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC_PRIMERA[b.dataset.sec]); });
 
 // ---- Buscador central: pólizas, siniestros, clientes y usuarios de la app ----
@@ -877,7 +888,7 @@ document.querySelectorAll(".sec").forEach(b => { b.onclick = () => selectTab(SEC
   document.addEventListener("click", e => { if(!e.target.closest(".gsearch")) cerrar(); });
 }
 // ---- Inicio: accesos grandes con icono ----
-{ const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas, siniestros y movimientos"], END:["#ca8a04","Pedidos de endoso y baja de pólizas de los clientes"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"]};
+{ const T = {SIN:["#e5484d","Denuncias, inspecciones y reclamos a terceros"], GAC:["#0b6bff","Usuarios de la app, sus pólizas, siniestros y movimientos"], ALT:["#16a34a","Cotizá, mandá el link al cliente y seguí cada alta nueva"], END:["#ca8a04","Pedidos de endoso y baja de pólizas de los clientes"], CON:["#8e4ec6","Consultas y cotizaciones de clientes"], POL:["#f76b15","Todas las pólizas de la cartera"], CLI:["#3e63dd","Listado de clientes"], REP:["#ca8a04","Renovaciones y reportes"], IMP:["#30a46c","Importar datos de Adminse"], CRE:["#6e56cf","Vehículos y credenciales automotor"]};
   const box = document.getElementById("iniTiles");
   document.querySelectorAll(".side .sec").forEach(b => {
     const k = b.dataset.sec; if(k === "INI" || !T[k]) return;
@@ -1348,10 +1359,10 @@ function selectTab(tab){
   $("viewSmg").classList.toggle("hide", tab !== "SMG");
   $("viewCar").classList.toggle("hide", !isCar);
   $("viewGalc").classList.toggle("hide", tab !== "GALC");
-  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol", Estudios:"viewEstudios", UsuApp:"viewUsuApp", InspPend:"viewInspPend", Endosos:"viewEndosos"};
-  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol","viewEstudios","viewUsuApp","viewInspPend","viewEndosos"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
+  const nuevas = {Inicio:"viewInicio", Clientes:"viewClientes", Renovaciones:"viewReno", Vigentes:"viewVigRamo", TODAS:"viewTodas", "CAR:SMO":"viewTodas", Importar:"viewImp", Portales:"viewPortales", Alta:"viewAlta", CliPol:"viewCliPol", Estudios:"viewEstudios", UsuApp:"viewUsuApp", InspPend:"viewInspPend", Endosos:"viewEndosos", Altas:"viewAltas"};
+  ["viewImp","viewTodas","viewInicio","viewClientes","viewReno","viewVigRamo","viewPortales","viewAlta","viewCliPol","viewEstudios","viewUsuApp","viewInspPend","viewEndosos","viewAltas"].forEach(id => $(id).classList.toggle("hide", nuevas[tab] !== id));
   $("viewList").classList.toggle("hide", tab === "SMG" || isSmgCia || isCar || tab === "GALC" || !!nuevas[tab]);
-  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(tab === "Estudios") renderEstudios(); else if(tab === "UsuApp") renderUsuApp(); else if(tab === "InspPend") renderInspPend(); else if(tab === "Endosos") renderEndosos(); else if(nuevas[tab]) cargarModulo(tab);
+  if(tab === "Portales") renderPortales(); else if(tab === "Alta") renderAlta(); else if(tab === "CliPol") renderCliPol(); else if(tab === "Estudios") renderEstudios(); else if(tab === "UsuApp") renderUsuApp(); else if(tab === "InspPend") renderInspPend(); else if(tab === "Endosos") renderEndosos(); else if(tab === "Altas") renderAltas(); else if(nuevas[tab]) cargarModulo(tab);
   $("polBusq").classList.add("hide");
   if(sec !== "POL") $("busqGlobal").value = "";
   aplicarBusq();
@@ -1367,7 +1378,7 @@ function selectTab(tab){
     "Reclamos terceros":"Reclamos a la compañía del tercero",
     "Inspecciones":"Inspecciones pedidas por los asegurados",
     "Vehiculos":"Vehículos y pólizas",
-    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados", "Estudios":"Estudios de Abogados Gestores", "UsuApp":"Usuarios registrados por la app", "InspPend":"Inspecciones pendientes", "Endosos":"Endosos / bajas"
+    "Usuarios":"Usuarios registrados", "Portales":"Accesos a portales", "Alta":"Póliza / endoso", "CliPol":"Pólizas de clientes registrados", "Estudios":"Estudios de Abogados Gestores", "UsuApp":"Usuarios registrados por la app", "InspPend":"Inspecciones pendientes", "Endosos":"Endosos / bajas", "Altas":"Altas y cotizaciones"
   };
   $("listTitle").textContent = titles[tab] || tab;
   $("buscador").value = "";
@@ -1577,6 +1588,106 @@ function renderTable(){
       }
     };
   });
+}
+
+// ---- Pólizas nuevas: altas y cotizaciones ----
+const ALT_CIAS = ["Swiss Medical","Galicia Seguros","Meridional","Mercantil Andina","Río Uruguay","Zurich","Allianz","Mapfre","Federación Patronal","La Holando","ATM","Sancor Seguros","Rivadavia Seguros","San Cristóbal Seguros","La Segunda Seguros","Paraná Seguros","Integrity Seguros","Otra"];
+const alt = {rows:[], estados:["Cotización enviada","Aceptada","Póliza emitida","Rechazada"], f:"Pendientes", q:"", base:""};
+const ALT_COL = {"Cotización enviada":"#c77700","Aceptada":"#0b6bff","Póliza emitida":"#1a9b5b","Rechazada":"#d64545"};
+async function renderAltas(){
+  $("btnAltaRef").onclick = renderAltas; $("btnAltaNueva").onclick = altaNueva;
+  $("altBody").innerHTML = `<div class="loading">Cargando…</div>`;
+  try{
+    const r = await apiPost({action:"admin_altas_list", key:KEY});
+    if(!r.ok) throw new Error(r.error);
+    alt.rows = r.rows || []; if(r.estados) alt.estados = r.estados; alt.base = r.link || "";
+    await cargarSinDocs();
+  }catch(e){ $("altBody").innerHTML = `<div class="err">${esc(e.message || "No se pudo cargar.")}</div>`; return; }
+  pintarAltas();
+}
+function pintarAltas(){
+  const q = alt.q.toLowerCase(), pend = x => ["Cotización enviada","Aceptada"].includes(x.estado);
+  const lista = alt.rows.filter(x => (alt.f === "Todos" || (alt.f === "Pendientes" ? pend(x) : x.estado === alt.f)) && (!q || [x.tramite,x.nombre,x.emailEnvio,x.email,x.compania,x.patente,x.poliza].some(v => String(v || "").toLowerCase().includes(q))));
+  const cnt = k => alt.rows.filter(x => k === "Pendientes" ? pend(x) : k === "Todos" ? true : x.estado === k).length;
+  const chips = ["Pendientes", ...alt.estados, "Todos"].map(k => `<button class="btn sm" data-altf="${esc(k)}" style="${alt.f === k ? "background:var(--ac);color:#fff;border-color:var(--ac)" : ""}">${esc(k)} (${cnt(k)})</button>`).join(" ");
+  $("altBody").innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${chips}</div>
+    <input id="altQ" type="text" placeholder="Buscar por trámite, cliente, patente o compañía" value="${esc(alt.q)}" style="width:100%;max-width:420px;margin-bottom:10px">
+    ${lista.length ? `<div class="tblwrap"><table><thead><tr><th>Trámite</th><th>Tipo</th><th>Cliente</th><th>Compañía</th><th>Costo / mes</th><th>Estado</th><th></th></tr></thead><tbody>${lista.map(x => `<tr><td><b>${esc(x.tramite)}</b><br><span class="muted" style="font-size:.76rem">${esc(String(x.fecha).split(" ")[0])}</span></td><td>${esc(x.tipo)}</td><td style="white-space:normal">${esc(x.nombre || x.emailEnvio || "—")}${x.patente ? `<br><span class="muted" style="font-size:.78rem">${esc(x.patente)}</span>` : ""}</td><td>${esc(x.compania)}</td><td>$ ${esc(x.costo)}</td><td><span class="chip" style="cursor:default;background:${ALT_COL[x.estado] || "#667"};color:#fff;border-color:transparent">${esc(x.estado)}</span></td><td><button class="btn sm" data-alt="${esc(x.tramite)}">Gestionar</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No hay trámites en esta vista. Tocá “+ Nueva cotización” para empezar.</p>'}`;
+  $("altBody").querySelectorAll("[data-altf]").forEach(b => b.onclick = () => { alt.f = b.dataset.altf; pintarAltas(); });
+  const qi = $("altQ"); qi.oninput = () => { alt.q = qi.value; const p = qi.selectionStart; pintarAltas(); const n = $("altQ"); n.focus(); n.setSelectionRange(p, p); };
+  $("altBody").querySelectorAll("[data-alt]").forEach(b => b.onclick = () => abrirAlta(b.dataset.alt));
+}
+function altaNueva(){
+  $("modalTitle").textContent = "Nueva cotización";
+  $("printSub").textContent = "";
+  $("modalBody").innerHTML = `<p class="muted" style="margin:0 0 12px">Cargá la cotización que ya hablaste con el cliente. Después le mandás un link para que la acepte y complete sus datos.</p>
+    <div class="fw"><label>Tipo de alta *</label><select id="anTipo"><option>Automotor / Moto</option><option>Accidentes personales</option></select></div>
+    <div class="fw"><label>Compañía *</label><select id="anCia">${ALT_CIAS.map(c => `<option>${esc(c)}</option>`).join("")}</select></div>
+    <div id="anVig" class="fw"><label>Vigencia *</label><div style="display:flex;gap:8px"><input id="anDesde" type="date" style="flex:1"><input id="anHasta" type="date" style="flex:1"></div></div>
+    <div class="fw"><label>Cobertura *</label><textarea id="anCob" rows="2" style="width:100%;box-sizing:border-box;font:inherit" placeholder="Ej: Todo riesgo con franquicia del 1%"></textarea></div>
+    <div id="anSumaW" class="fw hide"><label>Suma asegurada</label><input id="anSuma" type="text" placeholder="Ej: 10.000.000"></div>
+    <div class="fw"><label>Costo mensual *</label><input id="anCosto" type="text" placeholder="Ej: 85.000"></div>
+    <div class="fw"><label>Cotización (PDF o foto)</label><input id="anFile" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*"></div>
+    <div class="fw"><label>Mensaje para el cliente (opcional)</label><textarea id="anNota" rows="2" style="width:100%;box-sizing:border-box;font:inherit"></textarea></div>
+    <div class="fw"><label>Mail del cliente (opcional, para enviarle el link)</label><input id="anMail" type="email"></div>
+    <div id="anMsg"></div><button class="btn" id="anSave" style="background:var(--ac);color:#fff">Crear cotización y generar link</button>`;
+  const aj = () => { const ap = $("anTipo").value === "Accidentes personales"; $("anVig").classList.toggle("hide", ap); $("anSumaW").classList.toggle("hide", !ap); };
+  $("anTipo").onchange = aj; aj();
+  $("anSave").onclick = async () => {
+    const m = $("anMsg"), b = $("anSave"), ap = $("anTipo").value === "Accidentes personales", f = $("anFile").files[0];
+    if(!$("anCob").value.trim() || !$("anCosto").value.trim()){ m.innerHTML = `<div class="err">Completá cobertura y costo mensual.</div>`; return; }
+    if(!ap && (!$("anDesde").value || !$("anHasta").value)){ m.innerHTML = `<div class="err">Completá la vigencia.</div>`; return; }
+    if(f && f.size > 8*1024*1024){ m.innerHTML = `<div class="err">La cotización pesa más de 8 MB.</div>`; return; }
+    b.disabled = true; b.textContent = "Creando…"; m.innerHTML = "";
+    const mail = $("anMail").value.trim();
+    const r = await apiPost({action:"admin_alta_crear", key:KEY, tipo:$("anTipo").value, compania:$("anCia").value, desde:ap ? "" : $("anDesde").value, hasta:ap ? "" : $("anHasta").value, cobertura:$("anCob").value.trim(), suma:ap ? $("anSuma").value.trim() : "", costo:$("anCosto").value.trim(), nota:$("anNota").value.trim(), emailEnvio:mail, enviar:!!mail,
+      file: f ? {name:f.name, type:f.type, data: await fileToBase64(f)} : null}).catch(e => ({ok:false, error:String(e)}));
+    if(!r.ok){ b.disabled = false; b.textContent = "Crear cotización y generar link"; m.innerHTML = `<div class="err">${esc(r.error || "No se pudo crear.")}</div>`; return; }
+    mostrarLinkAlta(r.tramite, r.link, r.mail, mail);
+    renderAltas();
+  };
+  $("modalOverlay").classList.remove("hide");
+}
+function mostrarLinkAlta(t, link, mailOk, mail){
+  const wa = "https://wa.me/?text=" + encodeURIComponent("Hola, te enviamos la cotización de tu seguro para que la aceptes y emitamos la póliza: " + link);
+  $("modalTitle").textContent = "Cotización " + t;
+  $("modalBody").innerHTML = `<div class="ok" style="margin-bottom:12px">Listo. Este es el link para el cliente:${mail ? (mailOk ? ` <b>y se lo mandamos por mail a ${esc(mail)}.</b>` : " (no se pudo mandar el mail, enviáselo vos).") : ""}</div>
+    <input id="lkInp" type="text" readonly value="${esc(link)}" style="width:100%;box-sizing:border-box" onclick="this.select()">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pri" id="lkCopy">Copiar link</button><a class="btn" href="${wa}" target="_blank" rel="noopener">Enviar por WhatsApp</a></div><div id="lkMsg" style="margin-top:8px"></div>`;
+  $("lkCopy").onclick = async () => { try{ await navigator.clipboard.writeText(link); $("lkMsg").innerHTML = `<div class="ok">Link copiado.</div>`; }catch(e){ $("lkInp").select(); $("lkMsg").innerHTML = `<div class="muted">Seleccionado: copialo con Ctrl+C.</div>`; } };
+  $("modalOverlay").classList.remove("hide");
+}
+function abrirAlta(t){
+  const x = alt.rows.find(r => r.tramite === t); if(!x) return;
+  const link = alt.base + x.token;
+  const docs = sinDocs.filter(d => String(d.tramite) === t);
+  const filas = [["Tipo", x.tipo], ["Compañía", x.compania], ["Vigencia", x.desde ? x.desde + " al " + x.hasta : ""], ["Cobertura", x.cobertura], ["Suma asegurada", x.suma ? "$ " + x.suma : ""], ["Costo mensual", "$ " + x.costo], ["Mensaje", x.nota], ["Mail del envío", x.emailEnvio]];
+  const dat = [["Tomador", x.nombre], ["DNI / CUIT", x.documento], ["Domicilio", x.domicilio ? x.domicilio + ", " + x.localidad : ""], ["Celular", x.celular], ["Mail", x.email], ["Vehículo", x.marcaModelo], ["Año", x.anio], ["Patente", x.patente], ["Motor", x.motor], ["Chasis", x.chasis], ["Aceptada el", x.aceptada]].filter(f => f[1]);
+  const fl = a => a.filter(f => f[1]).map(f => `<div><span class="muted">${esc(f[0])}:</span> <b>${esc(f[1])}</b></div>`).join("");
+  $("modalTitle").textContent = "Trámite " + t; $("printSub").textContent = x.tipo;
+  $("modalBody").innerHTML = `<div style="line-height:1.75;font-size:.94rem;margin-bottom:12px">${fl(filas)}</div>
+    <div style="margin-bottom:12px"><b>Cotización adjunta</b><div style="margin-top:4px">${docs.map(d => `<div><a href="#" data-aldoc="${esc(d.id)}">${esc(d.archivo)}</a></div>`).join("") || '<span class="muted">Sin archivo.</span>'}</div></div>
+    ${x.estado === "Cotización enviada" ? `<div style="margin-bottom:12px"><b>Link para el cliente</b><input type="text" readonly value="${esc(link)}" onclick="this.select()" style="width:100%;box-sizing:border-box;margin:4px 0"><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="alCopy">Copiar link</button><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent("Hola, te enviamos la cotización de tu seguro para que la aceptes y emitamos la póliza: " + link)}">WhatsApp</a><input id="alMail" type="email" placeholder="Mail del cliente" value="${esc(x.emailEnvio || "")}" style="flex:1;min-width:160px"><button class="btn sm" id="alMailBtn">Enviar por mail</button></div></div>` : ""}
+    ${dat.length ? `<div style="background:var(--tint);border-radius:12px;padding:10px 14px;margin-bottom:12px;line-height:1.7;font-size:.92rem"><b>Datos completados por el cliente</b><br>${fl(dat)}</div>` : ""}
+    ${x.personal && x.personal.length ? `<div style="margin-bottom:12px"><b>Personal (${x.personal.length})</b><div class="tblwrap"><table><thead><tr><th>Apellido y nombre</th><th>DNI</th><th>Nacimiento</th><th>Actividad</th></tr></thead><tbody>${x.personal.map(p => `<tr><td>${esc(p.apellido)}, ${esc(p.nombre)}</td><td>${esc(p.dni)}</td><td>${esc(p.nacimiento)}</td><td>${esc(p.actividad)}</td></tr>`).join("")}</tbody></table></div></div>` : ""}
+    ${x.tieneCert ? `<div style="margin-bottom:12px"><button class="btn sm" id="alCert">Descargar certificado provisorio (PDF)</button></div>` : ""}
+    <div class="fw"><label>Estado</label><select id="alEst">${alt.estados.map(e => `<option${e === x.estado ? " selected" : ""}>${esc(e)}</option>`).join("")}</select></div>
+    <div class="fw"><label>Número de póliza (cuando se emite)</label><input id="alPol" type="text" value="${esc(x.poliza || "")}"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin:8px 0 12px;font-size:.92rem"><input type="checkbox" id="alAv" style="width:auto;flex:none"><span onclick="document.getElementById('alAv').click()" style="cursor:pointer">Avisar al cliente por mail (con copia a consultas@)</span></div>
+    <div id="alMsg"></div><button class="btn" id="alSave" style="background:var(--ac);color:#fff">Guardar</button>`;
+  $("modalBody").querySelectorAll("[data-aldoc]").forEach(a => a.onclick = e => { e.preventDefault(); verSinDoc(a.dataset.aldoc, $("alMsg")); });
+  if($("alCopy")) $("alCopy").onclick = async () => { try{ await navigator.clipboard.writeText(link); $("alMsg").innerHTML = `<div class="ok">Link copiado.</div>`; }catch(e){ $("alMsg").innerHTML = `<div class="muted">Seleccioná el link y copialo con Ctrl+C.</div>`; } };
+  if($("alMailBtn")) $("alMailBtn").onclick = async () => { const r = await apiPost({action:"admin_alta_reenviar", key:KEY, tramite:t, email:$("alMail").value.trim()}).catch(e => ({ok:false, error:String(e)})); $("alMsg").innerHTML = r.ok ? (r.mail ? `<div class="ok">Mail enviado.</div>` : `<div class="err">No se pudo enviar el mail.</div>`) : `<div class="err">${esc(r.error)}</div>`; };
+  if($("alCert")) $("alCert").onclick = async () => { try{ const g = await apiPost({action:"admin_alta_cert", key:KEY, tramite:t}); if(!g.ok) throw new Error(g.error); const u = URL.createObjectURL(new Blob([b64ToBytes(g.data)], {type:"application/pdf"})); window.open(u, "_blank"); setTimeout(() => URL.revokeObjectURL(u), 120000); }catch(e){ $("alMsg").innerHTML = `<div class="err">${esc(e.message)}</div>`; } };
+  $("alSave").onclick = async () => {
+    const b = $("alSave"); b.disabled = true; b.textContent = "Guardando…";
+    const r = await apiPost({action:"admin_alta_estado", key:KEY, tramite:t, estado:$("alEst").value, poliza:$("alPol").value.trim(), avisar:$("alAv").checked}).catch(e => ({ok:false, error:String(e)}));
+    b.disabled = false; b.textContent = "Guardar";
+    if(!r.ok){ $("alMsg").innerHTML = `<div class="err">${esc(r.error || "No se pudo guardar.")}</div>`; return; }
+    x.estado = $("alEst").value; x.poliza = $("alPol").value.trim(); pintarAltas();
+    $("alMsg").innerHTML = `<div class="ok">Guardado.${$("alAv").checked ? (r.avisado ? " Le avisamos al cliente." : " No se pudo mandar el mail.") : ""}</div>`;
+  };
+  $("modalOverlay").classList.remove("hide");
 }
 
 // ---- Endosos / bajas pedidos por los clientes ----

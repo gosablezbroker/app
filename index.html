@@ -425,6 +425,7 @@ const S=[
  f:[F("mail","Tu email *","email",null,null,true),F("cel","Tu celular *","tel",null,null,true),F("n","Nombre y apellido"),F("dni","DNI / CUIT"),F("cia","Compañía de seguros","select",CIAS),F("tipo","Tipo de póliza","select",["Hogar","Comercio"]),F("dir","Dirección afectada"),F("hecho","Tipo de hecho","select",["Robo","Incendio","Daño por agua","Tormenta / granizo","Otro"]),F("fecha","Fecha del hecho","date"),F("desc","Contanos qué pasó","area"),F("adj","Adjuntá fotos o documentos (opcional)","file")]},
 {id:"mispol",i:ICO.poliza,t:"Mis pólizas",d:"Consultá tus pólizas, su vigencia y descargá los PDF.",mypol:true},
 {id:"endosos",i:ICO.endoso,t:"Endosos / bajas",d:"Pedí un cambio o la baja de tu póliza y seguilo con tu número de gestión.",endosos:true},
+{id:"altas",i:ICO.poliza,t:"Mis cotizaciones y altas",d:"Aceptá la cotización de tu seguro nuevo y seguí tu trámite.",altas:true},
 {id:"mis",i:ICO.check,t:"Mis siniestros",d:"Mirá el estado de tus denuncias y bajá el PDF de cada una.",mine:true},
 {id:"cotihogar",i:ICO.hog,t:"Cotizá el seguro para tu Hogar",d:"Cubrí los daños de los electrodomésticos, incendio, robo y cristales.",
  steps:["Completá tus datos y los de tu vivienda, y tocá “Enviar”.","Te va a llegar un mail de confirmación con tu número de trámite.","Tocá “Enviar mis datos por WhatsApp” para que los recibamos al instante y te contactamos con tu cotización."],
@@ -472,7 +473,7 @@ const S=[
 ];
 const $=id=>document.getElementById(id);
 $("broker").textContent=CFG.broker;$("foot").innerHTML="Atención: "+CFG.horario+" · Tel. "+CFG.tel+'<br><a href="https://www.gosalbez.com.ar" target="_blank" rel="noopener" style="color:var(--ac)">www.gosalbez.com.ar</a>'+'<br><span style="font-size:.75rem;color:var(--mut)">© '+new Date().getFullYear()+' Gosalbez Broker de Seguros. Todos los derechos reservados. Queda prohibida la copia o reproducción de esta aplicación.</span>';
-const OPT_COL={cred:"#0b6bff",auto:"#e5484d",hog:"#f76b15",mispol:"#12a594",endosos:"#ca8a04",mis:"#3e63dd",cotihogar:"#8e4ec6",otras:"#d6409f",grua:"#6e56cf",gov:"#30a46c",miarg:"#30a46c"};
+const OPT_COL={cred:"#0b6bff",auto:"#e5484d",hog:"#f76b15",mispol:"#12a594",endosos:"#ca8a04",altas:"#16a34a",mis:"#3e63dd",cotihogar:"#8e4ec6",otras:"#d6409f",grua:"#6e56cf",gov:"#30a46c",miarg:"#30a46c"};
 const optCol=id=>OPT_COL[id]||(/hog/.test(id)?OPT_COL.hog:/auto/.test(id)?OPT_COL.auto:"#0b6bff");
 $("opts").innerHTML=S.map(s=>`<button class="opt" data-id="${s.id}" style="--tc:${optCol(s.id)}"><div class="i">${s.i}</div><div><b>${s.t}</b><span>${s.d}</span></div><span class="arrow"><em>Ingresar</em> →</span></button>`).join("");
 const WAHOLA="https://wa.me/"+CFG.wa+"?text="+encodeURIComponent("Hola, necesito ayuda con mi seguro.");
@@ -520,6 +521,12 @@ function show(id,fixed){
     $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2><div id="polList">Cargando…</div></div>`;
     $("panel").scrollIntoView({behavior:"smooth",block:"start"});
     cargarMisPolizas($("polList"));
+    return;
+  }
+  if(s.altas){
+    $("panel").innerHTML=`<div class="panel"><h2>${s.i} ${s.t}</h2><div id="altBox">Cargando…</div></div>`;
+    $("panel").scrollIntoView({behavior:"smooth",block:"start"});
+    cargarAltas($("altBox"));
     return;
   }
   if(s.endosos){
@@ -1005,6 +1012,112 @@ async function cargarEndosos(box,tab){
     }catch(e){say(e.message||"No pudimos enviar el pedido. Probá de nuevo.");b.disabled=false;b.textContent="Enviar pedido"}
   };
 }
+// ---------- Altas (pólizas nuevas): cotización que mandó Gosalbez ----------
+const ALT_COL={"Cotización enviada":"#c77700","Aceptada":"#0b6bff","Póliza emitida":"#1a9b5b","Rechazada":"#d64545"};
+async function altaPost(action,extra){
+  const r=await fetch(CFG.sheetsUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},extra||{}))});
+  return r.json();
+}
+function bajarB64(b64,type,name){
+  const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([u],{type:type||"application/pdf"}));
+  const a=document.createElement("a");a.href=url;a.download=name||"archivo";document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function cargarAltas(box){
+  let items=[];
+  try{const j=await misFetch("mis_altas");if(!j.ok)throw new Error(j.error||"");items=j.items||[]}
+  catch(e){if(String(e&&e.message)==="auth")return;box.innerHTML='<p style="color:#d64545">No pudimos cargar tus trámites. Probá de nuevo en unos minutos.</p>';return}
+  if(!items.length){box.innerHTML='<p style="color:var(--mut)">Todavía no tenés cotizaciones ni altas. Cuando te enviemos una cotización la vas a ver acá.</p>';return}
+  box.innerHTML=items.map((x,i)=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${escH(x.tramite)}</b><span style="font-size:.8rem;font-weight:700;color:#fff;background:${ALT_COL[x.estado]||"#667"};border-radius:99px;padding:3px 10px">${escH(x.estado)}</span></div>
+    <div style="color:var(--mut);font-size:.9rem;margin-top:6px"><b style="color:var(--tx)">${escH(x.tipo)}</b> · ${escH(x.compania)}<br>${escH(x.cobertura)}<br>$ ${escH(x.costo)} por mes${x.poliza?"<br>Póliza Nº <b>"+escH(x.poliza)+"</b>":""}</div>
+    <div class="btns" style="margin-top:10px">${x.token?`<a class="btn wa" href="?alta=${encodeURIComponent(x.token)}">Ver cotización y aceptar</a>`:""}${x.tieneCert?`<button type="button" class="btn" data-cert="${i}">Descargar certificado provisorio</button>`:""}</div></div>`).join("");
+  box.querySelectorAll("[data-cert]").forEach(b=>b.onclick=async()=>{
+    const it=items[+b.dataset.cert];b.disabled=true;
+    try{const g=await misFetch("alta_cert",{tramite:it.tramite});if(!g.ok)throw new Error(g.error);bajarB64(g.data,g.type,g.name)}catch(e){alert("No pudimos descargar el certificado.")}
+    b.disabled=false;
+  });
+}
+const ALT_CSV_COLS=["Nombre","Apellido","DNI","Fecha de nacimiento","Actividad a realizar"];
+async function abrirAltaPublica(token){
+  document.documentElement.classList.add("altaMode");
+  const pg=document.createElement("div");pg.id="altaPage";
+  pg.style.cssText="position:fixed;inset:0;z-index:99999;overflow:auto;background:#f0f4fc;font-family:Poppins,system-ui,sans-serif;color:#122246";
+  pg.innerHTML=`<div style="max-width:640px;margin:0 auto;padding:18px 16px 60px"><div style="text-align:center;margin:6px 0 14px"><img src="${(document.querySelector(".logo img")||{}).src||""}" alt="Gosalbez Broker de Seguros" style="height:60px"></div><div id="altaIn" style="background:#fff;border-radius:20px;padding:20px;box-shadow:0 10px 30px -14px rgba(18,34,70,.3)">Cargando tu cotización…</div></div>`;
+  document.body.appendChild(pg);
+  const box=$("altaIn");
+  let a;
+  try{const j=await altaPost("alta_ver",{token});if(!j.ok)throw new Error(j.error);a=j.alta}
+  catch(e){box.innerHTML=`<h2 style="margin:0 0 8px">No pudimos abrir la cotización</h2><p>${escH(e.message||"Revisá el link o escribinos por WhatsApp.")}</p><a class="btn wa" href="https://wa.me/${CFG.wa}" style="display:inline-block;margin-top:8px">Escribinos por WhatsApp</a>`;return}
+  const par=(k,v)=>v?`<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #e3eaf8"><span style="color:#5b6b8f">${k}</span><b style="text-align:right">${escH(v)}</b></div>`:"";
+  const resumen=`<div style="background:#f6f9ff;border-radius:14px;padding:6px 14px;margin:12px 0">${par("Nº de trámite",a.tramite)}${par("Tipo",a.tipo)}${par("Compañía",a.compania)}${a.desde?par("Vigencia",a.desde+" al "+a.hasta):""}${par("Cobertura",a.cobertura)}${a.suma?par("Suma asegurada","$ "+a.suma):""}${par("Costo mensual","$ "+a.costo)}</div>`;
+  if(a.estado!=="Cotización enviada"){
+    box.innerHTML=`<h2 style="margin:0 0 6px">Esta cotización ya fue aceptada</h2>${resumen}<p style="color:#5b6b8f">Estado: <b>${escH(a.estado)}</b>. Si necesitás cambiar algo, escribinos por WhatsApp.</p>${a.tieneCert?'<button type="button" class="btn wa" id="altaCertB">Descargar certificado provisorio</button>':""}`;
+    const cb=$("altaCertB");if(cb)cb.onclick=async()=>{try{const g=await altaPost("alta_cert",{token});if(!g.ok)throw new Error(g.error);bajarB64(g.data,g.type,g.name)}catch(e){alert("No pudimos descargar el certificado.")}};
+    return;
+  }
+  const esAuto=a.tipo==="Automotor / Moto";
+  const campo=(id,l,ph,tipo,extra)=>`<div class="fw" style="margin-bottom:12px"><label style="display:block;font-weight:600;font-size:.85rem;margin-bottom:4px">${l}</label><input id="${id}" type="${tipo||"text"}" placeholder="${ph||""}" ${extra||""} style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #d5def2;border-radius:12px;font:inherit"></div>`;
+  box.innerHTML=`<h2 style="margin:0 0 4px;font-size:1.25rem">Te enviamos la cotización para que la aceptes y emitamos la póliza</h2>
+    ${resumen}${a.nota?`<p style="background:#eef3ff;border-radius:12px;padding:10px 14px">${escH(a.nota)}</p>`:""}
+    ${a.cotizacionId?'<button type="button" class="btn" id="altaDoc" style="margin-bottom:6px">Ver la cotización adjunta</button>':""}
+    <h3 style="margin:18px 0 8px">Datos del ${esAuto?"cliente":"cliente / tomador de la póliza"}</h3>
+    ${campo("alNom","Nombre y apellido / Razón social *")}${campo("alDoc","DNI / CUIT *","Solo números","text",'inputmode="numeric"')}${campo("alDom","Domicilio *","Calle y número")}${campo("alLoc","Localidad *")}${campo("alCel","Celular *","","tel")}${campo("alMail","Mail *","","email")}
+    ${esAuto?`<h3 style="margin:18px 0 8px">Datos del vehículo</h3>${campo("alMar","Marca / Modelo *")}${campo("alAnio","Año *","","text",'inputmode="numeric" maxlength="4"')}${campo("alPat","Patente *","Ej: AB123CD","text",'style="text-transform:uppercase" maxlength="10"')}${campo("alMot","Motor *")}${campo("alCha","Chasis *")}`:
+    `<h3 style="margin:18px 0 4px">Datos del personal</h3><p style="margin:0 0 10px;color:#5b6b8f;font-size:.88rem">Cargalos uno por uno o importá un Excel / CSV con las columnas: ${ALT_CSV_COLS.join(", ")}. <a href="#" id="altaModelo">Descargar modelo</a></p>
+      <input id="altaXls" type="file" accept=".xlsx,.xls,.csv" style="margin-bottom:10px"><div id="altaPers"></div><button type="button" class="btn" id="altaAdd" style="margin-top:6px">+ Agregar persona</button>`}
+    <p id="altaMsg" style="display:none;margin:14px 0 0;font-size:.92rem"></p>
+    <button type="button" class="btn wa" id="altaOk" style="width:100%;margin-top:16px;padding:14px">Aceptar cotización y enviar mis datos</button>
+    <p style="color:#5b6b8f;font-size:.8rem;margin-top:10px">Al aceptar, te generamos un certificado de cobertura provisorio con tu número de trámite, sujeto a la emisión de la póliza por la compañía.</p>`;
+  const msg=(t,ok)=>{const m=$("altaMsg");m.textContent=t;m.style.color=ok?"#1a9b5b":"#d64545";m.style.display=t?"":"none"};
+  if($("altaDoc"))$("altaDoc").onclick=async()=>{try{const g=await altaPost("alta_doc",{token});if(!g.ok)throw new Error(g.error);bajarB64(g.data,g.type,g.name)}catch(e){msg("No pudimos abrir la cotización.")}};
+  // Personal (accidentes personales)
+  const fila=(p)=>{const d=document.createElement("div");d.className="altaFila";d.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:8px;border:1px solid #d5def2;border-radius:12px;padding:10px;margin-bottom:8px";
+    const f=(k,ph,t,v)=>`<input data-k="${k}" type="${t||"text"}" placeholder="${ph}" value="${escH(v||"")}" style="padding:10px;border:1px solid #d5def2;border-radius:10px;font:inherit;min-width:0">`;
+    d.innerHTML=f("nombre","Nombre","text",p&&p.nombre)+f("apellido","Apellido","text",p&&p.apellido)+f("dni","DNI","text",p&&p.dni)+f("nacimiento","Nacimiento","date",p&&p.nacimiento)+f("actividad","Actividad a realizar","text",p&&p.actividad)+'<button type="button" class="btn" style="background:#fff">Quitar</button>';
+    d.querySelector("button").onclick=()=>d.remove();$("altaPers").appendChild(d)};
+  if(!esAuto){
+    fila();$("altaAdd").onclick=()=>fila();
+    $("altaModelo").onclick=e=>{e.preventDefault();const u=URL.createObjectURL(new Blob(["﻿"+ALT_CSV_COLS.join(";")+"\r\nJuan;Pérez;30123456;15/03/1985;Albañil\r\n"],{type:"text/csv"}));const l=document.createElement("a");l.href=u;l.download="modelo_personal.csv";l.click()};
+    const norm=h=>String(h||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
+    const iso=v=>{if(v instanceof Date&&!isNaN(v))return v.getFullYear()+"-"+String(v.getMonth()+1).padStart(2,"0")+"-"+String(v.getDate()).padStart(2,"0");const s=String(v||"").trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);if(m)return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:""};
+    $("altaXls").onchange=async()=>{
+      const f=$("altaXls").files[0];if(!f)return;
+      try{
+        let rows;
+        if(/\.csv$/i.test(f.name)){
+          const t=(await f.text()).replace(/^﻿/,""),sep=t.split("\n")[0].includes(";")?";":",",ls=t.split(/\r?\n/).filter(x=>x.trim());
+          const hd=ls[0].split(sep);rows=ls.slice(1).map(l=>{const c=l.split(sep),o={};hd.forEach((h,i)=>o[h]=(c[i]||"").trim());return o});
+        }else{
+          if(!window.XLSX){await new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+          const wb=XLSX.read(new Uint8Array(await f.arrayBuffer()),{type:"array",cellDates:true});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",raw:true});
+        }
+        const out=rows.map(r=>{const o={};Object.keys(r).forEach(k=>{const n=norm(k),v=r[k];if(n==="nombre"||n==="nombres")o.nombre=String(v).trim();else if(n==="apellido"||n==="apellidos")o.apellido=String(v).trim();else if(n==="dni"||n==="documento"||n==="dnicuil")o.dni=String(v).replace(/\D/g,"");else if(/nacimiento/.test(n))o.nacimiento=iso(v);else if(/actividad/.test(n))o.actividad=String(v).trim()});return o}).filter(o=>o.nombre||o.apellido||o.dni);
+        if(!out.length){msg("No encontramos personas en el archivo. Revisá las columnas.");return}
+        [...document.querySelectorAll(".altaFila")].filter(d=>![...d.querySelectorAll("input")].some(i=>i.value)).forEach(d=>d.remove());
+        out.forEach(fila);msg(out.length+" personas importadas. Revisalas antes de enviar.",true);
+      }catch(e){msg("No pudimos leer el archivo. Probá con el modelo en CSV.")}
+      $("altaXls").value="";
+    };
+  }
+  $("altaOk").onclick=async()=>{
+    const b=$("altaOk"),V=id=>($(id)?$(id).value.trim():"");
+    const body={token,nombre:V("alNom"),documento:V("alDoc"),domicilio:V("alDom"),localidad:V("alLoc"),celular:V("alCel"),email:V("alMail")};
+    if(!body.nombre||!body.documento||!body.domicilio||!body.localidad||!body.celular){msg("Completá todos los datos.");return}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email)){msg("Revisá el mail.");return}
+    if(esAuto){Object.assign(body,{marcaModelo:V("alMar"),anio:V("alAnio"),patente:V("alPat"),motor:V("alMot"),chasis:V("alCha")});if(!body.marcaModelo||!body.anio||!body.patente||!body.motor||!body.chasis){msg("Completá todos los datos del vehículo.");return}}
+    else{body.personal=[...document.querySelectorAll(".altaFila")].map(d=>{const o={};d.querySelectorAll("input").forEach(i=>o[i.dataset.k]=i.value.trim());return o}).filter(o=>o.nombre||o.apellido||o.dni);if(!body.personal.length){msg("Cargá al menos una persona.");return}if(body.personal.some(p=>!p.nombre||!p.apellido||!p.dni)){msg("Cada persona necesita nombre, apellido y DNI.");return}}
+    b.disabled=true;b.textContent="Enviando…";msg("");
+    try{
+      const j=await altaPost("alta_aceptar",body);if(!j.ok)throw new Error(j.error);
+      box.innerHTML=`<div style="text-align:center"><h2 style="margin:0 0 6px">¡Listo, recibimos tu aceptación!</h2><p style="color:#5b6b8f">Este es tu número de trámite:</p><div style="font-size:1.6rem;font-weight:800;margin:6px 0 12px">${escH(j.tramite)}</div><p>${j.mail?"Te mandamos un mail con tu certificado de cobertura provisorio.":""} Cuando la compañía emita la póliza te la enviamos.</p>${j.cert?'<button type="button" class="btn wa" id="altaCertB">Descargar certificado provisorio</button>':""}</div>`;
+      const cb=$("altaCertB");if(cb)cb.onclick=async()=>{try{const g=await altaPost("alta_cert",{token});if(!g.ok)throw new Error(g.error);bajarB64(g.data,g.type,g.name)}catch(e){alert("No pudimos descargar el certificado.")}};
+      window.scrollTo(0,0);pg.scrollTop=0;
+    }catch(e){msg(e.message||"No pudimos enviar tus datos. Probá de nuevo.");b.disabled=false;b.textContent="Aceptar cotización y enviar mis datos"}
+  };
+}
+(function(){try{const t=new URLSearchParams(location.search).get("alta");if(t)window.addEventListener("DOMContentLoaded",()=>abrirAltaPublica(t))}catch(e){}})();
 // "Mis siniestros": lista las denuncias del cliente (según el email de su sesión) y baja el PDF de cada una.
 function minInsp(){const d=new Date(Date.now()+48*3600*1000);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function minInspTxt(){const p=minInsp().split("-");return p[2]+"/"+p[1]+"/"+p[0]}
@@ -1198,7 +1311,7 @@ function authFailed(j){
 let DEEP=null;
 try{
   const q=new URLSearchParams(location.search);
-  if(q.get("ir")&&(q.get("siniestro")||q.get("ir")==="mispolizas"||q.get("ir")==="endosos")){DEEP={t:q.get("siniestro")||"",ir:q.get("ir")};try{sessionStorage.setItem("gz_deep",JSON.stringify(DEEP))}catch(e){}}
+  if(q.get("ir")&&(q.get("siniestro")||q.get("ir")==="mispolizas"||q.get("ir")==="endosos"||q.get("ir")==="altas")){DEEP={t:q.get("siniestro")||"",ir:q.get("ir")};try{sessionStorage.setItem("gz_deep",JSON.stringify(DEEP))}catch(e){}}
   else{try{const g=sessionStorage.getItem("gz_deep");if(g)DEEP=JSON.parse(g)}catch(e){}}
 }catch(e){}
 let PRE=null;
@@ -1214,6 +1327,7 @@ async function irDirecto(){
   try{history.replaceState(null,"",location.pathname)}catch(e){}
   if(d.ir==="mispolizas"){try{show("mispol");irAlPanel()}catch(e){}return}
   if(d.ir==="endosos"){try{show("endosos");irAlPanel()}catch(e){}return}
+  if(d.ir==="altas"){try{show("altas");irAlPanel()}catch(e){}return}
   try{
     $("panel").innerHTML='<div class="panel" style="text-align:center;padding:36px 16px"><p style="font-weight:700;margin:0 0 6px">Abriendo tu siniestro…</p><p style="color:var(--mut);font-size:.9rem;margin:0">Un momento, estamos buscando tus datos.</p></div>';
     irAlPanel();
